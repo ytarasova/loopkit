@@ -60,7 +60,7 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 4. **Every CI gate is green before merge.** {{PROJECT: name the required checks}}. A failing check is a bug to fix, not to bypass.
 5. **Never skip hooks or signing** unless the owner asks for it.
 6. **Pull before starting and again before merging.**
-7. **Changes ship as stacked PRs.** One reviewable PR per step, each branched from the step before it and targeting that branch. Merge from the bottom; after each merge, rebase the next onto `main` and retarget it.
+7. **Changes ship as stacked PRs.** One reviewable PR per step, each branched from the step before it and targeting that branch. Merge from the bottom; after each merge, merge `origin/main` into the next branch and retarget it, with no rebase or force-push (§VII.2).
 
 ## VIII. When in doubt
 
