@@ -11,7 +11,7 @@ source is marked `(unconfirmed)`, and a step reads it before anything depends on
 | --- | --- | --- | --- | --- |
 | 1 | {{FILL: name; a long plan may live in its own file, linked from its Plan N section}} | {{FILL: what ships}} | {{FILL: what goes, or "nothing"}} | {{FILL: apps, packages or services}} |
 
-{{FILL: "Plans run in this order." or which two may run beside each other}}
+Each plan is one PR, stacked on the plan before it. {{FILL: "Plans run in this order." or which two may run beside each other, on the same base}}
 
 ## Decisions, answered
 

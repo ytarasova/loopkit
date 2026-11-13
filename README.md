@@ -30,7 +30,8 @@ and Python 3.
 5. `/goal <contents of the goal file>`. The run orchestrates on
    `orchestrator`, fans out up to `max_parallel` `implementer` subagents in
    their own worktrees, has each change reviewed by a `reviewer` subagent that
-   did not write it, records each dispatch before it starts, and writes every state change to the progress file, so it can
+   did not write it, ships each plan as a PR stacked on the one before,
+   records each dispatch before it starts, and writes every state change to the progress file, so it can
    resume after compaction or a restart.
 6. The run ends when the gates hold, or when it hits a step only you can
    take: then it records it under "Waiting on", pushes and stops. Read

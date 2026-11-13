@@ -31,6 +31,7 @@ CORE_RULES = {
     "PASS is a claim": "an implementer's PASS is rerun, not trusted",
     "In flight": "a dispatch or unsafe step is recorded before it runs",
     "Waiting on": "a human step is recorded, pushed and ends the run",
+    "stacked PRs": "plans ship as stacked PRs, one per plan",
 }
 UNIT = r"(s|sec|min|minutes?|m|h|hours?|d|days?)\b"
 PLAN_PARTS = [

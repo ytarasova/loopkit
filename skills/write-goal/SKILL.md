@@ -42,8 +42,7 @@ file plus the list of decisions you answered for them.
 3. `check-goal.py` must print `ok` (section 5). It fails while any blank is
    left.
 4. Preflight, so nothing blocks at 2am: run each gate command once, push the
-   branch the state lives on (the PR branch, or `state/<slug>` when `ends_at`
-   is `production`), and run the PR command in a dry form (`gh pr list`). A
+   branch the state lives on (`state/<slug>`, in its own worktree), and run the PR command in a dry form (`gh pr list`). A
    permission prompt here is one the run would hit unattended; list each
    for the owner with the allow rule that would clear it. State the
    permission mode the goal needs, and on a laptop that it must stay awake
@@ -81,7 +80,7 @@ step is that one read, named exactly, or it is a human step.
 
 | Section | Holds |
 | --- | --- |
-| Order | One row per plan: what it delivers, what it deletes, what it touches. Plans run in the order given unless the text under the table says two may run beside each other. |
+| Order | One row per plan: what it delivers, what it deletes, what it touches. Each plan is one PR, stacked on the plan before it. Plans run in the order given unless the text under the table says two may run beside each other; those two share a base. |
 | Decisions, answered | Every open decision from the intent or spec, with the answer the run will use. An unanswered decision stops the run. An answer longer than a row is its own doc, linked from the row. |
 | `## Plan N: <name>` | One per Order row, even when the plan lives in its own file (link it here). **Measured facts** (with time and source), **Steps** (each with its exact command), **Gates**, **Failures**, **Coverage**, **Rollback**, **Human steps**. |
 | Gates | `- **G<N> name.**` with a threshold, a `Baseline:` and a `Source:`, plus a window when the goal deploys. Gate numbers are unique across plans. |
@@ -151,5 +150,6 @@ By hand:
 | A cause is written without being measured | The run fixes the wrong thing with authority. |
 | A permission is not written down | The run stops on a step it could have taken. |
 | A human step is not listed | The run waits on it forever, or works around it. |
+| One PR for the whole goal | Review cannot keep up, and one bad plan holds back every good one. |
 | Implementers share a checkout | Their edits and test runs collide; one worktree each. |
 | The implementer reviews its own change | It reads the diff for what it meant; the blind spot passes. |
