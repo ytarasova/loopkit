@@ -1,0 +1,8 @@
+{
+  "name": "loopkit",
+  "version": "0.1.0",
+  "description": "Multi-day unattended Claude sessions: a constitution, an intent interview, and /goal files (goal, master plan, progress) with a checker. Adapted to each repo by the adopt skill.",
+  "author": {
+    "name": "ytarasova"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "loopkit",
+  "description": "Constitution, intent and /goal kit for multi-day Claude sessions.",
+  "owner": { "name": "ytarasova" },
+  "plugins": [
+    {
+      "name": "loopkit",
+      "description": "Constitution, intent interview and /goal files with a checker, adapted per repo.",
+      "source": "./",
+      "category": "productivity"
+    }
+  ]
+}
