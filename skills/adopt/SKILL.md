@@ -81,8 +81,8 @@ absolute paths before running anything from the target repo.
      lacks: fresh-context review with "PASS is a claim" (template §VI.3),
      "Ask before anything you cannot take back" with the reversibility test
      (§VIII.2), causes before symptoms (§III), no pre-existing failures
-     (§V.2), pass-or-fail verification (§VI.7). Then note the repo's own
-     numbers for those five; step 5 needs them.
+     (§V.2), pass-or-fail verification (§VI.7), stacked PRs (§VII.7). Then note the
+     repo's own numbers for those six; step 5 needs them.
 5. **The goal template.** Copy `<base>/../write-goal/templates/goal-<ends_at>.md`
    to `.claude/loopkit/goal.md`. Fill each `{{PROJECT: ...}}` with this
    repo's exact commands, read from the runner and CI, not guessed. Rewrite
@@ -106,8 +106,8 @@ absolute paths before running anything from the target repo.
    confirm it writes three files with no `{{PROJECT:` and the knobs filled
    in, run `check-goal.py adopt-smoke` (it must fail only on unfilled placeholders
    and the unfilled `Done means:` line), and delete the three files it wrote.
-8. **Land it the repo's way:** a branch, one commit, a PR per the
-   constitution's merge rules. Report the knobs you set and every answer you
+8. **Land it the repo's way:** a branch and a PR per the constitution's
+   merge rules, stacked on any open loopkit PR in the repo. Report the knobs you set and every answer you
    chose for the owner, so they can change one.
 
 ## Common mistakes

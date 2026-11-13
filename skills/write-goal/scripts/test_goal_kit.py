@@ -78,6 +78,7 @@ def main() -> None:
         assert "G1 has no baseline" in check(master=m.replace("Baseline: 404 at 09:10", "Baseline: unknown"))
         assert "missing or empty" in check(progress="")
         assert "In flight" in check(goal=texts["goal"].replace("In flight", "in flight"))
+        assert "stacked PRs" in check(goal=texts["goal"].replace("stacked PRs", "PRs"))
         assert "In flight" in check(progress=texts["progress"].replace("## In flight", "## Later"))
         assert "runs `npx`" in check(master=m + "\n`npx vitest run`\n")
         assert "runs `npx`" in check(master=m + "\n`cd web && npx`\n")
