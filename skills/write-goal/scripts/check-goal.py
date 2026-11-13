@@ -95,7 +95,9 @@ def check(goal: str, master: str, prog: str, cfg: dict) -> tuple[list[str], list
         elif n > 3000:
             warns.append(f"goal is {n} characters; keep it under 3,000 so a revision has room")
         for needle, rule in {**CORE_RULES, **cfg["goal_rules"]}.items():
-            if needle.lower() not in goal.lower():
+            # Section names are matched as written: "in flight" also means a CI run in progress.
+            exact = needle in ("In flight", "Waiting on")
+            if (needle not in goal) if exact else (needle.lower() not in goal.lower()):
                 fails.append(f'goal lost a rule: {rule} (no "{needle}")')
         for kind in ("master", "progress"):
             if not re.search(rf"{re.escape(cfg['plans_dir'])}/\S+-{kind}\.md", goal):
