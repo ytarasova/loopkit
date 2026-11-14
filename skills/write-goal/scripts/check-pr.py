@@ -17,10 +17,12 @@ Fails (exit 1) unless the body has all four sections:
                 a PR's changed files matching the repo's `surfaces` also require that kind of proof somewhere.
   ## Signal     a "Success: ..." line and a "Failure: ..." line (the metric, log line or alert to watch during
                 the rollout, with its threshold), or, with neither, "not-applicable" and the reason
-  ## Review     a line each for simplify, a self-review (by a context that did not write it) and the
-                constitution cross-check, each with its result; a UI changeset also a "UX review:" line: each
+  ## Review     a line each for simplify, a self-review (by a context that did not write it), a security
+                review and the constitution cross-check, each with its result; a UI changeset also a "UX review:" line: each
                 use case walked as a first-time person from where they land, never a deep link (can they find
                 it, read it, tell what happened, recover from an error; does it match the screens around it)
+Anything shaped like a credential (cloud keys, GitHub, Anthropic, OpenAI and Slack tokens, private keys,
+JWTs, bearer headers, password= or token= values) fails: evidence is posted where others read it.
 An image that is not an https URL fails: a local or relative path renders for nobody. "## " and "### " lines
 inside fenced blocks are output, not sections. A PR reads its body and changed files with `gh`.
 Settings: .claude/loopkit.json (see the write-goal skill).
@@ -37,7 +39,19 @@ import config
 FENCE = re.compile(r"^```.*?^```[^\n]*$", re.M | re.S)
 IMAGE = re.compile(r"!\[[^\]]*\]\(\s*([^)\s]+)|<img[^>]*\ssrc=[\"']([^\"']+)", re.I)
 SPAN = re.compile(r"`[^`\n]+`")
-REVIEW = {"simplify": r"simplif\w*", "a self-review": r"self-review\w*", "the constitution cross-check": r"constitution\w*"}
+REVIEW = {"simplify": r"simplif\w*", "a self-review": r"self-review\w*", "a security review": r"security review\w*",
+          "the constitution cross-check": r"constitution\w*"}
+# Shapes of credentials that evidence (a curl exchange, a CLI run, a screenshot's caption) must never carry.
+SECRET = re.compile(
+    r"AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}"
+    r"|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}"
+    r"|sk-ant-[A-Za-z0-9_-]{20,}|sk-(?:proj-)?[A-Za-z0-9]{32,}"
+    r"|xox[abprs]-[A-Za-z0-9-]{10,}"
+    r"|-----BEGIN [A-Z ]*PRIVATE KEY-----"
+    r"|eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"
+    r"|(?i:authorization:\s*bearer\s+)(?![<*x.]|redacted)[A-Za-z0-9._~+/=-]{20,}"
+    r"|(?i:(?:password|passwd|secret|api[_-]?key|token)\s*[=:]\s*)[\"']?(?![<*x.]|redacted)[A-Za-z0-9._~+/=-]{12,}"
+)
 NEED = {"ui": "the flow in screenshots (two or more: where the person lands, through to the outcome)", "service": "a curl request and its response", "cli": 'a "$ <command>" run and its output'}
 
 
@@ -124,6 +138,7 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
     else:
         out += [f"Review has no line for {what} with its result" for what, pat in REVIEW.items()
                 if not re.search(rf"^[^\w\n]*{pat}\b[^\w\n]*\w", review, re.M | re.I)]
+    out += [f"the body carries what looks like a credential ({m.group(0)[:12]}...): blank it before it is posted" for m in SECRET.finditer(body)][:3]
     return out
 
 

@@ -96,7 +96,7 @@ two steps, and never takes a subagent's word for a step it can rerun.
 | 4 | Simplify: what the change can lose, applied | implementer | assurance still green |
 | 5 | Evidence: each use case shown for its surface, written to the step's evidence file with steps 3 and 4 | implementer | `check-pr.py <file>` prints ok, except Review |
 | 6 | Correctness review of the diff and the spec | reviewer, a context that did not write it, on at least the step's model | no open finding; fixes go back to step 2 |
-| 7 | Quality and constitution review | reviewer, a second fresh context | no open finding; fixes go back to step 2 |
+| 7 | Quality, security and constitution review: input handling, authorization, data exposure, secrets, dependencies | reviewer, a second fresh context | no open finding; fixes go back to step 2 |
 | 8 | UX review, for a UI use case: walked as a first-time user from the entry point | UX reviewer | passes; fixes go back to step 2 |
 | 9 | Review lines written into the evidence file | reviewer | `check-pr.py <file>` prints ok |
 | 10 | Verify: rerun the assurance and `check-pr.py` on the file, read the diff | orchestrator | its own run agrees with the file |
@@ -139,8 +139,18 @@ merged up or opened without it. Four sections, checked by
   metric, log line or alert to watch during the rollout, with its threshold;
   or `not-applicable` and why.
 - `## Review`: a line each, `Simplify: <result>`, `Self-review: <by whom,
-  result>`, `Constitution: <result>`; the self-review by a context that did
-  not write the change.
+  result>`, `Security review: <result>`, `Constitution: <result>`; the
+  self-review by a context that did not write the change.
+
+**Security, on every changeset.** Assurance includes `security`: a secret scan
+of the diff (gitleaks or trufflehog), a dependency audit (the package
+manager's audit), and static analysis where the repo has it (semgrep, bandit,
+CodeQL), each with its output. The review (step 7) reads the diff for input
+handling, authorization, data exposure and secrets; `security-review` runs it
+on a branch, and the `security-guidance` hooks see each edit. `check-pr.py`
+fails a body or evidence file that carries anything shaped like a credential:
+blank tokens, keys and signed URLs in every curl exchange and CLI run before
+it is written down.
 
 A UI changeset also carries `UX review: <result>`, and each UI use case shows
 its flow, two screenshots or more, from where the person lands to what they

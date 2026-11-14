@@ -19,7 +19,7 @@ DEFAULTS = {
     "runner": "",  # the one entry point for commands, e.g. "make", "rake", "./bin/dev"
     "bypass": [],  # backticked commands that skip the runner, e.g. ["npx", "bundle exec"]
     "goal_rules": {},  # {"text the goal must keep": "the rule it stands for"}
-    "assurance": ["tests", "coverage", "lint", "typecheck", "violations"],  # what every changeset shows run, by name
+    "assurance": ["tests", "coverage", "lint", "typecheck", "violations", "security"],  # what every changeset shows run, by name
     "surfaces": {},  # {"ui"|"service"|"cli": [regex on changed files]}: what evidence a PR needs, check-pr.py
     "view": "",  # a live view the owner reads (e.g. "Claude Doc"); then the progress file stamps "<view> updated: <time>"
     "rollback_pattern": "",  # regex every plan's Rollback must match, e.g. "[a-z-]+:\\d+"
