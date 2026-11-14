@@ -24,6 +24,7 @@ def main() -> None:
     p.add_argument("--slug", required=True)
     p.add_argument("--title", required=True)
     p.add_argument("--date", default=datetime.date.today().isoformat())
+    p.add_argument("--orchestrator", help='the model the intent recommended, e.g. "Fable 5.2" (default: the repo\'s orchestrator)')
     a = p.parse_args()
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", a.slug):
         sys.exit(f"slug {a.slug!r}: lowercase letters, digits and hyphens only")
@@ -41,9 +42,7 @@ def main() -> None:
         "{{DATE}}": a.date,
         "{{OWNER}}": cfg["owner"],
         "{{PLANS_DIR}}": plans,
-        "{{ORCHESTRATOR}}": cfg["orchestrator"],
-        "{{IMPLEMENTER}}": cfg["implementer"],
-        "{{REVIEWER}}": cfg["reviewer"],
+        "{{ORCHESTRATOR}}": a.orchestrator or cfg["orchestrator"],
         "{{MAX_PARALLEL}}": str(cfg["max_parallel"]),
         "{{RUNNER}}": cfg["runner"],
         "{{ASSURANCE}}": ", ".join(cfg["assurance"]),

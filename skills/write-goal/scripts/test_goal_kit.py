@@ -22,6 +22,10 @@ TEMPLATES = os.path.join(os.path.dirname(HERE), "templates")
 
 def fill(m: re.Match) -> str:
     hint = m.group(1)
+    if "Opus 5.5 or Fable 5.2" in hint:
+        return "Opus 5.5"
+    if "haiku, sonnet or opus" in hint:
+        return "sonnet, a specified function"
     if "gates that must hold" in hint:
         return "G1"
     if "the number" in hint:
@@ -65,8 +69,8 @@ def main() -> None:
             with open(f"{base}-{kind}.md") as f:
                 body = f.read()
             texts[kind] = re.sub(r"\{\{FILL:([^}]*)\}\}", fill, body)
-        assert "Sam" in texts["goal"] and "up to 5 sonnet" in texts["goal"], texts["goal"]
-        assert "{{" not in texts["goal"] and "fresh sonnet subagents" in texts["goal"], texts["goal"]
+        assert "Sam" in texts["goal"] and "up to 5 implementers" in texts["goal"], texts["goal"]
+        assert "{{" not in texts["goal"] and "the model its step names" in texts["goal"], texts["goal"]
 
         def check(**changed: str) -> str:
             for kind, body in {**texts, **changed}.items():
@@ -186,6 +190,13 @@ def main() -> None:
         assert "does not name its evidence file" in check(progress=ticked.replace("evidence/1.1.md", "evidence/2.1.md"))
         assert "is not \"Plan N step M\"" in check(progress=ticked.replace("Plan 1 step 1", "Plan 1 task 1"))
         assert "UC1 is proven by no plan step" in check(master=m.replace("Proves UC1.", ""))
+        assert "step names no model" in check(master=m.replace("Model: sonnet, a specified function.", ""))
+        assert "step names no model" not in check(master=m.replace("Model: sonnet, a specified function.", "Model: haiku, a rename."))
+        assert "names no orchestrator" in check(master=re.sub(r"Orchestrator: [^\n]*", "Orchestrator: someone", m))
+        fable = re.sub(r"Orchestrator: \S+", "Orchestrator: Fable 5.2,", m)
+        assert "the goal does not name it" in check(master=fable), check(master=fable)
+        assert "the goal does not name it" not in check(master=fable, goal=texts["goal"].replace("Opus 5.5", "Fable 5.2"))
+        assert "each subagent runs on the model" in check(goal=texts["goal"].replace("the model its step names", "a model"))
         assert "UC1 is proven by no plan step" in check(master=m.replace("Proves UC1.", "Does not cover UC1."))
         ui = m.replace("| UC1 | filled | filled |", "| UC1 | filled | ui |")
         assert "1.1.md: UC1 (ui) is not proven: it needs the flow" in check(master=ui, progress=ticked), check(master=ui, progress=ticked)
