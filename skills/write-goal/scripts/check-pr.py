@@ -45,7 +45,7 @@ REVIEW = {"simplify": r"simplif\w*", "a self-review": r"self-review\w*", "a secu
           "the constitution cross-check": r"constitution\w*"}
 # Shapes of credentials that evidence (a curl exchange, a CLI run, a screenshot's caption) must never carry.
 # A value that is wholly a placeholder, or names itself one, is not a credential.
-_PLACEHOLDER = (r"(?!(?:x+|X+|\*+|\.+|<[^>]*>|\[?redacted\]?|\$\{?\w+\}?)(?![\w.~+/=-]))"
+_PLACEHOLDER = (r"(?!(?:x+|X+|\*+|\.+|<[^>\s]{0,64}>|\[?redacted\]?|\$\{?\w+\}?)(?![\w.~+/=-]))"
                 r"(?![\w-]{0,64}(?i:example|dummy|fake|sample|your_|placeholder|changeme))")
 # A keyword's value counts only when it mixes letters and digits, as real secrets do ("hunter2..."), so test names,
 # resource names ("app-db-credentials-prod") and calls ("make_test_token()") pass.
@@ -59,7 +59,7 @@ SECRET = re.compile(
     r"|[sr]k_live_[0-9A-Za-z]{20,}|npm_[A-Za-z0-9]{36}"
     r"|xox[abprs]-[A-Za-z0-9-]{10,}|xapp-[0-9A-Za-z-]{10,}|hooks\.slack\.com/services/T\w+/B\w+/\w+"
     r"|-----BEGIN [A-Z ]*PRIVATE KEY(?: BLOCK)?-----"
-    r"|eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"
+    r"|(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"
     r"|\b[a-z][a-z0-9+.-]{0,31}://[^\s:/@]{0,128}:(?!\$|\*+@|<)[^\s@/<*]{3,128}@"
     r"|(?i:x-goog-signature|[?&]sig)=[A-Za-z0-9%/+=]{16,}"
     r"|(?i:authorization:\s*bearer\s+)" + _PLACEHOLDER + r"[A-Za-z0-9._~+/=-]{20,}"
@@ -69,9 +69,28 @@ SECRET = re.compile(
     + _PLACEHOLDER + _MIXED + r"[^\s\"'<>,;()]{8,}(?![\w(])"
 )
 _UNIT = r"(?:s|sec|seconds?|mins?|minutes?|m|h|hrs?|hours?|d|days?|weeks?)"
-# A window to read a signal over: "for 1 h", "within 15 minutes of the deploy", "over the first hour", "in any 5-minute window".
-WINDOW = (rf"\b(?:for|over|within|in|after|during)\s+(?:[\w-]+\s+){{0,3}}?(?:\d+[\s-]*{_UNIT}|(?:an?|one|the)\s+{_UNIT})\b"
-          rf"|\b(?:for|over|within|in|during)\s+(?:the\s+)?(?:first|next|any|last)\s+(?:[\w-]+\s+){{0,2}}?{_UNIT}\b")
+_COUNT = r"(?:\d+|one|two|three|four|five|six|ten|fifteen|twenty|thirty|an?)"
+_FILLER = r"(?:(?:the|a|an|first|next|any|last|consecutive)\s+){0,2}"
+# A window to read a signal over, told apart from a threshold ("p99 over 2 s" has none):
+WINDOW = "|".join((
+    rf"\b(?:for|within|during)\s+{_FILLER}{_COUNT}[\s-]*(?:consecutive\s+)?{_UNIT}\b",  # for 1 h, within 15 minutes, for five minutes
+    rf"\b(?:over|in|for|during)\s+(?:the|a|an|any)\s+(?:(?:first|next|last|consecutive|\d+[\s-]*{_UNIT})\s+)?(?:{_UNIT}|window)\b",  # over the first hour, in any 5-minute window
+    rf"\b{_COUNT}[\s-]*{_UNIT}\s+window\b",  # a 1h window
+    rf"/\s*{_COUNT}\s*{_UNIT}\b",  # 5 errors / 10 min
+    rf"\b(?:over|in|after)\s+{_COUNT}[\s-]*{_UNIT}\s+(?:of|after)\s+the\s+(?:deploy|release|rollout)",  # in 15 min of the deploy
+))
+# "in 10 min" or "over 2 h" alone may be a threshold ("responds in 1 s"); it is a window when the line has its own threshold.
+_BARE = rf"\b(?:over|in)\s+{_COUNT}[\s-]*{_UNIT}\b"
+_THRESHOLD = r"\d+(?:\.\d+)?\s*%|\b(?:above|below|under|at least|at most|more than|less than|fewer than)\s+\d|[<>]=?\s*\d"
+
+
+def has_window(line: str) -> bool:
+    if re.search(WINDOW, line, re.I):
+        return True
+    bare = re.search(_BARE, line, re.I)
+    return bool(bare and re.search(_THRESHOLD, line[:bare.start()] + line[bare.end():], re.I))
+
+
 NEED = {"ui": "the flow in screenshots (two or more: where the person lands, through to the outcome)", "service": "a curl request and its response", "cli": 'a "$ <command>" run and its output'}
 
 
@@ -161,7 +180,7 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
         # The watch after the merge reads these lines: each needs a number to compare and a window to read it over.
         for w in ("Success", "Failure"):
             line = re.search(rf"^[^\w\n]*{w}\b[^\n]*(?:\n(?![^\w\n]*(?:Success|Failure)\b|\s*$)[^\n]*)*", signal, re.M | re.I)
-            if line and not (re.search(r"\d", line.group(0)) and re.search(WINDOW, line.group(0), re.I)):
+            if line and not (re.search(r"\d", line.group(0)) and has_window(line.group(0))):
                 out.append(f'Signal\'s {w} line needs a threshold and a window to read it over ("above 99% for 1 h", "0 errors within 15 min")')
 
     if "ui" in hit or "ui" in {(ucs or {}).get(uc) for uc in cases}:
