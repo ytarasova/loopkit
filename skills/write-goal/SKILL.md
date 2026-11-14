@@ -138,11 +138,12 @@ merged up or opened without it. Four sections, checked by
   path in a scratchpad, `/tmp` or a git-ignored folder renders for nobody. A
   report or doc link may follow; it never replaces the evidence.
 - `## Signal`: a line starting `Success` and one starting `Failure`, each the
-  metric, log line or alert to watch during the rollout, with its threshold;
-  or `not-applicable` and why.
-- `## Review`: a line each, `Simplify: <result>`, `Self-review: <by whom,
-  result>`, `Security review: <result>`, `Constitution: <result>`; the
-  self-review by a context that did not write the change.
+  metric, log line or alert to watch during the rollout, with a threshold and
+  a window to read it over ("above 99% for 1 h", "0 5xx within 15 minutes of
+  the deploy"); or `not-applicable` and why.
+- `## Review`: a line each, `Simplify: <result>`, `Self-review, by <model> in
+  a fresh context: <result>`, `Security review: <result>`, `Constitution:
+  <result>`; the self-review by a context that did not write the change.
 
 **Security, on every changeset.** Assurance includes `security`: a secret scan
 of the diff (gitleaks or trufflehog), a dependency audit (the package

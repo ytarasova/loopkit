@@ -3,7 +3,8 @@
     python3 check-pr.py <PR number or URL | evidence file> [--master <master plan>]
 
 Fails (exit 1) unless the body has all four sections:
-  ## Assurance  each check in the repo's `assurance` list (tests, coverage, lint, typecheck, violations, security),
+  ## Assurance  each check in the repo's `assurance` list (tests, coverage, lint, typecheck, violations, security), naming
+                the commit it ran on (on a PR, its head),
                 named in a heading, a bullet or a fenced block, with the output it printed in a fenced block
   ## Evidence   a "### UC<n> <who does what, and what they end up with>" per use case it proves, each with
                 its proof for the use case's surface (a step that only enables one, such as a fake or a
@@ -15,9 +16,9 @@ Fails (exit 1) unless the body has all four sections:
                   unknown  a fenced block or a screenshot
                 A use case's surface comes from the master plan's Use cases table (--master, or check-goal);
                 a PR's changed files matching the repo's `surfaces` also require that kind of proof somewhere.
-  ## Signal     a "Success: ..." line and a "Failure: ..." line (the metric, log line or alert to watch during
-                the rollout, with its threshold), or, with neither, "not-applicable" and the reason
-  ## Review     a line each for simplify, a self-review (by a context that did not write it), a security
+  ## Signal     a "Success: ..." line and a "Failure: ..." line, each with a threshold (a number) and a window to
+                read it over ("for 1 h", "within 15 minutes of the deploy"), or, with neither, "not-applicable" and why
+  ## Review     a line each for simplify, a self-review (by a context that did not write it, naming its model), a security
                 review and the constitution cross-check, each with its result; a UI changeset also a "UX review:" line: each
                 use case walked as a first-time person from where they land, never a deep link (can they find
                 it, read it, tell what happened, recover from an error; does it match the screens around it)
@@ -45,12 +46,12 @@ REVIEW = {"simplify": r"simplif\w*", "a self-review": r"self-review\w*", "a secu
 # Shapes of credentials that evidence (a curl exchange, a CLI run, a screenshot's caption) must never carry.
 # A value that is wholly a placeholder, or names itself one, is not a credential.
 _PLACEHOLDER = (r"(?!(?:x+|X+|\*+|\.+|<[^>]*>|\[?redacted\]?|\$\{?\w+\}?)(?![\w.~+/=-]))"
-                r"(?![\w-]*(?i:example|dummy|fake|sample|your_|placeholder|changeme))")
+                r"(?![\w-]{0,64}(?i:example|dummy|fake|sample|your_|placeholder|changeme))")
 # A keyword's value counts only when it mixes letters and digits, as real secrets do ("hunter2..."), so test names,
 # resource names ("app-db-credentials-prod") and calls ("make_test_token()") pass.
-_MIXED = r"(?=[^\s\"'<>]*\d)(?=[^\s\"'<>]*[A-Za-z])"
+_MIXED = r"(?=[^\s\"'<>]{0,256}\d)(?=[^\s\"'<>]{0,256}[A-Za-z])"  # bounded: the scan stays linear on large bodies
 SECRET = re.compile(
-    r"AKIA(?![0-9A-Z]*EXAMPLE)[0-9A-Z]{16}|ASIA[0-9A-Z]{16}"
+    r"AKIA(?![0-9A-Z]{0,9}EXAMPLE)[0-9A-Z]{16}|ASIA[0-9A-Z]{16}"
     r"|(?i:aws.{0,20}?secret.{0,20}?[=:\"'\s])\s*[\"']?[A-Za-z0-9/+]{40}\b"
     r"|AIza[0-9A-Za-z_-]{35}"
     r"|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}|glpat-[A-Za-z0-9_-]{20,}"
@@ -59,7 +60,7 @@ SECRET = re.compile(
     r"|xox[abprs]-[A-Za-z0-9-]{10,}|xapp-[0-9A-Za-z-]{10,}|hooks\.slack\.com/services/T\w+/B\w+/\w+"
     r"|-----BEGIN [A-Z ]*PRIVATE KEY(?: BLOCK)?-----"
     r"|eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"
-    r"|\b[a-z][a-z0-9+.-]*://[^\s:/@]*:(?!\$|\*+@|<)[^\s@/<*]{3,}@"
+    r"|\b[a-z][a-z0-9+.-]{0,31}://[^\s:/@]{0,128}:(?!\$|\*+@|<)[^\s@/<*]{3,128}@"
     r"|(?i:x-goog-signature|[?&]sig)=[A-Za-z0-9%/+=]{16,}"
     r"|(?i:authorization:\s*bearer\s+)" + _PLACEHOLDER + r"[A-Za-z0-9._~+/=-]{20,}"
     r"|(?i:authorization:\s*basic\s+)" + _PLACEHOLDER + r"[A-Za-z0-9+/=]{12,}"
@@ -67,7 +68,10 @@ SECRET = re.compile(
     r"|(?i:\b(?:password|passwd|pwd|secret|client[_-]?secret|api[_-]?key|access[_-]?key|token)\b[\"']?\s*[=:]\s*[\"']?)"
     + _PLACEHOLDER + _MIXED + r"[^\s\"'<>,;()]{8,}(?![\w(])"
 )
-WINDOW = r"\b(?:for|over|within|in|after|per)\s+(?:the\s+)?(?:\d+\s*)?(?:s|sec|seconds?|mins?|minutes?|m|h|hrs?|hours?|d|days?|weeks?|deploys?|runs?|requests?)\b"
+_UNIT = r"(?:s|sec|seconds?|mins?|minutes?|m|h|hrs?|hours?|d|days?|weeks?)"
+# A window to read a signal over: "for 1 h", "within 15 minutes of the deploy", "over the first hour", "in any 5-minute window".
+WINDOW = (rf"\b(?:for|over|within|in|after|during)\s+(?:[\w-]+\s+){{0,3}}?(?:\d+[\s-]*{_UNIT}|(?:an?|one|the)\s+{_UNIT})\b"
+          rf"|\b(?:for|over|within|in|during)\s+(?:the\s+)?(?:first|next|any|last)\s+(?:[\w-]+\s+){{0,2}}?{_UNIT}\b")
 NEED = {"ui": "the flow in screenshots (two or more: where the person lands, through to the outcome)", "service": "a curl request and its response", "cli": 'a "$ <command>" run and its output'}
 
 
@@ -141,8 +145,8 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
         if not proof(text, kind):
             label = f"{uc} ({kind})" if kind else uc
             out.append(f"{label} is not proven: it needs {NEED.get(kind, 'output or a screenshot')}; a link alone is not evidence")
-    out += [f"image no reviewer can open (not an https URL): {src}" for src in images(evidence)
-            if not src.startswith("https://")]
+    out += [f"image no reviewer can open (not an https URL): {re.sub(r'//[^/@]*@', '//', src).split('?')[0]}"
+            for src in images(evidence) if not src.startswith("https://")]  # never echo a URL's credentials or query
     hit = {kind for kind, pats in surfaces.items() for f in files if any(re.search(p, f) for p in pats)}
     out += [f"changes {kind} files, so Evidence needs {NEED[kind]}" for kind in sorted(hit) if not proof(evidence, kind)]
 
@@ -156,7 +160,7 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
         out += [f'Signal has no "{w}: <metric, log line or alert, and threshold>" line' for w, m in found.items() if not m]
         # The watch after the merge reads these lines: each needs a number to compare and a window to read it over.
         for w in ("Success", "Failure"):
-            line = re.search(rf"^[^\w\n]*{w}\b[^\n]*", signal, re.M | re.I)
+            line = re.search(rf"^[^\w\n]*{w}\b[^\n]*(?:\n(?![^\w\n]*(?:Success|Failure)\b|\s*$)[^\n]*)*", signal, re.M | re.I)
             if line and not (re.search(r"\d", line.group(0)) and re.search(WINDOW, line.group(0), re.I)):
                 out.append(f'Signal\'s {w} line needs a threshold and a window to read it over ("above 99% for 1 h", "0 errors within 15 min")')
 
@@ -169,7 +173,7 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
     else:
         out += [f"Review has no line for {what} with its result" for what, pat in REVIEW.items()
                 if not re.search(rf"^[^\w\n]*{pat}\b[^\w\n]*\w", review, re.M | re.I)]
-        own = re.search(r"^[^\w\n]*self-review\b[^\n]*", review, re.M | re.I)
+        own = re.search(r"^[^\w\n]*self-review\w*\b[^\n]*", review, re.M | re.I)
         if own and not re.search(r"\b(?:haiku|sonnet|opus|fable)\b", own.group(0), re.I):
             out.append('the Self-review line names no model: say which ran it, in a context that did not write the change ("Self-review, by a fresh opus context: ...")')
     out += [f"line {body.count(chr(10), 0, m.start()) + 1} carries what looks like a credential: blank it before it is posted"
