@@ -20,7 +20,8 @@ Fails (exit 1) on what would break or mislead the run; warns on what a person sh
               "Model: haiku|sonnet|opus" on every numbered step of every plan (write-goal's models.md)
   progress    a "**Now (YYYY-MM-DD HH:MM UTC):**" line no older than the last Log entry; no stamp (Now, Log,
               Approved by, the view) more than 5 minutes ahead of the clock (progress.py writes them);
-              "Waiting on", "In flight" and "What is left", every open item ending with its time left;
+              "Waiting on", "In flight" and "What is left"; each In flight item ends with its time left,
+              and each "What is left" row has one in its last column;
               the live view (`view`) stamped no earlier than Now; Steps with a checkbox per gate; a Log;
               no ticked "Plan" step before "Approved by"; warns over 80 KB
   evidence    every ticked step is "Plan N step M" and names its own evidence file,
@@ -59,7 +60,7 @@ CORE_RULES = {
     "stacked PRs": "plans ship as stacked PRs, one per plan",
     "check-pr.py": "every changeset carries its complete evidence, checked",
 }
-UNIT = r"(s|sec|min|minutes?|m|h|hours?|d|days?)\b"
+UNIT = r"(s|sec|mins?|minutes?|m|h|hrs?|hours?|d|days?)\b"
 PLAN_PARTS = [
     "**Measured facts",
     "**Steps**",
@@ -152,13 +153,13 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
         cases = sorted(set(re.findall(r"^\| *(UC\d+) *\|", secs.get("Use cases", ""), re.M)), key=lambda c: int(c[2:]))
         if "Use cases" in secs and not cases:
             fails.append('master plan "## Use cases" has no "| UC1 | ..." row')
-        ask_lines = re.findall(r"^\| *A\d+\b[^\n]*", secs.get("Asks", ""), re.M)
+        ask_lines = re.findall(r"^\|? *A\d+ *\|[^\n]*", secs.get("Asks", ""), re.M)
         if "Asks" in secs and not ask_lines:
             fails.append('master plan "## Asks" has no "| A1 | <the owner\'s words> | UC1 |" row')
         dropped = rf"^dropped by {re.escape(cfg['owner'])} \d{{4}}-\d\d-\d\d\b"
         for line in ask_lines:
             cells = [c.strip() for c in line.strip().strip("|").split("|")]
-            if not line.rstrip().endswith("|") or len(cells) < 3:
+            if not line.startswith("|") or not line.rstrip().endswith("|") or len(cells) < 3:
                 fails.append(f"Asks row is not \"| A<n> | <the owner's words> | <UC ids, or dropped by {cfg['owner']} YYYY-MM-DD> |\": {line[:60]}")
                 continue
             ask, last = cells[0], cells[-1]
@@ -181,11 +182,11 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
         for head, body in plans.items():
             n = re.match(r"Plan (\d+)", head)
             block = body.split("**Steps**", 1)[1].split("\n**", 1)[0] if "**Steps**" in body else ""
-            for m, line in re.findall(r"^(\d+)\.\s([^\n]*)", block, re.M):
-                claim = re.search(r"\bProves\b([^\n]*)", line)
+            for m, line in re.findall(r"^(\d+)\.\s(.*?)(?=^\d+\.\s|\Z)", block, re.M | re.S):  # a step runs to the next
+                claim = re.search(r"\bProves\b([^.]*)", line)
                 if n and claim:
                     step_proves[(n.group(1), m)] = set(re.findall(r"\bUC\d+\b", claim.group(1)))
-        claims = re.findall(r"\bProves\b[^\n]*", "\n".join(plans.values()))
+        claims = re.findall(r"\bProves\b[^.]*", "\n".join(plans.values()))
         proven = set(re.findall(r"\bUC\d+\b", "\n".join(claims)))
         for uc in cases:
             if uc not in proven:
@@ -265,13 +266,14 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
             if cfg["view"] and (not view_at or view_at.group(1) < now_at.group(1)):
                 fails.append(f'the {cfg["view"]} lags the progress file: no "{cfg["view"]} updated: <time>" at or after the Now line '
                              f'(update it, then progress.py view)')
-        time_left = r"\d+\s*(?:d|h|m|min)\b(?:\s*\d+\s*(?:h|m|min)\b)?"
+        time_left = rf"\d+\s*{UNIT}(?:\s*\d+\s*{UNIT})?"
         for item in re.findall(r"^- (?!(?:nothing|none)\b)([^\n]+)", section_of(psecs, "In flight"), re.M | re.I):
             if not re.search(rf"{time_left}[\s.)]*$", item, re.I):
                 fails.append(f'In flight item does not end with its time left ("1h 20m", "35m"): {item[:60]}')
         left = re.sub(r"^```.*?^```", "", section_of(psecs, "What is left"), flags=re.M | re.S)
-        rows = [r for r in re.findall(r"^\|[^\n]*\|[ \t]*$", left, re.M) if not re.fullmatch(r"[|:\- \t]+", r)]
-        for row in rows[1:]:  # the first row is the header
+        tables = re.findall(r"(?:^\|[^\n]*\|[ \t]*\n?)+", left, re.M)
+        rows = [r for t in tables for r in t.splitlines()[1:] if not re.fullmatch(r"[|:\- \t]+", r)]
+        for row in rows:  # each table's first row is its header
             last = row.strip().strip("|").split("|")[-1]
             if not re.search(time_left, last, re.I):
                 fails.append(f'"What is left" row has no time left in its last column: {row.strip()[:60]}')

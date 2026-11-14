@@ -46,7 +46,7 @@ An unanswered decision stops the run. An answer longer than a row is a decision 
 
 ## Plan 1: {{FILL: name}}
 
-**Measured facts ({{FILL: HH:MM}} UTC, source in parentheses)**
+**Measured facts (each with its source and when it was read, from `date -u`)**
 
 - {{FILL: what runs now and the rollback target (release, revision or commit), when the goal deploys}}
 - {{FILL: every number a gate compares against, with its source and window}}

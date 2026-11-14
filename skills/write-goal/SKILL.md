@@ -54,7 +54,7 @@ file plus the list of decisions you answered for them.
 6. Commit the three files on that branch and hand the owner the goal file.
 
 **While it runs**, the rules a long run drops first; `check-goal.py` fails the
-first four:
+first three:
 
 - Times come from the clock: `scripts/progress.py <slug> now|log|approve|view`.
 - Every In flight line and every "What is left" row (the steps after the last
@@ -216,7 +216,7 @@ with the screens in its scratchpad has shown nothing.
 **At the end**, in order:
 
 1. The last gate read, `check-pr.py` passing on every PR, `check-goal.py` ok.
-2. Every ask met, or dropped by the owner by name.
+2. Every ask met, or dropped by the owner by name and date.
 3. Clean up: the run's worktrees, merged branches, containers and processes
    are gone (`git worktree list`, `docker ps -a`).
 4. When someone will operate what was built, a hand-off doc a sonnet-level
@@ -249,6 +249,7 @@ step is that one read, named exactly, or it is a human step.
 
 | Section | Holds |
 | --- | --- |
+| Asks | `| A<n> | <the owner's words> | <UC ids> |`: every ask, numbered, mapped to the use cases that prove it, or `dropped by <owner> <date>`. An ask stated in chat goes here the same turn. |
 | Models | `Orchestrator: Opus 5.5` or `Fable 5.2`, and why, from [`models.md`](models.md), said to the owner as "This is best handled by ..."; the goal is scaffolded with `new-goal.py --orchestrator` to match. Every step ends `Model: haiku, sonnet or opus` with its reason. |
 | Use cases | `UC<n>` rows: who does what, and what they end up with, failure cases included, and the surface (ui, service, cli). The spine of the evidence: every step names the use cases it proves (`Proves UC2.`), and a use case no step proves is a hole the checker fails. |
 | Order | One row per plan: what it delivers, what it deletes, what it touches. Each plan is one PR, stacked on the plan before it. Plans run in the order given unless the text under the table says two may run beside each other; those two share a base. |
@@ -265,19 +266,27 @@ holds no state.
 The only place the run records where it is. The goal text never changes to
 carry status, and the master plan's facts do not change because a step ran.
 
-- **Now:** one line, rewritten (not appended) at each state change.
+Every time in it is stamped by `scripts/progress.py`, never typed.
+
+- **Now:** one line, `progress.py <slug> now "<text>"`, rewritten at each
+  state change; `log` moves its time too.
+- **Approved by:** the owner's words approving the master plan,
+  `progress.py <slug> approve "<words>"`; no step is ticked before it.
 - **Waiting on the owner:** every human step hit and open question, most
-  blocking first, each with what it unblocks.
-- **In flight:** each dispatched implementer and each step unsafe to run
-  twice, written before it starts and removed when it lands: what, branch,
-  worktree, command, UTC time.
+  blocking first, each with what it unblocks and the run's recommendation.
+- **In flight:** each dispatched subagent and each step unsafe to run twice,
+  written before it starts and removed when it lands: what, branch,
+  worktree, command, its model, and last its time left ("40m").
+- **What is left:** every step still to come, in order, the ones after the
+  last task included, each with what it waits on and its time left.
 - **Steps:** one checkbox per plan step and one per gate (`- [ ] G1 ...`).
-  Each plan's steps are written here before its first step runs. Tick a box
-  with its evidence in parentheses: the commit, the PR, the UTC time, the
-  number read.
+  Each plan's steps are written here before its first step runs. Tick a step
+  with its evidence file in parentheses,
+  `(<plans_dir>/<date>-<slug>-evidence/<N>.<M>.md)`; a gate with the number
+  it read and its commit.
 - **Rulings:** each decision the run made alone, as `Ruling: <what>; <why>;
   <cost if wrong>`.
-- **Log:** one line per state change, with its UTC time.
+- **Log:** one line per state change, `progress.py <slug> log "<text>"`.
 
 A resume reads the progress file, `git log`, `git worktree list` and the open
 PRs. It never redoes a ticked step, and it checks an In flight item's real

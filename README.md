@@ -49,8 +49,9 @@ stamped from the clock (`progress.py`), a time left on every open item, a
 fuller UX walk, and an ending that cleans up and says what shipped.
 
 Upgrading from 0.4: master plans need `## Asks`; progress files need a timed
-Now line, "What is left" and an `Approved by` line; goals need "§VIII.4",
-"progress.py" and "after a compaction".
+Now line, "What is left", an `Approved by` line before any ticked step, and
+In flight lines that end with a time left (one ending in a UTC time now
+fails); goals need "§VIII.4", "progress.py" and "after a compaction".
 
 Rolling a loopkit change out to repos that adopted it: `skills/adopt/rollout.md`.
 

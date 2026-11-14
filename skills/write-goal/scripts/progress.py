@@ -17,7 +17,8 @@ import tempfile
 
 import config
 
-NOW = re.compile(r"^\*\*Now \([^)\n]*\):\*\*[^\n]*(?:\n(?!\n)[^\n]*)*", re.M)  # the Now paragraph, up to a blank line
+# The Now paragraph: its line and the lines that continue it, up to a blank line, a heading or another stamp.
+NOW = re.compile(r"^\*\*Now \([^)\n]*\):\*\*[^\n]*(?:\n(?!\n|#|Approved by |[^\n]* updated: )[^\n]*)*", re.M)
 
 
 def after_now(text: str, line: str, pattern: str) -> str:
@@ -44,9 +45,11 @@ def stamp(text: str, verb: str, words: str, cfg: dict, at: str) -> str:
         if not log:
             sys.exit('the progress file has no "## Log" section')
         end = log.start(1) + len(log.group(1).rstrip("\n"))
-        return f"{text[:end]}\n- {at} UTC: {words}{text[end:]}"
+        text = f"{text[:end]}\n- {at} UTC: {words}{text[end:]}"
+        # A log entry is a state change, so the Now line's time moves with it; its text stays.
+        return re.sub(r"^(\*\*Now \()[^)\n]*(\):\*\*)", lambda m: f"{m.group(1)}{at} UTC{m.group(2)}", text, count=1, flags=re.M)
     if verb == "approve":
-        if not words:
+        if not words.strip():
             sys.exit("approve needs the owner's words")
         return after_now(text, f"Approved by {cfg['owner']} {at} UTC: {words}", r"^Approved by [^\n]*")
     if verb == "view":
@@ -66,6 +69,8 @@ def main() -> None:
     cfg = config.load()
     path = f"{config.goal_base(cfg, args[0], date)}-progress.md"
     at = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M")
+    if not os.path.isfile(path):
+        sys.exit(f"no progress file at {path}: check the slug and the date (the default date is UTC)")
     with open(path) as f:
         new = stamp(f.read(), args[1], args[2] if len(args) == 3 else "", cfg, at)
     fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path) or ".")

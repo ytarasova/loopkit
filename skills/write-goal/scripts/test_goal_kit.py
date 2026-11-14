@@ -22,8 +22,6 @@ TEMPLATES = os.path.join(os.path.dirname(HERE), "templates")
 
 def fill(m: re.Match) -> str:
     hint = m.group(1)
-    if hint.strip() == "HH:MM":
-        return "09:00"
     if "e.g. 2h 30m" in hint:
         return "2h 30m"
     if "Opus 5.5 or Fable 5.2" in hint:
@@ -99,13 +97,16 @@ def main() -> None:
         flight = lambda item: check(progress=pp.replace("- Nothing.", item))
         assert "does not end with its time left" in flight("- Plan 1 step 1, sonnet, wt-1")
         assert "does not end with its time left" in flight("- Plan 1 step 1, branch feat/2d-chart, sonnet")
-        for ok_item in ("- Plan 1 step 1, sonnet, wt-1, 40m", "- None.", "- nothing running", "- step, 1d 5h", "- step, 1h20m", "- step, 90 min."):
+        for ok_item in ("- Plan 1 step 1, sonnet, wt-1, 40m", "- None.", "- nothing running", "- step, 1d 5h", "- step, 1h20m",
+                        "- step, 90 min.", "- step, 2 hours", "- step, 45 minutes", "- step, 30 mins", "- step, 1 day"):
             assert "does not end with its time left" not in flight(ok_item), ok_item
         assert "does not end with its time left" in check(progress=pp.replace("## In flight", "## In flight (1)").replace("- Nothing.", "- step, sonnet"))
         assert "row has no time left" in check(progress=pp.replace("| 2h 30m |", "| soon |"))
         assert "row has no time left" in check(progress=pp.replace("| filled | nothing | 2h 30m |", "| deploy the 2d view | nothing | soon |"))
         assert "row has no time left" not in check(progress=pp.replace("| --- | --- | --- |", "| :--- | --- | ---: |"))
         assert "row has no time left" not in check(progress=pp.replace("| filled | nothing | 2h 30m |", "| filled | nothing | 2h 30m |\n\n```\n| a | b |\n```"))
+        second = pp.replace("| filled | nothing | 2h 30m |", "| filled | nothing | 2h 30m |\n\nLater:\n\n| Step | Time left |\n| --- | --- |\n| report | 1h |")
+        assert "row has no time left" not in check(progress=second), check(progress=second)
         assert '"## What is left"' in check(progress=re.sub(r"## What is left.*?(?=## Steps)", "", pp, flags=re.S))
         old_now = re.sub(r"\*\*Now \([^)]*\)", "**Now (2026-01-01 09:00 UTC)", pp)
         assert "older than the last Log entry" in check(progress=old_now + "\n- 2026-01-01 10:00 UTC: later\n")
@@ -222,6 +223,11 @@ def main() -> None:
         with open(f"{ev}/1.1.md", "w") as f:
             f.write(good.replace("### UC1", "### Supports UC1"))
         assert 'has no "### UC1": Plan 1 step 1 proves it' in check(progress=ticked)
+        wrapped = m.replace(" Proves UC1. Model: sonnet, a specified function.", " Model: sonnet, a specified function.\n   Proves UC1.")
+        assert 'has no "### UC1": Plan 1 step 1 proves it' in check(master=wrapped, progress=ticked), check(master=wrapped, progress=ticked)
+        enables = m.replace("Proves UC1.", "Proves UC1. Supports UC2 through the fake.").replace("| UC1 |", "| UC2 | x | cli |\n| UC1 |")
+        assert "UC2 is proven by no plan step" in check(master=enables, progress=ticked)
+        assert 'has no "### UC2"' not in check(master=enables, progress=ticked)  # "Supports" is not part of the Proves sentence
         with open(f"{ev}/1.1.md", "w") as f:
             f.write(good)
         assert "UC1 is proven by no plan step" in check(master=m.replace("Proves UC1.", ""))
@@ -232,6 +238,7 @@ def main() -> None:
         assert "A2 maps to no use case" in asks("| A1 | filled | UC1 |\n| A2 | make UC9 faster | |")
         assert "A1 names UC77, which the Use cases table does not define" in asks("| A1 | filled | UC77 |")
         assert "Asks row is not" in asks("| A1 | filled | UC1 |\n| A2 | x | later")
+        assert "Asks row is not" in asks("| A1 | filled | UC1 |\nA2 | x | later |")
         assert '"## Asks" has no' in check(master=m.replace("| A1 | filled | UC1 |", ""))
         assert "step names no model" in check(master=m.replace("Model: sonnet, a specified function.", ""))
         assert "step names no model" not in check(master=m.replace("Model: sonnet, a specified function.", "Model: haiku, a rename."))
@@ -276,6 +283,21 @@ def main() -> None:
         stamp("log", "plan 2 started")
         body = read()
         assert "second line" not in body and "plan 2 started" in body.split("## Notes")[0].split("## Log")[1]
+        with open(prog, "w") as f:
+            f.write(re.sub(r"\*\*Now \([^)]*\)", "**Now (2026-01-01 09:00 UTC)", body, count=1))
+        stamp("log", "plan 2 checked")
+        body = read()
+        now_t = re.search(r"\*\*Now \(([^)]*)\)", body).group(1)
+        assert now_t == re.findall(r"^- (\S+ \S+ UTC): plan 2 checked$", body, re.M)[0], "log must move the Now time"
+        assert "Pending" not in run("check-goal.py", "t", cwd=repo).stdout
+        with open(prog, "w") as f:  # a heading and an approval right under the Now line survive a rewrite
+            f.write(re.sub(r"(\*\*Now \([^\n]*)", lambda mm: mm.group(1) + '\nApproved by Sam 2026-01-01 08:00 UTC: "yes"', body, count=1))
+        stamp("now", "plan 3 started")
+        assert 'Approved by Sam 2026-01-01 08:00 UTC: "yes"' in read()
+        with open(prog, "w") as f:
+            f.write(body)
+        assert "no progress file at" in stamp("2025-01-01", "now", "x").stderr
+        assert stamp("approve", "   ").returncode != 0 and read() == body
         assert stamp("approve", '"yes"').returncode == 0 and re.search(r'^Approved by Sam \S+ \S+ UTC: "yes"$', read(), re.M)
         with open(prog, "w") as f:
             f.write(body.replace("**Now (", "**Now: (", 1))
