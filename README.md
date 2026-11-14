@@ -41,6 +41,10 @@ and Python 3.
    success and failure signals for the rollout; simplify, self-review and
    the constitution cross-checked. `check-pr.py <PR>` checks it.
 
+Upgrading from 0.2: `check-goal.py` now fails a goal without `check-pr.py`, a
+master plan without `## Use cases`, and a ticked step without its evidence
+file. Add them to goals already written before running it again.
+
 ## Customizing
 
 - Per repo: edit `.claude/loopkit.json` (models, reviewer, subagent count, runner,

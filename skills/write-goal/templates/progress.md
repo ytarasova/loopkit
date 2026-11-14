@@ -20,11 +20,12 @@ migration). One line each: what, branch, worktree, command, UTC time.
 
 ## Steps
 
+A step is ticked only with its evidence file, `{{PLANS_DIR}}/{{DATE}}-{{SLUG}}-evidence/<plan>.<step>.md`, named on its line in
+parentheses and passing `check-pr.py`: `- [x] Plan 1 step 1: what ({{PLANS_DIR}}/{{DATE}}-{{SLUG}}-evidence/1.1.md)`. Once every
+box is ticked, `{{PLANS_DIR}}/{{DATE}}-{{SLUG}}-evidence/goal.md` proves every use case again on the final code.
+
 - [x] Baselines read ({{FILL: HH:MM}} UTC)
 - [ ] Plan 1 step 1: {{FILL: what}}
-
-A step is ticked only with its evidence file, `{{PLANS_DIR}}/{{DATE}}-{{SLUG}}-evidence/<plan>.<step>.md`, named on its line in
-parentheses and passing `check-pr.py`: `- [x] Plan 1 step 1: what ({{PLANS_DIR}}/{{DATE}}-{{SLUG}}-evidence/1.1.md)`.
 - [ ] G1 {{FILL: name}}
 
 ## Rulings

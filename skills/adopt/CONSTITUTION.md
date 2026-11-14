@@ -17,13 +17,9 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 1. **A feature is done when a real user path shows it working.** Types, lint and unit tests are necessary, not enough.
 2. **Smoke steps in a PR are obligations.** Run them, or say in the PR why they could not run.
 3. **UI changes are opened and clicked through.** A screenshot in the PR proves it ran.
-4. **Every changeset is done only with its complete evidence** (a task merged to its branch, a fix, a PR), where a reviewer opens it:
-   - **Assurance:** every technical check, each with its command and the output it printed: {{PROJECT: the checks, e.g. "tests, coverage, lint, typecheck, and violations (static analysis, security, fitness)"}}.
-   - **The change working, told by use case** (who does what, and what they end up with, failures included), proven for its surface: a UI, a screenshot per step, taken after the last change to its screen; a service, the real exchange, the curl request and the response; a CLI, the command run and its output. A link to a report or a local file is not evidence.
-   - **Signal:** the success signal and the failure signal to watch during the rollout (a metric, log line or alert, with its threshold), or "not-applicable" and why.
-   - **Review:** simplified, self-reviewed by a context that did not write it, and cross-checked against this constitution, each with its result.
-
-   The loop verifies itself piece by piece and as a whole: each changeset proves the use cases it touches, and the finished work proves every use case again, on the final code.
+4. **A changeset is done only with its complete evidence** (a task merged to its branch, a fix, a PR), where a reviewer opens it. Assurance: every technical check with its command and output ({{PROJECT: the checks, e.g. "tests, coverage, lint, typecheck, and violations: static analysis, security, fitness"}}). The change working, told by use case (who does what, and what they end up with, failures included): a UI by a screenshot per step, newer than its screen; a service by the curl request and its response; a CLI by the command run and its output. A link or a local path is not evidence.
+5. **Every changeset names its signal.** The success and the failure signal to watch during the rollout (a metric, log line or alert, with its threshold), or "not-applicable" and why.
+6. **Every changeset is simplified, self-reviewed and cross-checked against this constitution,** each with its result, and the work verifies itself piece by piece and as a whole: each changeset proves the use cases it touches, and the finished work proves every use case again, on the final code.
 
 ## III. Causes, not symptoms
 

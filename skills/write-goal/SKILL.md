@@ -55,16 +55,18 @@ read, a deploy, a decision changed, a human step hit): update the progress
 file, then commit and push it.
 
 **Every changeset is done only with its complete evidence** (constitution
-§II.4): a task merged to its plan branch, a fix, and each PR. Nothing is ticked,
+§II.4 to §II.6): a task merged to its plan branch, a fix, and each PR. Nothing is ticked,
 merged up or opened without it. Four sections, checked by
 `python3 <base>/scripts/check-pr.py <PR number | evidence file>`:
 
 - `## Assurance`: every check in `assurance` (tests, coverage, lint,
   typecheck, violations, by default), each with its command and the output it
-  printed in a fenced block. Counts are what ran, on the changeset's own commit.
+  printed in a fenced block. Counts are what ran, on the changeset's own commit
+  (the reviewer checks this; the script cannot).
 - `## Evidence`, told by use case: a `### UC<n> <who does what>` per use case
   from the master plan that the changeset proves, failure cases included, each
-  with its proof for its surface: UI, a screenshot per step taken after the
+  with its proof for the surface the master plan gives it (check-goal passes
+  the table; `--master <file>` does for a PR): UI, a screenshot per step taken after the
   last change to its screen; service, the curl request and the response it got;
   CLI, the command run and its output. Images go at an https URL a reviewer can
   open: commit them to an `evidence/<slug>` branch and link
@@ -74,8 +76,13 @@ merged up or opened without it. Four sections, checked by
 - `## Signal`: a line starting `Success` and one starting `Failure`, each the
   metric, log line or alert to watch during the rollout, with its threshold;
   or `not-applicable` and why.
-- `## Review`: simplify run, a self-review by a context that did not write the
-  change, and the constitution cross-checked, each with its result.
+- `## Review`: a line each, `Simplify: <result>`, `Self-review: <by whom,
+  result>`, `Constitution: <result>`; the self-review by a context that did
+  not write the change.
+
+The script checks shape, not truth: that a screenshot is newer than its
+screen, that output came from the changeset's commit, and that failure cases
+are among the use cases are the reviewer's to check.
 
 The loop verifies itself piece by piece and as a whole. A step's file is
 `<plans_dir>/<date>-<slug>-evidence/<plan>.<step>.md`, named
