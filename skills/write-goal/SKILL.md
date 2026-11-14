@@ -77,12 +77,16 @@ merged up or opened without it. Four sections, checked by
 - `## Review`: simplify run, a self-review by a context that did not write the
   change, and the constitution cross-checked, each with its result.
 
-A step's file is `<plans_dir>/<date>-<slug>-evidence/<plan>.<step>.md`, named
+The loop verifies itself piece by piece and as a whole. A step's file is
+`<plans_dir>/<date>-<slug>-evidence/<plan>.<step>.md`, named
 in parentheses on its ticked line; `check-goal.py` fails a ticked step without
 one that passes. A PR body gathers its plan's steps: their assurance on the
 PR's head, every use case the plan proves, the signal and the review. Run
 `check-pr.py <PR>` after opening it; with the PR it also checks the changed
-files against `surfaces`. Showing the owner the evidence is the run's job,
+files against `surfaces`. Once every step is ticked, the whole:
+`<plans_dir>/<date>-<slug>-evidence/goal.md`, taken on the top of the stack
+after the last code commit, proves every use case in the master plan again
+and passes the same check; `check-goal.py` fails without it. Showing the owner the evidence is the run's job,
 never a human step: a run that ends "waiting for the owner to see the screens"
 with the screens in its scratchpad has shown nothing.
 

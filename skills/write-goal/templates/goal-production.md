@@ -10,4 +10,4 @@ Authority (§VII.3, §VIII.2): {{FILL: every permission granted, named exactly, 
 
 Before each dispatch, deploy or other step unsafe to run twice, write it under In flight and push. After every state change, update the progress file and push it. If this goal stops matching the master plan, write the revised goal for {{OWNER}}. End with one message: a row per plan (what shipped, its PR, each gate's commands and output), then every ruling.
 
-Done means: every PR passed `check-pr.py`, {{FILL: the gates that must hold, as the master plan defines them}} hold, or a human step is recorded under Waiting on in the pushed progress file and stated in the last message.
+Done means: every PR passed `check-pr.py`, the whole is proven (`check-goal.py` ok: every use case on the final code), {{FILL: the gates that must hold, as the master plan defines them}} hold, or a human step is recorded under Waiting on in the pushed progress file and stated in the last message.

@@ -16,7 +16,9 @@ Fails (exit 1) on what would break or mislead the run; warns on what a person sh
   master      "## Use cases" with "| UC<n> |" rows, each named by some plan section (a use case no step proves is a hole)
   progress    a Now line, "Waiting on", "In flight", Steps with a checkbox per gate, a Log; warns over 80 KB;
               every ticked "Plan N step M" names its evidence file "(<plans_dir>/<date>-<slug>-evidence/<n>.<m>.md)",
-              which exists and passes check-pr.py (assurance, evidence by use case, signal, review)
+              which exists and passes check-pr.py (assurance, evidence by use case, signal, review);
+              once every step is ticked, "<date>-<slug>-evidence/goal.md" proves the whole: it passes
+              check-pr.py and has a "### UC<n>" for every use case in the master plan
 Settings: .claude/loopkit.json (see the write-goal skill).
 """
 
@@ -66,7 +68,7 @@ def gate_ids(text: str) -> set[int]:
     return ids
 
 
-def check(goal: str, master: str, prog: str, cfg: dict) -> tuple[list[str], list[str]]:
+def check(goal: str, master: str, prog: str, cfg: dict, whole: str = "") -> tuple[list[str], list[str]]:
     fails: list[str] = []
     warns: list[str] = []
     gate_parts = [
@@ -118,6 +120,7 @@ def check(goal: str, master: str, prog: str, cfg: dict) -> tuple[list[str], list
             for cmd in sorted({m for s in snippets for m in bypass.findall(s)}):
                 fails.append(f"{name} runs `{cmd}` directly; every command goes through {cfg['runner']}")
 
+    cases: list[str] = []
     if master:
         for s in ("Use cases", "Order", "Decisions, answered"):
             if s not in secs:
@@ -205,6 +208,16 @@ def check(goal: str, master: str, prog: str, cfg: dict) -> tuple[list[str], list
                 with open(path.group(1)) as f:
                     for p in check_pr.problems(f.read(), [], cfg["surfaces"], cfg["assurance"]):
                         fails.append(f"{path.group(1)}: {p}")
+        if whole and re.search(r"^- \[x\] ", steps, re.M) and not re.search(r"^- \[ \] ", steps, re.M):
+            # Every piece is proven; now the whole: every use case, on the final code, in one file.
+            if not os.path.isfile(whole):
+                fails.append(f"every step is ticked but the whole has no evidence: {whole} (every use case, on the final code)")
+            else:
+                with open(whole) as f:
+                    body = f.read()
+                fails += [f"{whole}: {p}" for p in check_pr.problems(body, [], cfg["surfaces"], cfg["assurance"])]
+                shown = set(re.findall(r"^### (UC\d+)\b", body, re.M))
+                fails += [f"{whole} does not prove {uc}" for uc in cases if uc not in shown]
         if not re.search(r"^- \S", psecs.get("Log", ""), re.M):
             fails.append('progress file has no "## Log" line')
         size = len(prog.encode())
@@ -239,7 +252,7 @@ def main() -> None:
         else:
             missing.append(f"missing or empty: {path}")
             texts.append("")
-    fails, warns = check(*texts, cfg)
+    fails, warns = check(*texts, cfg, f"{base}-evidence/goal.md")
     fails = missing + fails
 
     for w in warns:

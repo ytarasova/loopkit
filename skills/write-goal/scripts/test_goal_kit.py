@@ -157,6 +157,16 @@ def main() -> None:
         assert check(progress=ticked).strip().endswith("ok"), check(progress=ticked)
         assert "names no evidence file" in check(progress=p.replace("- [ ] Plan 1 step 1", "- [x] Plan 1 step 1"))
         assert "UC1 is proven by no plan step" in check(master=m.replace("Proves UC1.", ""))
+        done = re.sub(r"^- \[ \] ", "- [x] ", ticked, flags=re.M)
+        assert "the whole has no evidence" in check(progress=done), check(progress=done)
+        two = m.replace("| UC1 |", "| UC2 | x | cli |\n| UC1 |").replace("Proves UC1.", "Proves UC1 and UC2.")
+        with open(f"{ev}/goal.md", "w") as f:
+            f.write(good)
+        assert "goal.md does not prove UC2" in check(master=two, progress=done)
+        assert check(progress=done).strip().endswith("ok"), check(progress=done)
+        with open(f"{ev}/goal.md", "w") as f:
+            f.write(good.replace("## Signal", "## Other"))
+        assert 'goal.md: no "## Signal"' in check(progress=done)
         assert '"## Use cases"' in check(master=m.replace("## Use cases", "## Cases"))
     print("goal kit ok")
 

@@ -23,6 +23,8 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
    - **Signal:** the success signal and the failure signal to watch during the rollout (a metric, log line or alert, with its threshold), or "not-applicable" and why.
    - **Review:** simplified, self-reviewed by a context that did not write it, and cross-checked against this constitution, each with its result.
 
+   The loop verifies itself piece by piece and as a whole: each changeset proves the use cases it touches, and the finished work proves every use case again, on the final code.
+
 ## III. Causes, not symptoms
 
 1. **Fix the root cause.** A raised timeout, a swallowed error, a deleted failing test, or a type silenced to compile is a symptom patch and is rejected.
