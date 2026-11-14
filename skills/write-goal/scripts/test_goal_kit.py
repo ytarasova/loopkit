@@ -67,7 +67,8 @@ elif a[:2] == ["pr", "view"]:
 elif a[:2] == ["pr", "list"]:
     key = "base" if "--base" in a else "head"
     branch = a[a.index("--" + key) + 1]
-    print(json.dumps([{"number": int(k)} for k, q in st["prs"].items() if q["state"] == "OPEN" and q[key] == branch]))
+    print(json.dumps([{"number": int(k), "isCrossRepository": q.get("fork", False)}
+                      for k, q in st["prs"].items() if q["state"] == "OPEN" and q[key] == branch]))
 elif a[:2] == ["pr", "edit"]:
     st["prs"][a[2]]["base"] = a[a.index("--base") + 1]
 elif a[:2] == ["pr", "merge"]:
@@ -83,9 +84,9 @@ elif a[:2] == ["pr", "merge"]:
     if "--match-head-commit" in a and a[a.index("--match-head-commit") + 1] != head:
         sys.exit("X Head branch was modified. Review and try the merge again.")
     if not p.get("queue"):
-        git("fetch", "-q", "origin"); git("switch", "-q", "-C", "main", "origin/main")
+        git("fetch", "-q", "origin"); git("switch", "-q", "-C", p["base"], "origin/" + p["base"])  # into its own base, as GitHub does
         git("merge", "-q", "--squash", "origin/" + p["head"])
-        git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "squash " + a[2]); git("push", "-q", "origin", "main")
+        git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "squash " + a[2]); git("push", "-q", "origin", p["base"])
         p["state"], p["merged_oid"] = "MERGED", head
 else:
     sys.exit("fake gh: " + " ".join(a))
@@ -161,6 +162,10 @@ def land_stack_test() -> None:
         assert three.returncode == 0 and "stack landed" in three.stdout, three.stdout + three.stderr
         assert set(git("ls-tree", "--name-only", "main", cwd=bare).split()) == {"a.txt", "one.txt", "two.txt", "three.txt"}
         assert gone("b2") and gone("b3") and "every PR in the stack is merged" in go("1", "2", "3").stdout
+        os.rename(bare, bare + ".away")  # origin unreachable: a failed read is not "no branch"
+        unreadable = go("1", "2", "3")
+        os.rename(bare + ".away", bare)
+        assert unreadable.returncode and "every PR" not in unreadable.stdout and "already gone" not in unreadable.stdout, unreadable.stdout
 
         # Guards: each stop leaves everything as it was.
         commit("b5", "main", "five.txt", "5\n"); commit("b6", "b5", "six.txt", "6\n"); commit("b7", "b6", "seven.txt", "7\n")
@@ -188,10 +193,22 @@ def land_stack_test() -> None:
         assert other.returncode and "gh talks to someone/else" in other.stderr, other.stderr
         st = load(); st["repo"] = os.path.basename(tmp) + "/origin"; save(st)
         # A queue merges #5 later; the next run finishes its landing (retarget, delete) and says what comes next.
+        # An open PR from a fork whose branch is also called b5 is not ours and does not block the delete.
+        st = load(); st["prs"]["99"] = dict(state="OPEN", base="main", head="b5", files=["x"], body="", fork=True); save(st)
         subprocess.run([gh, "pr", "merge", "5", "--squash"], env=env, check=True)
+        assert "then stop" in land("5", "6", "7").stdout, "the plan should stop after finishing"
         resumed = go("5", "6", "7")
         assert resumed.returncode == 0 and "b5 deleted" in resumed.stdout and "merge main up into #6's branch" in resumed.stdout, resumed.stdout + resumed.stderr
         assert load()["prs"]["6"]["base"] == "main" and gone("b5")
+        # A PR merged mid-stack (into its own base, by hand): the one above goes onto that base, not main.
+        commit("b30", "main", "t30.txt", "30\n"); commit("b31", "b30", "t31.txt", "31\n"); commit("b32", "b31", "t32.txt", "32\n")
+        st = load(); st["prs"].update({"30": add("main", "b30", "t30.txt"), "31": add("b30", "b31", "t31.txt"),
+                                       "32": add("b31", "b32", "t32.txt")}); save(st)
+        subprocess.run([gh, "pr", "merge", "31", "--squash"], env=env, check=True)
+        middle = go("30", "31", "32")
+        assert middle.returncode == 0 and "b31 deleted" in middle.stdout and "run this again to land #30" in middle.stdout, middle.stdout + middle.stderr
+        st = load()
+        assert st["prs"]["32"]["base"] == "b30" and st["prs"]["30"]["base"] == "main", st["prs"]
         # A merged branch that moved, or that an open PR still uses, is never deleted.
         commit("b20", "main", "twenty.txt", "20\n")
         st = load(); st["prs"]["20"] = add("main", "b20", "twenty.txt"); save(st)
@@ -356,11 +373,12 @@ def main() -> None:
                         "no more than 3 errors in any 5-minute window", "error rate under 1% for one hour", "error rate under 1%\n  over the first day",
                         "0 errors for five minutes", "5xx under 1% for 10 consecutive minutes", "p99 < 200ms, 1h window", "5 errors / 10 min",
                         "error rate above 1% in 10 min", "0 errors over the next 24 hours", "under 1% in the first 30 minutes",
-                        "below 1% errors, 1-hour rolling window", "5 errors in 5 minutes"):
+                        "below 1% errors, 1-hour rolling window", "5 errors in 5 minutes", "0 errors in the 30 min after the deploy"):
             assert "needs a threshold and a window" not in pr(good.replace("exports.error above 1% in 10 min", ok_line)), ok_line
         for bad_line in ("any 500 after deploy", "HTTP 200 per request", "errors go down", "p99 latency over 2 s",
                          "checkout responds in 1 s", "p99 for the API under 2s", "errors go down for an hour",
-                         "99% of requests in 1 s", "more than 1% of requests over 2 s", "page loads in 2 s for 95% of users", "build over 20 minutes"):
+                         "99% of requests in 1 s", "more than 1% of requests over 2 s", "page loads in 2 s for 95% of users", "build over 20 minutes",
+                         "p99 latency over the 2 s SLO", "99% of requests in the 1 s bucket", "checkout p99 in the 3 s budget"):
             assert "needs a threshold and a window" in pr(good.replace("exports.error above 1% in 10 min", bad_line)), bad_line
         assert "names no model" in pr(good.replace("- Self-review, by a fresh opus context", "- Self-reviewed by a fresh context"))
         stale = __import__("importlib").import_module("check-pr").stale

@@ -251,14 +251,16 @@ with the screens in its scratchpad has shown nothing.
 it would do; `--run` lands the lowest open PR and stops. It lands only a PR
 from this repo, based on main and holding it, with its checks complete and
 green (`--allow-no-checks` for a repo without CI), `check-pr` passing, nothing
-else stacked on its branch, and the next PR holding every commit of it (a fix
+else stacked on its branch, and the next PR holding every non-merge commit of it (a fix
 made below and never merged up would otherwise be lost). It merges matching
 the head it checked, confirms GitHub says MERGED (a merge queue only queues),
 retargets the next PR to main, and deletes the branch only while its tip is
 the merged commit and no open PR uses it. It never merges main up itself: it
 prints the commands, and you run them, resolve any conflict, re-run that PR's
-assurance on its new head, update its body, and run it again. A PR merged
-earlier is finished first. `--method rebase` keeps each commit's author.
+assurance on its new head, update its body, and run it again. A PR of the
+stack merged earlier (a queue, by hand) is finished first, and that run stops
+there: the PR above goes onto its base, and its branch is deleted under the
+same conditions. `--method rebase` keeps each commit's author.
 
 **After the merge: watch.** Each PR's Success and Failure lines carry a
 threshold and a window (`check-pr.py` fails them without). Once it deploys,
