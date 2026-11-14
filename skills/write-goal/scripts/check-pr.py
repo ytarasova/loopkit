@@ -5,7 +5,9 @@
 Fails (exit 1) unless the body has all four sections:
   ## Assurance  each check in the repo's `assurance` list (tests, coverage, lint, typecheck, violations),
                 named in a heading, a bullet or a fenced block, with the output it printed in a fenced block
-  ## Evidence   a "### UC<n> <who does what, and what they end up with>" per use case it proves, each
+  ## Evidence   a "### UC<n> <who does what, and what they end up with>" per use case it proves (a step that
+                proves none but enables one, such as a fake or a client, writes "### Supports UC<n> <how>" with
+                its tests' output), each
                 with its proof for the use case's surface:
                   ui       the flow in screenshots, two or more (https URLs, not inside code): where the person
                            lands, each step, and what they end up with
@@ -51,7 +53,7 @@ def section(body: str, name: str) -> str:
 
 
 def use_cases(evidence: str) -> dict[str, str]:
-    heads = list(re.finditer(r"^### (UC\d+)\b", masked(evidence), re.M))
+    heads = list(re.finditer(r"^### ((?:Supports )?UC\d+)\b", masked(evidence), re.M))
     ends = [h.start() for h in heads[1:]] + [len(evidence)]
     return {h.group(1): evidence[h.start():end] for h, end in zip(heads, ends)}
 
@@ -96,7 +98,7 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
     elif not cases:
         out.append('Evidence is not told by use case: no "### UC<n> <who does what>" heading')
     for uc, text in cases.items():
-        kind = (ucs or {}).get(uc, "")
+        kind = (ucs or {}).get(uc, "")  # "Supports UC<n>" is no key of ucs: plumbing shows its tests, not a surface
         if not proof(text, kind):
             label = f"{uc} ({kind})" if kind else uc
             out.append(f"{label} is not proven: it needs {NEED.get(kind, 'output or a screenshot')}; a link alone is not evidence")

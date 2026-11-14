@@ -47,7 +47,48 @@ file plus the list of decisions you answered for them.
    for the owner with the allow rule that would clear it. State the
    permission mode the goal needs, and on a laptop that it must stay awake
    (`caffeinate -i` on macOS).
-5. Commit the three files on that branch and hand the owner the goal file.
+5. Show the owner the master plan, its Asks and its Models ("This is best
+   handled by ..."), and build nothing until they approve: their words go on
+   the progress file's `Approved by` line, which `check-goal.py` requires
+   before any step is ticked.
+6. Commit the three files on that branch and hand the owner the goal file.
+
+**While it runs**, the rules a long run drops first:
+
+- **Times come from the clock.** `scripts/progress.py <slug> now|log|view`
+  stamps them; `check-goal.py` fails a time ahead of the clock. Never type or
+  reckon one.
+- **Every open item carries its time left.** Each In flight line and each row
+  of "What is left", which lists everything still to come, the steps after the
+  last task included (reviews, lanes, PRs, the report). Read again at every
+  state change; `check-goal.py` fails an item without one.
+- **The live view keeps pace.** When the repo has one (`view` in
+  `.claude/loopkit.json`), update it in the same step as the progress file,
+  then `progress.py <slug> view`; `check-goal.py` fails a view older than the
+  Now line.
+- **After a compaction, re-read before acting:** the goal file, the progress
+  file and this lifecycle. A rule kept only in a summary is a rule dropped.
+- **A choice about people or their data is the owner's** (constitution
+  §VIII.4): what a person sees or can do, where a customer's data goes, what
+  happens to it on a failure. Ask in the turn it comes up, one question with a
+  recommendation, and keep working on what does not depend on it. This
+  overrides `subagent-driven-development`'s "rulings, not stalls" for these
+  choices; a ledger line marked "hers to overrule" is not asking.
+- **Look before you ask** (§VI.8): the knowledge base, the CLI, MCP servers
+  and CI runners first. Never stop to ask whether to continue; the goal runs
+  until Done means holds.
+- **Watch the fleet.** An agent with no new output for twice its time left is
+  checked, then restarted or stopped. Keep the machine under about 80% load
+  and watch the CI queue; when runners back up, group work into fewer PRs
+  rather than piling on more. Five busy is the ceiling, not a quota.
+- **Hand off before the context fills.** Past about 200k tokens the progress
+  file is the handoff: bring it current, then compact or start a fresh session
+  from it.
+- **Other agents on the same repo** read and write the same progress file;
+  coordinate there, never by guessing.
+- **Every ask is tracked.** An ask stated in chat goes into the master plan's
+  Asks the same turn, mapped to its use cases; `check-goal.py` fails an ask
+  that maps to none and was not dropped by the owner.
 
 **Before each dispatch, deploy or other step unsafe to run twice**: a line
 under In flight, pushed. **At every state change** (a task merged, a gate
@@ -141,11 +182,37 @@ link, at the widths people use, and fails:
 - a screen that breaks the patterns of the screens around it (layout, names,
   controls, where actions sit);
 - a missing or unclear empty, loading, error or success state;
-- an outcome the person cannot see, or copy that does not say what happened.
+- an outcome the person cannot see, or copy that does not say what happened;
+- a card or form judged in one state or for one option only: walk every state
+  the change reaches (draft, tested, active, after a sync) and every option
+  that shares the screen, not just the new one;
+- the wrong count or place of actions: one Save per decision, a step's
+  actions in one place, one primary button;
+- a form that saves invalid input, or a thing that can be made but not
+  renamed, moved or removed;
+- the same thing looking or behaving differently on two screens (tables,
+  buttons, sizes), or two words for one state;
+- internal words on screen (ids, enum values, how the system works), or a
+  dialog cut off at the viewport.
+
+A fault on a shared screen that the change puts in front of people is in
+scope; it is not "shared, unchanged".
 
 Each failure is fixed and the walk taken again; its result goes on the line.
 Screens that each work but do not add up to a usable flow are the failure this
 review exists for.
+
+What to show, and what not:
+
+- Tag a use case `(ui)` only when its outcome is something new a person sees.
+  A claim that something is unchanged is proven by the tests that pin it
+  (`cli`), never by screens of the unchanged thing.
+- Screens show only the app the change touches, web and terminal apart,
+  nothing cut off.
+- A step that proves no use case itself but enables one (a fake, a client,
+  plumbing) writes `### Supports UC<n> <how>` with its tests' output.
+- Adopting this kit mid-run, assurance cannot be re-run on old commits: run
+  it on each plan branch's head and label it so.
 
 The script checks shape, not truth: that a screenshot is newer than its
 screen, that output came from the changeset's commit, and that failure cases
@@ -164,10 +231,19 @@ and passes the same check; `check-goal.py` fails without it. Showing the owner t
 never a human step: a run that ends "waiting for the owner to see the screens"
 with the screens in its scratchpad has shown nothing.
 
-**At the end**: the last gate read, `check-pr.py` passing on every PR, the
-progress file closed out, and one short message: a row per plan (what shipped,
-its PR, each gate's commands and the output each printed), then every ruling
-the run made.
+**At the end**, in order:
+
+1. The last gate read, `check-pr.py` passing on every PR, `check-goal.py` ok.
+2. Every ask met, or dropped by the owner by name.
+3. Clean up: the run's worktrees, merged branches, containers and processes
+   are gone (`git worktree list`, `docker ps -a`).
+4. When someone will operate what was built, a hand-off doc a sonnet-level
+   agent can follow: setup, run, configuration, failure modes.
+5. When asking the owner to look, open the app for them, signed in and seeded.
+6. One short message: a row per plan (what shipped, its PR, each gate's
+   commands and output); what is merged, deployed, green and verified live,
+   each yes or no; what was skipped, removed or left out and why; then every
+   ruling the run made.
 
 ## 1. Measure the baselines first
 
@@ -266,3 +342,7 @@ By hand:
 | One PR for the whole goal | Review cannot keep up, and one bad plan holds back every good one. |
 | Implementers share a checkout | Their edits and test runs collide; one worktree each. |
 | The implementer reviews its own change | It reads the diff for what it meant; the blind spot passes. |
+| A time is typed or reckoned | It lands ahead of the clock and the owner stops trusting every ETA. |
+| A subagent runs `git add -f` on an ignored file | Reports and ledgers land in the PR; stage by path, never force. |
+| A review agent reads the diff itself instead of running its skill's fan-out | Half the review never happens; check its report names the passes it ran. |
+| A shell loop splits a variable (`for c in $C`) | zsh does not split it; use an array or `xargs`. |

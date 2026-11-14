@@ -31,6 +31,7 @@ things:
   "goal_rules": { "one tier at a time": "test tiers share a database" },
   "assurance": ["tests", "coverage", "lint", "typecheck", "violations"],
   "surfaces": { "ui": ["^web/src/"], "service": ["^api/"], "cli": ["^cli/"] },
+  "view": "Claude Doc",
   "rollback_pattern": "",
   "ban_em_dash": true
 }
@@ -46,6 +47,7 @@ things:
 | `goal_rules` | `{"text": "rule"}`: text every goal must keep, for rules a run here cannot do without. |
 | `assurance` | The technical checks every changeset shows run, by the name its evidence uses: tests, coverage, lint, typecheck, violations (static analysis, security, fitness). |
 | `surfaces` | Which changed files are a UI, a service or a CLI. `check-pr.py` then asks the PR for use-case screenshots, a curl request and response, or the command's run. |
+| `view` | The live view the owner reads, if any (a Claude Doc, a board). `progress.py <slug> view` stamps its update; `check-goal.py` fails a view older than the progress file's Now line. Empty when there is none. |
 | `rollback_pattern` | A regex every plan's Rollback must match, e.g. `[a-z-]+-production:\d+` for a task definition revision. |
 | `ban_em_dash` | Fail any goal file with an em-dash. |
 

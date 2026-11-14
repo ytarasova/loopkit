@@ -18,6 +18,17 @@ observable behaviour, not as a mechanism.
 
 Roles and rough numbers. Services, repos, teams, external parties.
 
+## Asks
+
+Every ask, numbered, in the originator's words: A1, A2, ... The master plan
+carries them over, and each one is built and proven or dropped by the
+originator by name.
+
+## Out of scope and assumptions
+
+What this work will not do, and every assumption it makes, each confirmed by
+the originator. An assumption nobody confirmed is an open question.
+
 ## Constraints
 
 What must not change, and who set that. Deadlines with their reason. Limits

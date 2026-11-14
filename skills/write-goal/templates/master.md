@@ -5,6 +5,15 @@ State lives in [{{DATE}}-{{SLUG}}-progress.md]({{DATE}}-{{SLUG}}-progress.md); t
 [{{DATE}}-{{SLUG}}-goal.md]({{DATE}}-{{SLUG}}-goal.md). Baselines below were read at the time above. A fact not read from its
 source is marked `(unconfirmed)`, and a step reads it before anything depends on it.
 
+## Asks
+
+Everything the owner asked for, in their words, numbered, each mapped to the use cases that prove it. An ask stated in chat goes
+here the same turn. An ask is built and proven, or dropped by the owner by name and date; never parked.
+
+| Ask | The owner's words | Proven by |
+| --- | --- | --- |
+| A1 | {{FILL: the ask, quoted}} | UC1 |
+
 ## Use cases
 
 What a person or system can do when the goal is done, failure cases included. They are the spine of the evidence: every step

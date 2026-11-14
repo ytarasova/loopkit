@@ -1,5 +1,6 @@
 """The repo's loopkit settings: `.claude/loopkit.json` at the git top level, over these defaults."""
 
+import glob
 import json
 import os
 import re
@@ -20,6 +21,7 @@ DEFAULTS = {
     "goal_rules": {},  # {"text the goal must keep": "the rule it stands for"}
     "assurance": ["tests", "coverage", "lint", "typecheck", "violations"],  # what every changeset shows run, by name
     "surfaces": {},  # {"ui"|"service"|"cli": [regex on changed files]}: what evidence a PR needs, check-pr.py
+    "view": "",  # a live view the owner reads (e.g. "Claude Doc"); then the progress file stamps "<view> updated: <time>"
     "rollback_pattern": "",  # regex every plan's Rollback must match, e.g. "[a-z-]+:\\d+"
     "ban_em_dash": True,
 }
@@ -56,6 +58,19 @@ def load() -> dict:
     if bad:
         sys.exit(f"{FILE}: " + "; ".join(bad))
     return cfg
+
+
+def goal_base(cfg: dict, slug: str, date: str = "") -> str:
+    """<plans_dir>/<date>-<slug>, the prefix of a goal's files; exits when the slug names no single goal."""
+    plans = cfg["plans_dir"]
+    dates = [date] if date else sorted({
+        os.path.basename(p)[:10]
+        for p in glob.glob(f"{plans}/????-??-??-{slug}-*.md")
+        if re.fullmatch(rf"\d{{4}}-\d\d-\d\d-{re.escape(slug)}-(goal|master|progress)\.md", os.path.basename(p))
+    })
+    if len(dates) != 1:
+        sys.exit(f'no single goal for "{slug}" in {plans} (found {dates or "none"}); give its date')
+    return f"{plans}/{dates[0]}-{slug}"
 
 
 def template(kind: str, cfg: dict) -> str:
