@@ -4,7 +4,7 @@ name: check-pr
 
 on:
   pull_request:
-    types: [opened, edited, reopened, synchronize, ready_for_review]
+    types: [opened, edited, reopened, synchronize]  # drafts too: a draft with no evidence yet is red, never "skipped"
 
 permissions:
   contents: read
@@ -18,12 +18,13 @@ env:
   KIT: skills/write-goal/scripts
 
 jobs:
-  evidence:
-    if: ${{ !github.event.pull_request.draft }}  # a draft is still gathering its evidence
+  check-pr:
     runs-on: ubuntu-latest
     steps:
+      # The checker and its settings come from the base branch, so a PR cannot loosen the gate that judges it.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
         with:
+          ref: ${{ github.event.pull_request.base.sha }}
           persist-credentials: false
       - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
         with:
