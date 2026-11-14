@@ -1,0 +1,38 @@
+# Runs check-pr.py on every PR, so a changeset without its evidence is a red check, not a reviewer's catch.
+# An adopting repo copies this file and sets KIT to its own copy of the write-goal scripts (skills/adopt, step 8).
+name: check-pr
+
+on:
+  pull_request:
+    types: [opened, edited, reopened, synchronize]  # drafts too: a draft with no evidence yet is red, never "skipped"
+
+permissions:
+  contents: read
+  pull-requests: read
+
+concurrency:
+  group: check-pr-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+env:
+  KIT: skills/write-goal/scripts
+
+jobs:
+  check-pr:
+    runs-on: ubuntu-latest
+    steps:
+      # The checker and its settings come from the base branch, so a PR cannot loosen the gate that judges it.
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0  # v7.1.0
+        with:
+          python-version: "3.12"
+      # The body is read live by gh, never from the event payload: an edit re-runs this on the current text, and the
+      # untrusted body is never expanded into the shell.
+      - run: python3 "$KIT/check-pr.py" "$PR"
+        env:
+          PR: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}

@@ -109,7 +109,15 @@ absolute paths before running anything from the target repo.
    confirm it writes three files with no `{{PROJECT:` and the knobs filled
    in, run `check-goal.py adopt-smoke` (it must fail only on unfilled placeholders
    and the unfilled `Done means:` line), and delete the three files it wrote.
-8. **Land it the repo's way:** a branch and a PR per the constitution's
+8. **Check every PR in CI.** Copy loopkit's `.github/workflows/check-pr.yml` into the repo and set its
+   `KIT` line to the repo's copy of the write-goal scripts. It runs `check-pr.py` on each PR, drafts
+   included, again on each push and body edit. It runs the base branch's checker and settings, so a PR
+   cannot loosen the gate that judges it, and a PR that changes the checker is judged by the old one until
+   it merges. Where the repo's plan allows branch protection or rulesets, ask the owner to make the
+   `check-pr` check required; where it does not, `land-stack.py` still refuses a PR whose newest run is
+   red. Prove it on the next PR: the check runs and passes on its body (the PR that adds the workflow has
+   no checker on its base yet if the kit lands with it).
+9. **Land it the repo's way:** a branch and a PR per the constitution's
    merge rules, stacked on any open loopkit PR in the repo. Report the knobs you set and every answer you
    chose for the owner, so they can change one.
 
