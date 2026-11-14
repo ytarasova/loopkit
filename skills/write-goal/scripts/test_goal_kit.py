@@ -52,19 +52,22 @@ def git(*c):
     return subprocess.run(["git", *c], cwd=st["clone"], capture_output=True, text=True, check=True).stdout
 if a[:2] == ["pr", "view"]:
     p = st["prs"][a[2]]
-    git("fetch", "-q", "origin")
+    git("fetch", "-q", "--prune", "origin")
     out = {"number": int(a[2]), "state": p["state"], "baseRefName": p["base"], "headRefName": p["head"],
-           "statusCheckRollup": [], "files": [{"path": f} for f in p["files"]], "body": p["body"]}
+           "isCrossRepository": p.get("fork", False), "statusCheckRollup": p.get("checks", []),
+           "files": [{"path": f} for f in p["files"]], "body": p["body"]}
     if p["state"] == "OPEN":
         out["headRefOid"] = git("rev-parse", "origin/" + p["head"]).strip()
-        out["body"] = p["body"].replace("HEAD_SHA", out["headRefOid"])
     print(json.dumps(out))
+elif a[:2] == ["pr", "list"]:
+    base = a[a.index("--base") + 1]
+    print(json.dumps([{"number": int(k)} for k, q in st["prs"].items() if q["state"] == "OPEN" and q["base"] == base]))
 elif a[:2] == ["pr", "edit"]:
     st["prs"][a[2]]["base"] = a[a.index("--base") + 1]
 elif a[:2] == ["pr", "merge"]:
     p = st["prs"][a[2]]
-    st.setdefault("retargeted_before_merge", []).append(all(q["base"] == "main" for q in st["prs"].values() if q["state"] == "OPEN" and q is not p))
-    st.setdefault("merged_on", {})[a[2]] = git("rev-parse", "origin/" + p["head"]).strip()
+    if p.get("queue"):
+        json.dump(st, open(state_path, "w")); sys.exit(0)  # a merge queue: accepted, not merged
     git("fetch", "-q", "origin"); git("switch", "-q", "-C", "main", "origin/main")
     git("merge", "-q", "--squash", "origin/" + p["head"])
     git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "squash " + a[2]); git("push", "-q", "origin", "main")
@@ -76,7 +79,7 @@ json.dump(st, open(state_path, "w"))
 
 
 def land_stack_test() -> None:
-    """land-stack.py lands a two-PR stack: retarget first, squash, merge main up, push plainly."""
+    """land-stack.py lands a stack one PR per run: checks, retargets first, merges, merges main up, stops honestly."""
     with tempfile.TemporaryDirectory() as tmp:
         def git(*c, cwd=tmp):
             r = subprocess.run(["git", *c], cwd=cwd, capture_output=True, text=True)
@@ -85,68 +88,88 @@ def land_stack_test() -> None:
         ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
         git("init", "-q", "--bare", "-b", "main", "origin.git")
         git("clone", "-q", "origin.git", "work"); w = os.path.join(tmp, "work")
+
+        def commit(branch, start, name, text):
+            git("switch", "-qC", branch, start, cwd=w)
+            open(os.path.join(w, name), "w").write(text)
+            git("add", name, cwd=w); git(*ident, "commit", "-qm", name, cwd=w); git("push", "-q", "origin", branch, cwd=w)
+            return git("rev-parse", "HEAD", cwd=w).strip()
+
         open(os.path.join(w, "a.txt"), "w").write("base\n"); git("add", "a.txt", cwd=w); git(*ident, "commit", "-qm", "base", cwd=w)
         git("push", "-q", "origin", "HEAD:main", cwd=w)
-        git("switch", "-qc", "b1", cwd=w); open(os.path.join(w, "one.txt"), "w").write("1\n")
-        git("add", "one.txt", cwd=w); git(*ident, "commit", "-qm", "one", cwd=w); git("push", "-q", "origin", "b1", cwd=w)
-        git("switch", "-qc", "b2", cwd=w); open(os.path.join(w, "two.txt"), "w").write("2\n")
-        git("add", "two.txt", cwd=w); git(*ident, "commit", "-qm", "two", cwd=w); git("push", "-q", "origin", "b2", cwd=w)
         git("clone", "-q", "origin.git", "gh-clone")
-        body = (
-            "## Assurance\n\n- tests\n```\n$ make tests on HEAD_SHA\n1 passed\n```\n\n## Evidence\n\n### UC1 A user does x\n\n```\n$ x\nok\n```\n\n"
-            "## Signal\n\nnot-applicable: a test fixture with no runtime\n\n## Review\n\n- Simplify: none\n- Self-review, by a fresh opus context: clean\n"
-            "- Security review: clean\n- Constitution: clean\n"
-        )
-        state = {"clone": os.path.join(tmp, "gh-clone"), "prs": {
-            "1": {"state": "OPEN", "base": "main", "head": "b1", "files": ["one.txt"], "body": body},
-            "2": {"state": "OPEN", "base": "b1", "head": "b2", "files": ["two.txt"], "body": body}}}
-        json.dump(state, open(os.path.join(tmp, "state.json"), "w"))
-        os.makedirs(os.path.join(tmp, "bin")); gh = os.path.join(tmp, "bin", "gh")
-        open(gh, "w").write(FAKE_GH); os.chmod(gh, 0o755)
-        open(os.path.join(w, ".claude-loopkit-test"), "w").close()
         os.makedirs(os.path.join(w, ".claude"), exist_ok=True)
         with open(os.path.join(w, ".claude", "loopkit.json"), "w") as f:
             json.dump({"assurance": ["tests"]}, f)
-        env = {**os.environ, "PATH": os.path.join(tmp, "bin") + os.pathsep + os.environ["PATH"], "FAKE_GH_STATE": os.path.join(tmp, "state.json"),
+        body = lambda sha: (
+            f"## Assurance\n\n- tests\n```\n$ make tests on {sha}\n1 passed\n```\n\n## Evidence\n\n### UC1 A user does x\n\n```\n$ x\nok\n```\n\n"
+            "## Signal\n\nnot-applicable: a test fixture with no runtime\n\n## Review\n\n- Simplify: none\n- Self-review, by a fresh opus context: clean\n"
+            "- Security review: clean\n- Constitution: clean\n")
+        state_file = os.path.join(tmp, "state.json")
+        save = lambda st: json.dump(st, open(state_file, "w"))
+        load = lambda: json.load(open(state_file))
+        s1 = commit("b1", "main", "one.txt", "1\n"); s2 = commit("b2", "b1", "two.txt", "2\n")
+        save({"clone": os.path.join(tmp, "gh-clone"), "prs": {
+            "1": {"state": "OPEN", "base": "main", "head": "b1", "files": ["one.txt"], "body": body(s1)},
+            "2": {"state": "OPEN", "base": "b1", "head": "b2", "files": ["two.txt"], "body": body(s2)}}})
+        os.makedirs(os.path.join(tmp, "bin")); gh = os.path.join(tmp, "bin", "gh")
+        open(gh, "w").write(FAKE_GH); os.chmod(gh, 0o755)
+        env = {**os.environ, "PATH": os.path.join(tmp, "bin") + os.pathsep + os.environ["PATH"], "FAKE_GH_STATE": state_file,
                "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
         land = lambda *a: subprocess.run([sys.executable, os.path.join(HERE, "land-stack.py"), *a], cwd=w, env=env, capture_output=True, text=True)
+
         planned = land("1", "2")
-        assert "retarget #2 to main before #1's branch goes" in planned.stdout and "plan only" in planned.stdout, planned.stdout
-        assert json.load(open(os.path.join(tmp, "state.json")))["prs"]["1"]["state"] == "OPEN", "a plan changed something"
-        ran = land("1", "2", "--run")
-        assert ran.returncode == 0 and "stack landed" in ran.stdout, ran.stdout + ran.stderr
-        st = json.load(open(os.path.join(tmp, "state.json")))
-        assert all(q["state"] == "MERGED" for q in st["prs"].values()) and st["retargeted_before_merge"] == [True, True], st
+        assert "retarget #2 to main before that branch goes" in planned.stdout and "plan only" in planned.stdout, planned.stdout
+        assert load()["prs"]["1"]["state"] == "OPEN", "a plan changed something"
+        first = land("1", "2", "--run")
+        assert first.returncode == 0 and "rerun its assurance on that commit" in first.stdout, first.stdout + first.stderr
+        st = load()
+        assert st["prs"]["1"]["state"] == "MERGED" and st["prs"]["2"]["state"] == "OPEN" and st["prs"]["2"]["base"] == "main", st
         bare = os.path.join(tmp, "origin.git")  # read the remote itself, not a clone's tracking refs
-        assert not git("branch", "--list", "b1", "b2", cwd=bare).strip(), "a merged branch is still there"
+        assert not git("branch", "--list", "b1", cwd=bare).strip(), "the merged branch is still there"
+        assert subprocess.run(["git", "merge-base", "--is-ancestor", "main", "b2"], cwd=bare).returncode == 0, "b2 was not merged up"
+        stale_run = land("1", "2", "--run")  # #2's evidence names its old head
+        assert stale_run.returncode and "check-pr.py fails on #2" in stale_run.stderr, stale_run.stderr
+        st["prs"]["2"]["body"] = body(git("rev-parse", "b2", cwd=bare).strip()); save(st)
+        second = land("1", "2", "--run")
+        assert second.returncode == 0 and "stack landed" in second.stdout, second.stdout + second.stderr
         assert set(git("ls-tree", "--name-only", "main", cwd=bare).split()) == {"a.txt", "one.txt", "two.txt"}
-        # b2 was merged up before it landed: the commit it landed from already held main.
-        assert subprocess.run(["git", "merge-base", "--is-ancestor", "main~1", st["merged_on"]["2"]], cwd=bare).returncode == 0, "b2 landed without main"
-        stopped = land("1", "--run")
-        assert stopped.returncode and "#1 is merged" in stopped.stderr, stopped.stderr
-        # A fix made on b3 after b4 was cut, never merged up: resolving to b4's side would drop it, so landing stops.
-        git("switch", "-qC", "b3", "origin/main", cwd=w); open(os.path.join(w, "a.txt"), "w").write("three\n")
-        git(*ident, "commit", "-qam", "three", cwd=w); git("push", "-q", "origin", "b3", cwd=w)
-        git("switch", "-qc", "b4", cwd=w); open(os.path.join(w, "four.txt"), "w").write("4\n")
-        git("add", "four.txt", cwd=w); git(*ident, "commit", "-qm", "four", cwd=w); git("push", "-q", "origin", "b4", cwd=w)
-        git("switch", "-q", "b3", cwd=w); open(os.path.join(w, "a.txt"), "w").write("three, fixed\n")
-        git(*ident, "commit", "-qam", "fix three", cwd=w); git("push", "-q", "origin", "b3", cwd=w)
-        st = json.load(open(os.path.join(tmp, "state.json")))
-        st["prs"]["3"] = {"state": "OPEN", "base": "main", "head": "b3", "files": ["a.txt"], "body": body}
-        st["prs"]["4"] = {"state": "OPEN", "base": "b3", "head": "b4", "files": ["four.txt"], "body": body}
-        json.dump(st, open(os.path.join(tmp, "state.json"), "w"))
-        upper = land("4", "--run")  # the upper PR alone: its base is still b3
-        assert upper.returncode and "#4 targets b3, not main" in upper.stderr, upper.stderr
-        st = json.load(open(os.path.join(tmp, "state.json")))
-        st["prs"]["3"]["body"] = body.replace("## Signal", "## Other")
-        json.dump(st, open(os.path.join(tmp, "state.json"), "w"))
-        bad = land("3", "--run")
-        assert bad.returncode and 'check-pr.py fails on #3' in bad.stderr, bad.stderr
-        st["prs"]["3"]["body"] = body
-        json.dump(st, open(os.path.join(tmp, "state.json"), "w"))
-        lost = land("3", "4", "--run")
-        assert lost.returncode and "also changes ['a.txt']" in lost.stderr, lost.stdout + lost.stderr
-        assert json.load(open(os.path.join(tmp, "state.json")))["prs"]["4"]["state"] == "OPEN", "landed a PR that would lose a fix"
+        assert "every PR in the stack is merged" in land("1", "2", "--run").stdout
+
+        # Guards: a middle PR left out, a fork, a merge queue, a pending check, a fix never merged up.
+        st = load()
+        s5 = commit("b5", "main", "five.txt", "5\n"); s6 = commit("b6", "b5", "six.txt", "6\n"); s7 = commit("b7", "b6", "seven.txt", "7\n")
+        st["prs"].update({
+            "5": {"state": "OPEN", "base": "main", "head": "b5", "files": ["five.txt"], "body": body(s5)},
+            "6": {"state": "OPEN", "base": "b5", "head": "b6", "files": ["six.txt"], "body": body(s6)},
+            "7": {"state": "OPEN", "base": "b6", "head": "b7", "files": ["seven.txt"], "body": body(s7)}})
+        save(st)
+        skip = land("5", "7", "--run")
+        assert skip.returncode and "#6 also targets b5" in skip.stderr, skip.stderr
+        assert load()["prs"]["5"]["state"] == "OPEN"
+        for key, value, words in (("fork", True, "comes from a fork"), ("queue", True, "is queued, not merged"),
+                                  ("checks", [{"name": "ci", "status": "IN_PROGRESS"}], "checks still running"),
+                                  ("checks", [{"context": "ci", "state": "FAILURE"}], "failed checks")):
+            st = load(); st["prs"]["5"][key] = value; save(st)
+            stop = land("5", "6", "--run")
+            assert stop.returncode and words in stop.stderr, (key, stop.stderr)
+            st = load(); st["prs"]["5"].pop(key); st["prs"]["6"]["base"] = "b5"; save(st)
+        assert load()["prs"]["5"]["state"] == "OPEN" and git("branch", "--list", "b5", cwd=bare).strip(), "a stop changed something"
+        s10 = commit("b10", "main", "ten.txt", "10\n"); s11 = commit("b11", "main", "eleven.txt", "11\n")
+        st = load(); st["prs"].update({"10": {"state": "OPEN", "base": "main", "head": "b10", "files": ["ten.txt"], "body": body(s10)},
+                                      "11": {"state": "OPEN", "base": "main", "head": "b11", "files": ["eleven.txt"], "body": body(s11)}})
+        save(st)
+        apart = land("10", "11", "--run")  # two PRs that are not a stack
+        assert apart.returncode and "#11 is not based on #10's branch b10" in apart.stderr, apart.stderr
+        s8 = commit("b8", "main", "a.txt", "eight\n"); s9 = commit("b9", "b8", "nine.txt", "9\n")
+        commit("b8", "b8", "a.txt", "eight, fixed\n")  # a fix below, never merged up into b9
+        st = load(); s8 = git("rev-parse", "b8", cwd=bare).strip()
+        st["prs"].update({"8": {"state": "OPEN", "base": "main", "head": "b8", "files": ["a.txt"], "body": body(s8)},
+                          "9": {"state": "OPEN", "base": "b8", "head": "b9", "files": ["nine.txt"], "body": body(s9)}})
+        save(st)
+        lost = land("8", "9", "--run")
+        assert lost.returncode and "would also change ['a.txt']" in lost.stderr and "nothing was pushed" in lost.stderr, lost.stdout + lost.stderr
+        assert git("rev-parse", "b9", cwd=bare).strip() == s9, "b9 was pushed although the fix below would be lost"
 
 
 def main() -> None:
@@ -226,6 +249,8 @@ def main() -> None:
         assert "owner correction with no kit change" in check(progress=fixed), check(progress=fixed)
         assert "owner correction with no kit change" not in check(progress=fixed.replace("| later |", "| abc1234 |"))
         assert "owner correction with no kit change" not in check(progress=fixed.replace("| later |", "| #12 |"))
+        assert "owner correction with no kit change" not in check(progress=fixed.replace("| later |", "| PAI-412 |"))
+        assert "owner correction with no kit change" in check(progress=fixed.replace("| later |", "| ticket to follow |"))
         assert "runs `npx`" in check(master=m + "\n`npx vitest run`\n")
         assert "runs `npx`" in check(master=m + "\n`cd web && npx`\n")
         assert "runs `npx`" in check(master=m + "\n```sh\nmake setup\ncd web && npx tsc\n```\n")
@@ -279,6 +304,12 @@ def main() -> None:
         assert "needs a threshold and a window" in pr(good.replace("exports.error above 1% in 10 min", "exports.error goes up"))
         assert "needs a threshold and a window" in pr(good.replace("exports.ok above 99% for 1 h", "exports.ok above 99%"))
         assert "needs a threshold and a window" not in pr(good.replace("exports.error above 1% in 10 min", "0 error logs within 15 minutes"))
+        for ok_line in ("error rate under 1% over the first hour", "0 5xx within 15 minutes of the deploy", "p95 under 300 ms for the next 2 hours",
+                        "no more than 3 errors in any 5-minute window", "error rate under 1% for one hour", "error rate under 1%\n  over the first day"):
+            assert "needs a threshold and a window" not in pr(good.replace("exports.error above 1% in 10 min", ok_line)), ok_line
+        for bad_line in ("any 500 after deploy", "HTTP 200 per request", "errors go down"):
+            assert "needs a threshold and a window" in pr(good.replace("exports.error above 1% in 10 min", bad_line)), bad_line
+        assert "names no model" in pr(good.replace("- Self-review, by a fresh opus context", "- Self-reviewed by a fresh context"))
         stale = __import__("importlib").import_module("check-pr").stale
         head = "0123456789abcdef0123456789abcdef01234567"
         assert "names no commit" in stale(good, head)[0]
@@ -298,6 +329,13 @@ def main() -> None:
                      "password=" + "redactedButReal12345", "password=" + "hunter2abc", "password=" + "Tr0ub4dor&3-horse!",
                      "https://s.blob.core.windows.net/c/f?sv=2020&" + "sig=abcdefghijklmnopqrstuv%3D"):
             assert "looks like a credential" in pr(good.replace("200 a,b", "200 a,b\n" + leak)), leak
+        echo = pr(good.replace("```\n$ curl", "![s](http://admin:" + "s3cretP4ss9@host/a.png?sig=abc)\n\n```\n$ curl"))
+        assert "s3cret" not in echo and "sig=" not in echo and "(not an https URL): http://host/a.png" in echo, echo
+        import time
+        scan = __import__("importlib").import_module("check-pr").SECRET
+        for adversarial in ("pwd=" * 250_000, "a." * 500_000, "AKIA" * 250_000, "a" * 1_000_000 + "://"):
+            began = time.time(); scan.search(adversarial)
+            assert time.time() - began < 3, f"the scan is slow on {adversarial[:8]}..."
         leaked = pr(good.replace("200 a,b", "200 a,b\npassword=" + "hunter2hunter2"))
         assert "hunter2" not in leaked and re.search(r"line \d+ carries", leaked), leaked  # never echo the secret
         for safe in ("Authorization: Bearer <token>", "Authorization: Bearer " + "x" * 30, "Authorization: Bearer ***",
