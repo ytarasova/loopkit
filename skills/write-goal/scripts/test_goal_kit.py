@@ -116,6 +116,7 @@ def main() -> None:
         local = out.replace("```\n$", "![step 1](/private/tmp/s/j1-01.jpg)\n\n```\n$")
         assert "(not an https URL): /private/tmp/s/j1-01.jpg" in pr(local), pr(local)
         assert "not an https" not in pr(out.replace("```\n$", "![a](https://github.com/o/r/blob/evidence/t/a.jpg?raw=true)\n```\n$"))
+        assert pr(out.replace("12 passed", "12 passed\n```\n`![x](/tmp/a.png)`\n```")).strip() == "ok"
         sys.path.insert(0, HERE)
         problems = __import__("importlib").import_module("check-pr").problems
         assert "no screenshot" in problems(out, ["web/src/a.tsx"], [r"^web/src/.*\.tsx$"])[0]

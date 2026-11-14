@@ -31,7 +31,8 @@ def section(body: str, name: str) -> str:
 def problems(body: str, files: list[str], ui_paths: list[str]) -> list[str]:
     out = []
     evidence, signal = section(body, "Evidence"), section(body, "Signal")
-    images = [a or b for a, b in IMAGE.findall(evidence)]
+    shown = re.sub(r"```.*?```|`[^`\n]+`", "", evidence, flags=re.S)  # an image in code is not rendered
+    images = [a or b for a, b in IMAGE.findall(shown)]
     if not evidence:
         out.append('no "## Evidence" section: each claim\'s command and output, a screenshot per UI change')
     elif "```" not in evidence and not images:
