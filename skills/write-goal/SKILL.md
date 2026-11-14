@@ -120,8 +120,8 @@ implementer's account of them.
 §II.4 to §II.7): a task merged to its plan branch, a fix, and each PR. Nothing is ticked,
 merged up or opened without it. Four sections, checked by
 `python3 <base>/scripts/check-pr.py <PR number | evidence file>`, which CI
-also runs on every PR that is not a draft (adopt, step 8), so a body missing its evidence is a red check
-that `land-stack.py` will not land:
+also runs on every PR with the base branch's checker (adopt, step 8), so a body missing its evidence is a red
+check that `land-stack.py` will not land:
 
 - `## Assurance`: every check in `assurance` (tests, coverage, lint,
   typecheck, violations, security, by default), each with its command and the output it

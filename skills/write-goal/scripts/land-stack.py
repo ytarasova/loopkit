@@ -12,7 +12,7 @@ still the merged commit and no open PR of this repo is based on it or comes from
 only when:
   - it is open, from this repo, and `gh` and git's `origin` are the same repository;
   - it is based on main and holds main;
-  - its checks are complete and green (none registered stops it, unless --allow-no-checks);
+  - its checks are complete and the newest run of each is green (none registered stops it, unless --allow-no-checks);
   - check-pr.py passes on it (its assurance ran on its head);
   - no open PR but the next is based on its branch, and the next is based on its branch and holds every non-merge
     commit of it that main does not (a fix made below and never merged up would otherwise be lost).
@@ -87,6 +87,16 @@ def finish(merged: dict, nxt: dict | None) -> None:
     print(f"{branch} deleted")
 
 
+def latest(checks: list[dict]) -> list[dict]:
+    """The newest run of each check: a run on a body edit or a re-run replaces the one it re-did on the same commit."""
+    newest: dict = {}
+    for c in checks:
+        key = (c.get("workflowName") or "", c.get("name") or c.get("context"))
+        if key not in newest or (c.get("startedAt") or "") >= (newest[key].get("startedAt") or ""):
+            newest[key] = c
+    return list(newest.values())
+
+
 def check(p: dict, nxt: dict | None, allow_no_checks: bool) -> None:
     n = p["number"]
     if p["isCrossRepository"]:
@@ -96,7 +106,7 @@ def check(p: dict, nxt: dict | None, allow_no_checks: bool) -> None:
     checks = p["statusCheckRollup"] or []
     if not checks and not allow_no_checks:
         sys.exit(f"stopped: #{n} has no checks registered yet; wait for CI, or pass --allow-no-checks for a repo without CI")
-    failed = [c.get("name") or c.get("context") for c in checks
+    failed = [c.get("name") or c.get("context") for c in latest(checks)
               if (c.get("conclusion") or "").upper() in RED or (c.get("state") or "").upper() in RED]
     if failed:
         sys.exit(f"stopped: #{n} has failed checks: {', '.join(map(str, failed))}")
