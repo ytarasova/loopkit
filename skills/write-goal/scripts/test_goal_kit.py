@@ -375,6 +375,17 @@ def main() -> None:
         assert pr(good.replace(signals, "not-applicable: a docs change")).strip() == "ok"
         assert "no \"not-applicable\" with a reason" in pr(good.replace(signals, "not-applicable"))
         assert '"Failure: <metric' in pr(good.replace(signals, "- Success: a\nnot-applicable here really"))
+        # GitHub does not render an HTML comment, so nothing inside one counts: a PR template's guidance proves nothing.
+        assert 'no "## Signal"' in pr(good.replace(signals, "<!-- Or not-applicable, and why. -->"))
+        assert "line for simplify" in pr(good.replace("- Simplify: 2 lines removed", "<!--\n- Simplify: 2 lines removed\n-->"))
+        assert 'no "## Review"' in pr(good.replace("## Review", "<!-- unclosed\n## Review"))  # hides the rest, as on GitHub
+        assert pr(good.replace("200 a,b", "200 <!-- a,b")).strip() == "ok"  # inside a fence it is output, not a comment
+        assert pr(good.replace("## Review", "<!-- a note -->\n\n## Review")).strip() == "ok"
+        assert "credential" in pr(good.replace("## Review", "<!-- api_key=" + "a1b2c3d4e5f6 -->\n## Review"))
+        with open(os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(HERE))), ".github", "pull_request_template.md")) as f:
+            template = pr(f.read())
+        for name in ("Assurance", "Evidence", "Signal", "Review"):
+            assert name in template, template  # the unfilled template fails every section
         assert "line for simplify" in pr(good.replace("- Simplify: 2 lines removed\n", ""))
         assert "line for simplify" in pr(good.replace("- Simplify: 2 lines removed", "- Simplify"))
         assert "a self-review" in pr(good.replace("- Self-review", "- Read"))

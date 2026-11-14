@@ -26,7 +26,8 @@ Anything shaped like a credential fails, reported by line number only: AWS and G
 Anthropic, OpenAI, Stripe, npm and Slack tokens, private keys, JWTs, signed URLs, credentials in a URL or a
 curl -u, bearer and basic headers, and password=, token= or api_key= values that mix letters and digits: evidence is posted where others read it.
 An image that is not an https URL fails: a local or relative path renders for nobody. "## " and "### " lines
-inside fenced blocks are output, not sections. A PR reads its body and changed files with `gh`.
+inside fenced blocks are output, not sections, and HTML comments outside them are not read (GitHub does not
+render them), except by the credential scan. A PR reads its body and changed files with `gh`.
 Settings: .claude/loopkit.json (see the write-goal skill).
 """
 
@@ -101,7 +102,20 @@ def masked(text: str) -> str:
     return FENCE.sub(lambda m: re.sub(r"[^\n]", " ", m.group()), text)
 
 
+def uncommented(text: str) -> str:
+    """The text with HTML comments outside fenced blocks blanked, offsets kept. GitHub does not render a comment, so
+    nothing inside one is evidence; an unclosed one hides the rest of the body, as it does on GitHub."""
+    shown, out, i = masked(text), [], 0
+    while (start := shown.find("<!--", i)) != -1:
+        end = shown.find("-->", start + 4)
+        end = len(text) if end < 0 else end + 3
+        out += [text[i:start], re.sub(r"[^\n]", " ", text[start:end])]
+        i = end
+    return "".join(out) + text[i:]
+
+
 def section(body: str, name: str) -> str:
+    body = uncommented(body)
     m = re.search(rf"^## {name}[ \t]*\n(.*?)(?=^## |\Z)", masked(body), re.M | re.S)
     return body[m.start(1):m.end(1)].strip() if m else ""
 

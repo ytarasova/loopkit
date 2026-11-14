@@ -114,6 +114,9 @@ absolute paths before running anything from the target repo.
    draft, again on each push and body edit. Where the repo's plan allows branch protection or rulesets, ask
    the owner to make `check-pr / evidence` a required check; where it does not, `land-stack.py` still
    refuses a PR whose check is red. Prove it on this step's own PR: the check runs, and passes on its body.
+   Copy `.github/pull_request_template.md` too, so every PR opens with the four sections to fill; a repo
+   with its own template gains the four sections instead. Its guidance sits in HTML comments, which
+   `check-pr.py` does not read, so an unfilled template fails every section.
 9. **Land it the repo's way:** a branch and a PR per the constitution's
    merge rules, stacked on any open loopkit PR in the repo. Report the knobs you set and every answer you
    chose for the owner, so they can change one.
