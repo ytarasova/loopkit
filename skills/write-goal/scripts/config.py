@@ -13,9 +13,7 @@ DEFAULTS = {
     "plans_dir": "docs/plans",
     "intent_dir": "docs/specs",  # read by the intent skill
     "ends_at": "pr",  # "pr": the goal ends at an open PR; "production": it ends on gates read after deploy
-    "orchestrator": "Opus 5.5",
-    "implementer": "sonnet",
-    "reviewer": "sonnet",  # model for both review stages; never the implementer of the change
+    "orchestrator": "Opus 5.5",  # the default; the intent recommends Opus 5.5 or Fable 5.2 per goal (models.md)
     "max_parallel": 5,
     "runner": "",  # the one entry point for commands, e.g. "make", "rake", "./bin/dev"
     "bypass": [],  # backticked commands that skip the runner, e.g. ["npx", "bundle exec"]

@@ -14,6 +14,11 @@ names the use cases it proves, and every changeset's evidence is told by them.
 | --- | --- | --- |
 | UC1 | {{FILL: who does what, and what they end up with}} | {{FILL: ui, service or cli}} |
 
+## Models
+
+Orchestrator: {{FILL: Opus 5.5 or Fable 5.2}}, because {{FILL: the reason, from write-goal's models.md}}. Each step below names its
+subagent's model (haiku, sonnet or opus) and why; reviewers run on at least that model.
+
 ## Order
 
 | # | Plan | Delivers | Deletes | Touches |
@@ -39,7 +44,7 @@ An unanswered decision stops the run. An answer longer than a row is a decision 
 
 **Steps**
 
-1. {{FILL: step, with the exact command}} Proves UC1.
+1. {{FILL: step, with the exact command}} Proves UC1. Model: {{FILL: haiku, sonnet or opus, and why}}.
 
 **Gates**
 

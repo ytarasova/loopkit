@@ -42,6 +42,13 @@ and Python 3. Repos with a UI also use `frontend-design`, `playwright` and
    success and failure signals for the rollout; simplify, self-review and
    the constitution cross-checked. `check-pr.py <PR>` checks it.
 
+Models: the intent says which orchestrator the work needs ("This is best
+handled by Fable 5.2, because ..." or Opus 5.5), and the master plan names a
+model per step (haiku, sonnet or opus), from `write-goal/models.md`.
+
+Upgrading from 0.3: master plans need `## Models` and a `Model:` on every
+step; the `implementer` and `reviewer` settings are gone.
+
 Upgrading from 0.2: `check-goal.py` now fails a goal without `check-pr.py`, a
 master plan without `## Use cases`, and a ticked step without its evidence
 file. Add them to goals already written before running it again.

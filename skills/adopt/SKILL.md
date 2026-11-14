@@ -25,8 +25,6 @@ things:
   "intent_dir": "docs/specs",
   "ends_at": "pr",
   "orchestrator": "Opus 5.5",
-  "implementer": "sonnet",
-  "reviewer": "sonnet",
   "max_parallel": 5,
   "runner": "make",
   "bypass": ["npx", "npm run", "pytest"],
@@ -42,8 +40,7 @@ things:
 | --- | --- |
 | `owner` | Who the run hands questions and the PR to. |
 | `ends_at` | `pr`: the goal ends at an open PR the owner merges. `production`: it ships and ends on gates read after deploy, and gates need a window. |
-| `orchestrator`, `implementer`, `max_parallel` | Written into every goal: one orchestrator session, up to `max_parallel` implementer subagents at once, each in its own worktree. |
-| `reviewer` | The model for both review stages, each run by a subagent that did not write the change. |
+| `orchestrator`, `max_parallel` | The default orchestrator model (a goal can take another: the intent recommends Opus 5.5 or Fable 5.2, `write-goal/models.md`), and up to `max_parallel` subagents at once, each on the model its step names and in its own worktree. |
 | `runner` | The one entry point for commands (`make`, `rake`, `just`, `./bin/dev`). Empty when the repo has none; then drop the runner sentence from the goal template. |
 | `bypass` | Backticked commands that skip the runner. The checker fails a goal or master plan that uses one. |
 | `goal_rules` | `{"text": "rule"}`: text every goal must keep, for rules a run here cannot do without. |

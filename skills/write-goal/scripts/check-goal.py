@@ -13,6 +13,8 @@ Fails (exit 1) on what would break or mislead the run; warns on what a person sh
               every gate with a baseline that is a number or (unconfirmed), a source, and a window
               ("within 15 min") when ends_at is production; every Rollback non-empty, and
               every rollback matching rollback_pattern when one is set
+  master      "## Models" with "Orchestrator: Opus 5.5" or "Fable 5.2" (and the goal naming the same model), and
+              "Model: haiku|sonnet|opus" on every numbered step of every plan (write-goal's models.md)
   master      "## Use cases" with "| UC<n> | who does what | ui, service or cli |" rows, each named on some
               plan's "Proves UC<n>." line (a use case no step proves is a hole)
   progress    a Now line, "Waiting on", "In flight", Steps with a checkbox per gate, a Log; warns over 80 KB;
@@ -40,6 +42,7 @@ CORE_RULES = {
     "did not write": "each review stage runs in a context that did not write the change",
     "PASS is a claim": "an implementer's PASS is rerun, not trusted",
     "nothing skipped": "each task runs the write-goal sequence in order",
+    "the model its step names": "each subagent runs on the model its step names",
     "In flight": "a dispatch or unsafe step is recorded before it runs",
     "Waiting on": "a human step is recorded, pushed and ends the run",
     "stacked PRs": "plans ship as stacked PRs, one per plan",
@@ -126,12 +129,22 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
 
     cases: list[str] = []
     if master:
-        for s in ("Use cases", "Order", "Decisions, answered"):
+        for s in ("Use cases", "Models", "Order", "Decisions, answered"):
             if s not in secs:
                 fails.append(f'master plan has no "## {s}" section')
         cases = sorted(set(re.findall(r"^\| *(UC\d+) *\|", secs.get("Use cases", ""), re.M)), key=lambda c: int(c[2:]))
         if "Use cases" in secs and not cases:
             fails.append('master plan "## Use cases" has no "| UC1 | ..." row')
+        orch = re.search(r"^Orchestrator:\s*((?:Opus|Fable)\s+[\d.]+)", secs.get("Models", ""), re.M)
+        if "Models" in secs and not orch:
+            fails.append('master plan "## Models" names no orchestrator ("Orchestrator: Opus 5.5" or "Fable 5.2", and why)')
+        elif orch and goal and orch.group(1) not in goal:
+            fails.append(f"master plan's orchestrator is {orch.group(1)} but the goal does not name it; rescaffold with --orchestrator")
+        for head, body in plans.items():
+            block = body.split("**Steps**", 1)[1].split("\n**", 1)[0] if "**Steps**" in body else ""
+            for step in re.findall(r"^\d+\.\s[^\n]*", block, re.M):
+                if not re.search(r"\bModel:\s*(haiku|sonnet|opus)\b", step, re.I):
+                    fails.append(f'"{head}" step names no model ("Model: haiku, sonnet or opus"): {step[:50]}')
         claims = re.findall(r"\bProves\b[^\n]*", "\n".join(plans.values()))
         proven = set(re.findall(r"\bUC\d+\b", "\n".join(claims)))
         for uc in cases:

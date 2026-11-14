@@ -31,6 +31,11 @@ verifications and who makes each one. Each verification passes or fails (a
 test, a build, a screenshot, a metric) and keeps the output it gave. Ends
 with the riskiest assumption and what would show it false.
 
+## How it should run
+
+Best handled by: Opus 5.5 or Fable 5.2 as the orchestrator, and why, from write-goal's `models.md`. Name the steps that need
+opus, and the mechanical ones haiku can do.
+
 ## Open questions
 
 Each with who can answer it. An open question is not a blocker to planning;

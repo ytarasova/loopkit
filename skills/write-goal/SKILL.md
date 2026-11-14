@@ -54,6 +54,12 @@ under In flight, pushed. **At every state change** (a task merged, a gate
 read, a deploy, a decision changed, a human step hit): update the progress
 file, then commit and push it.
 
+**Models.** The orchestrator and each step's subagent run on the models the
+master plan names, chosen by [`models.md`](models.md): Opus 5.5 or Fable 5.2 to
+orchestrate; haiku, sonnet or opus per step; reviewers on at least the
+implementer's model; a step that fails twice moves up one model. Tell the
+owner the orchestrator choice and its reason before the goal is handed over.
+
 **The sequence.** Every task runs these steps in this order. A step starts
 only when the one before it passed; a failure goes back to the step that
 owns it, never forward. The orchestrator never skips, reorders or merges
@@ -61,12 +67,12 @@ two steps, and never takes a subagent's word for a step it can rerun.
 
 | # | Step | Who | Passes when |
 | --- | --- | --- | --- |
-| 1 | Dispatch: the task, its use cases, its files, its worktree and branch, its evidence file path, this sequence | orchestrator | the dispatch is under In flight and pushed |
+| 1 | Dispatch on the step's model: the task, its use cases, its files, its worktree and branch, its evidence file path, this sequence | orchestrator | the dispatch is under In flight and pushed |
 | 2 | Build it test-first: a failing test per use case, then the code | implementer | each new test failed before the code and passes after |
 | 3 | Assurance: every check in `assurance`, on the task's own commit | implementer | all green, output kept |
 | 4 | Simplify: what the change can lose, applied | implementer | assurance still green |
 | 5 | Evidence: each use case shown for its surface, written to the step's evidence file with steps 3 and 4 | implementer | `check-pr.py <file>` prints ok, except Review |
-| 6 | Correctness review of the diff and the spec | reviewer, a context that did not write it | no open finding; fixes go back to step 2 |
+| 6 | Correctness review of the diff and the spec | reviewer, a context that did not write it, on at least the step's model | no open finding; fixes go back to step 2 |
 | 7 | Quality and constitution review | reviewer, a second fresh context | no open finding; fixes go back to step 2 |
 | 8 | UX review, for a UI use case: walked as a first-time user from the entry point | UX reviewer | passes; fixes go back to step 2 |
 | 9 | Review lines written into the evidence file | reviewer | `check-pr.py <file>` prints ok |
@@ -185,6 +191,7 @@ step is that one read, named exactly, or it is a human step.
 
 | Section | Holds |
 | --- | --- |
+| Models | `Orchestrator: Opus 5.5` or `Fable 5.2`, and why, from [`models.md`](models.md), said to the owner as "This is best handled by ..."; the goal is scaffolded with `new-goal.py --orchestrator` to match. Every step ends `Model: haiku, sonnet or opus` with its reason. |
 | Use cases | `UC<n>` rows: who does what, and what they end up with, failure cases included, and the surface (ui, service, cli). The spine of the evidence: every step names the use cases it proves (`Proves UC2.`), and a use case no step proves is a hole the checker fails. |
 | Order | One row per plan: what it delivers, what it deletes, what it touches. Each plan is one PR, stacked on the plan before it. Plans run in the order given unless the text under the table says two may run beside each other; those two share a base. |
 | Decisions, answered | Every open decision from the intent or spec, with the answer the run will use. An unanswered decision stops the run. An answer longer than a row is its own doc, linked from the row. |

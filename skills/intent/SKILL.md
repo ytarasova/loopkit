@@ -59,7 +59,9 @@ When the frontier is empty, or the originator says "enough", write
 directory. `intent_dir` comes from `.claude/loopkit.json` (default
 `docs/specs`). Every sentence in it traces to an answer or a lookup. The Proof
 section ends with the riskiest assumption: the one thing that, if false, makes
-the outcome not worth building, and what would show it false. Show the draft,
+the outcome not worth building, and what would show it false. Fill "How it should run" from `../write-goal/models.md` and
+say it in chat as one line: "This is best handled by Fable 5.2, because ..."
+(or Opus 5.5). Show the draft,
 ask for corrections, then mark it accepted with the originator's name and the
 date. Point to the file when done; do not recap it in chat.
 
