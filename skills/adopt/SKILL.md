@@ -120,3 +120,9 @@ absolute paths before running anything from the target repo.
 | Copying another repo's project clauses | Rules with no mistake behind them here; the run follows them anyway. |
 | Leaving `{{PROJECT: ...}}` in the goal template | `new-goal.py` refuses to run. |
 | Putting preferences in the goal template | They drift per repo. Models and counts live in `.claude/loopkit.json`. |
+
+## Rolling out a later loopkit change
+
+Each adopted repo keeps its own copy of the kit, so a loopkit change reaches it only when ported. Follow
+[`rollout.md`](rollout.md): land it in loopkit first, then one port per repo in parallel, verified by the orchestrator, landed by
+each repo's own rule, and every live goal run told to pull it.
