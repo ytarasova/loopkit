@@ -1,9 +1,18 @@
 # {{TITLE}}: master plan
 
-Written {{DATE}} {{FILL: HH:MM}} UTC. Spec: {{FILL: the spec, the decision doc, or the owner's words}}.
+Written {{NOW}} UTC. Spec: {{FILL: the spec, the decision doc, or the owner's words}}.
 State lives in [{{DATE}}-{{SLUG}}-progress.md]({{DATE}}-{{SLUG}}-progress.md); the goal text is
 [{{DATE}}-{{SLUG}}-goal.md]({{DATE}}-{{SLUG}}-goal.md). Baselines below were read at the time above. A fact not read from its
 source is marked `(unconfirmed)`, and a step reads it before anything depends on it.
+
+## Asks
+
+Everything the owner asked for, in their words, numbered, each mapped to the use cases that prove it. An ask stated in chat goes
+here the same turn. An ask is built and proven, or dropped by the owner by name and date; never parked.
+
+| Ask | The owner's words | Proven by |
+| --- | --- | --- |
+| A1 | {{FILL: the ask, quoted}} | UC1 |
 
 ## Use cases
 
@@ -37,7 +46,7 @@ An unanswered decision stops the run. An answer longer than a row is a decision 
 
 ## Plan 1: {{FILL: name}}
 
-**Measured facts ({{FILL: HH:MM}} UTC, source in parentheses)**
+**Measured facts (each with its source and when it was read, from `date -u`)**
 
 - {{FILL: what runs now and the rollback target (release, revision or commit), when the goal deploys}}
 - {{FILL: every number a gate compares against, with its source and window}}

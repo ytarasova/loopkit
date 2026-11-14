@@ -20,23 +20,25 @@ github.com/switch-dimension/molten-os-core).
 
 A design tree: every answer opens the questions that depend on it. The
 **frontier** is every question that can be asked now without guessing at an
-answer not yet heard. Ask the whole frontier in one round, numbered, each with
-your recommended answer, then wait. Recompute the frontier from the answers.
+answer not yet heard. Ask one question at a time, the most blocking first, in
+plain words with your recommended answer, then wait. Recompute the frontier
+from the answer.
 The interview ends when the frontier is empty, not when the template is full.
 
 Facts are your job. Before asking, look up what the repo, the ticket and the
 last few related PRs already say, and state what you found instead of asking.
 A question the originator cannot answer better than a grep is a defect.
 
-## Round shape
+## Question shape
 
 ```
-Q1 · <title>
-<question, with the choices if there are natural ones>
+<title>
+<the question in plain words, with the choices if there are natural ones>
 Recommended: <your answer and why, one line>
-
-Q2 · ...
 ```
+
+Never name a file, a field or an option number the originator has not seen;
+say what it means.
 
 If a ticket key was given, read the ticket and its linked PRs first and open
 with what is already known. Skip any question the first message already
@@ -80,8 +82,9 @@ Offer, do not assume:
 
 | Mistake | Instead |
 | --- | --- |
-| Writing the document from the first message | Round 1 first, even for a clear ask. A document with questions inside it is a draft |
-| Asking one question per turn | The whole frontier per round |
+| Writing the document from the first message | The first question first, even for a clear ask. A document with questions inside it is a draft |
+| Asking the whole frontier at once | One question at a time, most blocking first, with a recommendation |
+| Leaving scope implicit | Write what is out of scope, and every assumption, for the originator to confirm |
 | Asking for a fact | Look it up, state it, ask only for the decision |
 | Filling Open questions with your own guesses | Leave them open, name who can answer |
 | Interviewing past the point of use | Stop when a planner could act on it without asking anything back |

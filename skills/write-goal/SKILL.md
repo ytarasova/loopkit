@@ -47,7 +47,30 @@ file plus the list of decisions you answered for them.
    for the owner with the allow rule that would clear it. State the
    permission mode the goal needs, and on a laptop that it must stay awake
    (`caffeinate -i` on macOS).
-5. Commit the three files on that branch and hand the owner the goal file.
+5. Show the owner the master plan, its Asks and its Models ("This is best
+   handled by ..."), and build nothing until they approve: their words go on
+   `progress.py <slug> approve "<their words>"`, which `check-goal.py`
+   requires before any step is ticked.
+6. Commit the three files on that branch and hand the owner the goal file.
+
+**While it runs**, the rules a long run drops first; `check-goal.py` fails the
+first three:
+
+- Times come from the clock: `scripts/progress.py <slug> now|log|approve|view`.
+- Every In flight line and every "What is left" row (the steps after the last
+  task too: reviews, lanes, PRs, the report) ends with its time left.
+- The live view, when the repo has one (`view`), is updated with the progress
+  file, then stamped with `progress.py <slug> view`.
+- An ask stated in chat goes into the master plan's Asks the same turn.
+- After a compaction, re-read the goal and progress files and this lifecycle.
+- A choice about people or their data is asked (§VIII.4), overriding
+  `subagent-driven-development`'s "rulings, not stalls" for those choices.
+- Look before you ask (§VI.8); never stop to ask whether to continue.
+- An agent with no new output for twice its time left is checked, then
+  restarted or stopped. Keep the machine under about 80% load; when CI runners
+  back up, group work into fewer PRs. `max_parallel` is a ceiling, not a quota.
+- Past about 200k tokens, bring the progress file current and hand off from it.
+- Agents sharing a repo coordinate through the progress file.
 
 **Before each dispatch, deploy or other step unsafe to run twice**: a line
 under In flight, pushed. **At every state change** (a task merged, a gate
@@ -141,11 +164,37 @@ link, at the widths people use, and fails:
 - a screen that breaks the patterns of the screens around it (layout, names,
   controls, where actions sit);
 - a missing or unclear empty, loading, error or success state;
-- an outcome the person cannot see, or copy that does not say what happened.
+- an outcome the person cannot see, or copy that does not say what happened;
+- a card or form judged in one state or for one option only: walk every state
+  the change reaches (draft, tested, active, after a sync) and every option
+  that shares the screen, not just the new one;
+- the wrong count or place of actions: one Save per decision, a step's
+  actions in one place, one primary button;
+- a form that saves invalid input, or a thing that can be made but not
+  renamed, moved or removed;
+- the same thing looking or behaving differently on two screens (tables,
+  buttons, sizes), or two words for one state;
+- internal words on screen (ids, enum values, how the system works), or a
+  dialog cut off at the viewport.
+
+A fault on a shared screen that the change puts in front of people is in
+scope; it is not "shared, unchanged".
 
 Each failure is fixed and the walk taken again; its result goes on the line.
 Screens that each work but do not add up to a usable flow are the failure this
 review exists for.
+
+What to show, and what not:
+
+- Tag a use case `(ui)` only when its outcome is something new a person sees.
+  A claim that something is unchanged is proven by the tests that pin it
+  (`cli`), never by screens of the unchanged thing.
+- Screens show only the app the change touches, web and terminal apart,
+  nothing cut off.
+- A step that proves no use case itself but enables one (a fake, a client,
+  plumbing) writes `### Supports UC<n> <how>` with its tests' output.
+- Adopting this kit mid-run, assurance cannot be re-run on old commits: run
+  it on each plan branch's head and label it so.
 
 The script checks shape, not truth: that a screenshot is newer than its
 screen, that output came from the changeset's commit, and that failure cases
@@ -164,10 +213,19 @@ and passes the same check; `check-goal.py` fails without it. Showing the owner t
 never a human step: a run that ends "waiting for the owner to see the screens"
 with the screens in its scratchpad has shown nothing.
 
-**At the end**: the last gate read, `check-pr.py` passing on every PR, the
-progress file closed out, and one short message: a row per plan (what shipped,
-its PR, each gate's commands and the output each printed), then every ruling
-the run made.
+**At the end**, in order:
+
+1. The last gate read, `check-pr.py` passing on every PR, `check-goal.py` ok.
+2. Every ask met, or dropped by the owner by name and date.
+3. Clean up: the run's worktrees, merged branches, containers and processes
+   are gone (`git worktree list`, `docker ps -a`).
+4. When someone will operate what was built, a hand-off doc a sonnet-level
+   agent can follow: setup, run, configuration, failure modes.
+5. When asking the owner to look, open the app for them, signed in and seeded.
+6. One short message: a row per plan (what shipped, its PR, each gate's
+   commands and output); what is merged, deployed, green and verified live,
+   each yes or no; what was skipped, removed or left out and why; then every
+   ruling the run made.
 
 ## 1. Measure the baselines first
 
@@ -191,6 +249,7 @@ step is that one read, named exactly, or it is a human step.
 
 | Section | Holds |
 | --- | --- |
+| Asks | `| A<n> | <the owner's words> | <UC ids> |`: every ask, numbered, mapped to the use cases that prove it, or `dropped by <owner> <date>`. An ask stated in chat goes here the same turn. |
 | Models | `Orchestrator: Opus 5.5` or `Fable 5.2`, and why, from [`models.md`](models.md), said to the owner as "This is best handled by ..."; the goal is scaffolded with `new-goal.py --orchestrator` to match. Every step ends `Model: haiku, sonnet or opus` with its reason. |
 | Use cases | `UC<n>` rows: who does what, and what they end up with, failure cases included, and the surface (ui, service, cli). The spine of the evidence: every step names the use cases it proves (`Proves UC2.`), and a use case no step proves is a hole the checker fails. |
 | Order | One row per plan: what it delivers, what it deletes, what it touches. Each plan is one PR, stacked on the plan before it. Plans run in the order given unless the text under the table says two may run beside each other; those two share a base. |
@@ -207,19 +266,27 @@ holds no state.
 The only place the run records where it is. The goal text never changes to
 carry status, and the master plan's facts do not change because a step ran.
 
-- **Now:** one line, rewritten (not appended) at each state change.
+Every time in it is stamped by `scripts/progress.py`, never typed.
+
+- **Now:** one line, `progress.py <slug> now "<text>"`, rewritten at each
+  state change; `log` moves its time too.
+- **Approved by:** the owner's words approving the master plan,
+  `progress.py <slug> approve "<words>"`; no step is ticked before it.
 - **Waiting on the owner:** every human step hit and open question, most
-  blocking first, each with what it unblocks.
-- **In flight:** each dispatched implementer and each step unsafe to run
-  twice, written before it starts and removed when it lands: what, branch,
-  worktree, command, UTC time.
+  blocking first, each with what it unblocks and the run's recommendation.
+- **In flight:** each dispatched subagent and each step unsafe to run twice,
+  written before it starts and removed when it lands: what, branch,
+  worktree, command, its model, and last its time left ("40m").
+- **What is left:** every step still to come, in order, the ones after the
+  last task included, each with what it waits on and its time left.
 - **Steps:** one checkbox per plan step and one per gate (`- [ ] G1 ...`).
-  Each plan's steps are written here before its first step runs. Tick a box
-  with its evidence in parentheses: the commit, the PR, the UTC time, the
-  number read.
+  Each plan's steps are written here before its first step runs. Tick a step
+  with its evidence file in parentheses,
+  `(<plans_dir>/<date>-<slug>-evidence/<N>.<M>.md)`; a gate with the number
+  it read and its commit.
 - **Rulings:** each decision the run made alone, as `Ruling: <what>; <why>;
   <cost if wrong>`.
-- **Log:** one line per state change, with its UTC time.
+- **Log:** one line per state change, `progress.py <slug> log "<text>"`.
 
 A resume reads the progress file, `git log`, `git worktree list` and the open
 PRs. It never redoes a ticked step, and it checks an In flight item's real
@@ -266,3 +333,7 @@ By hand:
 | One PR for the whole goal | Review cannot keep up, and one bad plan holds back every good one. |
 | Implementers share a checkout | Their edits and test runs collide; one worktree each. |
 | The implementer reviews its own change | It reads the diff for what it meant; the blind spot passes. |
+| A time is typed or reckoned | It lands ahead of the clock and the owner stops trusting every ETA. |
+| A subagent runs `git add -f` on an ignored file | Reports and ledgers land in the PR; stage by path, never force. |
+| A review agent reads the diff itself instead of running its skill's fan-out | Half the review never happens; check its report names the passes it ran. |
+| A shell loop splits a variable (`for c in $C`) | zsh does not split it; use an array or `xargs`. |

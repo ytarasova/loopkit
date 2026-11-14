@@ -13,23 +13,32 @@ Fails (exit 1) on what would break or mislead the run; warns on what a person sh
               every gate with a baseline that is a number or (unconfirmed), a source, and a window
               ("within 15 min") when ends_at is production; every Rollback non-empty, and
               every rollback matching rollback_pattern when one is set
+  master      "## Asks": "| A<n> | <the owner's words> | <UC ids that exist, or dropped by <owner> YYYY-MM-DD> |"
+  master      "## Use cases" with "| UC<n> | who does what | ui, service or cli |" rows, each on some plan's
+              "Proves UC<n>." line (a use case no step proves is a hole)
   master      "## Models" with "Orchestrator: Opus 5.5" or "Fable 5.2" (and the goal naming the same model), and
               "Model: haiku|sonnet|opus" on every numbered step of every plan (write-goal's models.md)
-  master      "## Use cases" with "| UC<n> | who does what | ui, service or cli |" rows, each named on some
-              plan's "Proves UC<n>." line (a use case no step proves is a hole)
-  progress    a Now line, "Waiting on", "In flight", Steps with a checkbox per gate, a Log; warns over 80 KB;
-              every ticked step is "Plan N step M" and names its own evidence file,
-              "(<plans_dir>/<date>-<slug>-evidence/<N>.<M>.md)", which exists and passes check-pr.py with each
-              use case proven for its surface (assurance, evidence by use case, signal, review);
-              once every step is ticked, "<date>-<slug>-evidence/goal.md" proves the whole: it passes
-              check-pr.py and has a "### UC<n>" for every use case in the master plan
+  progress    a "**Now (YYYY-MM-DD HH:MM UTC):**" line no older than the last Log entry; no stamp (Now, Log,
+              Approved by, the view) more than 5 minutes ahead of the clock (progress.py writes them);
+              "Waiting on", "In flight" and "What is left"; each In flight item ends with its time left,
+              and each "What is left" row has one in its last column;
+              the live view (`view`) stamped no earlier than Now; Steps with a checkbox per gate; a Log;
+              no ticked "Plan" step before "Approved by"; warns over 80 KB
+  evidence    every ticked step is "Plan N step M" and names its own evidence file,
+              "(<plans_dir>/<date>-<slug>-evidence/<N>.<M>.md)", which exists, passes check-pr.py with each
+              use case proven for its surface, and has a "### UC<n>" for each use case its step proves;
+              once every step is ticked, "<date>-<slug>-evidence/goal.md" passes check-pr.py and has a
+              "### UC<n>" for every use case in the master plan
+  repo        .superpowers/ is git-ignored when it exists
 Settings: .claude/loopkit.json (see the write-goal skill).
 """
 
+import datetime
 import glob
 import importlib
 import os
 import re
+import subprocess
 import sys
 
 import config
@@ -43,12 +52,15 @@ CORE_RULES = {
     "PASS is a claim": "an implementer's PASS is rerun, not trusted",
     "nothing skipped": "each task runs the write-goal sequence in order",
     "the model its step names": "each subagent runs on the model its step names",
+    "§VIII.4": "a choice about what people see or where their data goes is asked, not ruled",
+    "progress.py": "times in the progress file come from the clock",
+    "after a compaction": "the goal and the progress file are re-read after a compaction",
     "In flight": "a dispatch or unsafe step is recorded before it runs",
     "Waiting on": "a human step is recorded, pushed and ends the run",
     "stacked PRs": "plans ship as stacked PRs, one per plan",
     "check-pr.py": "every changeset carries its complete evidence, checked",
 }
-UNIT = r"(s|sec|min|minutes?|m|h|hours?|d|days?)\b"
+UNIT = r"(s|sec|mins?|minutes?|m|h|hrs?|hours?|d|days?)\b"
 PLAN_PARTS = [
     "**Measured facts",
     "**Steps**",
@@ -73,6 +85,11 @@ def gate_ids(text: str) -> set[int]:
     for a, b in re.findall(r"\bG(\d+)(?:\s*(?:to|-)\s*G(\d+))?", text):
         ids.update(range(int(a), int(b or a) + 1))
     return ids
+
+
+def section_of(secs: dict[str, str], name: str) -> str:
+    """A progress section by the start of its heading, so "## In flight (2)" is still In flight."""
+    return next((body for head, body in secs.items() if head.startswith(name)), "")
 
 
 def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> tuple[list[str], list[str]]:
@@ -128,13 +145,30 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
                 fails.append(f"{name} runs `{cmd}` directly; every command goes through {cfg['runner']}")
 
     cases: list[str] = []
+    step_proves: dict[tuple[str, str], set[str]] = {}
     if master:
-        for s in ("Use cases", "Models", "Order", "Decisions, answered"):
+        for s in ("Asks", "Use cases", "Models", "Order", "Decisions, answered"):
             if s not in secs:
                 fails.append(f'master plan has no "## {s}" section')
         cases = sorted(set(re.findall(r"^\| *(UC\d+) *\|", secs.get("Use cases", ""), re.M)), key=lambda c: int(c[2:]))
         if "Use cases" in secs and not cases:
             fails.append('master plan "## Use cases" has no "| UC1 | ..." row')
+        ask_lines = re.findall(r"^\|? *A\d+ *\|[^\n]*", secs.get("Asks", ""), re.M)
+        if "Asks" in secs and not ask_lines:
+            fails.append('master plan "## Asks" has no "| A1 | <the owner\'s words> | UC1 |" row')
+        dropped = rf"^dropped by {re.escape(cfg['owner'])} \d{{4}}-\d\d-\d\d\b"
+        for line in ask_lines:
+            cells = [c.strip() for c in line.strip().strip("|").split("|")]
+            if not line.startswith("|") or not line.rstrip().endswith("|") or len(cells) < 3:
+                fails.append(f"Asks row is not \"| A<n> | <the owner's words> | <UC ids, or dropped by {cfg['owner']} YYYY-MM-DD> |\": {line[:60]}")
+                continue
+            ask, last = cells[0], cells[-1]
+            ids = re.findall(r"\bUC\d+\b", last)
+            if re.match(dropped, last, re.I):
+                continue
+            if not ids:
+                fails.append(f"{ask} maps to no use case and was not dropped by {cfg['owner']} on a date: every ask is built and proven, or dropped by name")
+            fails.extend(f"{ask} names {uc}, which the Use cases table does not define" for uc in ids if uc not in cases)
         orch = re.search(r"^Orchestrator:\s*((?:Opus|Fable)\s+[\d.]+)", secs.get("Models", ""), re.M)
         if "Models" in secs and not orch:
             fails.append('master plan "## Models" names no orchestrator ("Orchestrator: Opus 5.5" or "Fable 5.2", and why)')
@@ -145,7 +179,14 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
             for step in re.findall(r"^\d+\.\s[^\n]*", block, re.M):
                 if not re.search(r"\bModel:\s*(haiku|sonnet|opus)\b", step, re.I):
                     fails.append(f'"{head}" step names no model ("Model: haiku, sonnet or opus"): {step[:50]}')
-        claims = re.findall(r"\bProves\b[^\n]*", "\n".join(plans.values()))
+        for head, body in plans.items():
+            n = re.match(r"Plan (\d+)", head)
+            block = body.split("**Steps**", 1)[1].split("\n**", 1)[0] if "**Steps**" in body else ""
+            for m, line in re.findall(r"^(\d+)\.\s(.*?)(?=^\d+\.\s|\Z)", block, re.M | re.S):  # a step runs to the next
+                claim = re.search(r"\bProves\b([^.]*)", line)
+                if n and claim:
+                    step_proves[(n.group(1), m)] = set(re.findall(r"\bUC\d+\b", claim.group(1)))
+        claims = re.findall(r"\bProves\b[^.]*", "\n".join(plans.values()))
         proven = set(re.findall(r"\bUC\d+\b", "\n".join(claims)))
         for uc in cases:
             if uc not in proven:
@@ -205,12 +246,43 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
 
     if prog:
         psecs = sections(prog)
-        if "**Now" not in prog:
-            fails.append('progress file has no "**Now" line')
-        for s in ("Waiting on", "In flight"):
+        stamp_at = r"(\d{4}-\d\d-\d\d \d\d:\d\d)(?::\d\d)? UTC"
+        now_at = re.search(rf"^\*\*Now \({stamp_at}\):\*\*", prog, re.M)
+        logged = re.findall(rf"^- {stamp_at}", section_of(psecs, "Log"), re.M)
+        approved = re.search(rf"^Approved by .+? {stamp_at}: \S", prog, re.M)
+        view_at = re.search(rf"^{re.escape(cfg['view'])} updated: {stamp_at}", prog, re.M) if cfg["view"] else None
+        # Stamped times come from the clock (progress.py), never reckoned: one ahead of now was made up.
+        # Other dates in the file (a freeze that lifts next week) are plans, not stamps, and are not checked.
+        clock = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M")
+        late = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M")
+        stamps = [m.group(1) for m in (now_at, approved, view_at) if m] + logged
+        fails.extend(f"progress file has a stamp ahead of the clock: {t} UTC (now {clock} UTC); stamp with progress.py"
+                     for t in sorted(set(stamps)) if t > late)
+        if not now_at:
+            fails.append('progress file has no "**Now (YYYY-MM-DD HH:MM UTC):**" line (progress.py now "<text>" writes it)')
+        else:
+            if logged and max(logged) > now_at.group(1):
+                fails.append(f"the Now line ({now_at.group(1)} UTC) is older than the last Log entry ({max(logged)} UTC): rewrite it at every state change")
+            if cfg["view"] and (not view_at or view_at.group(1) < now_at.group(1)):
+                fails.append(f'the {cfg["view"]} lags the progress file: no "{cfg["view"]} updated: <time>" at or after the Now line '
+                             f'(update it, then progress.py view)')
+        time_left = rf"\d+\s*{UNIT}(?:\s*\d+\s*{UNIT})?"
+        for item in re.findall(r"^- (?!(?:nothing|none)\b)([^\n]+)", section_of(psecs, "In flight"), re.M | re.I):
+            if not re.search(rf"{time_left}[\s.)]*$", item, re.I):
+                fails.append(f'In flight item does not end with its time left ("1h 20m", "35m"): {item[:60]}')
+        left = re.sub(r"^```.*?^```", "", section_of(psecs, "What is left"), flags=re.M | re.S)
+        tables = re.findall(r"(?:^\|[^\n]*\|[ \t]*\n?)+", left, re.M)
+        rows = [r for t in tables for r in t.splitlines()[1:] if not re.fullmatch(r"[|:\- \t]+", r)]
+        for row in rows:  # each table's first row is its header
+            last = row.strip().strip("|").split("|")[-1]
+            if not re.search(time_left, last, re.I):
+                fails.append(f'"What is left" row has no time left in its last column: {row.strip()[:60]}')
+        for s in ("Waiting on", "In flight", "What is left"):
             if not any(h.startswith(s) for h in psecs):
                 fails.append(f'progress file has no "## {s}" section')
         steps = psecs.get("Steps", "")
+        if re.search(r"^- \[[xX]\] Plan", steps, re.M) and not approved:
+            fails.append('a step is ticked but the master plan was never approved: progress.py approve "<their words>" comes before any code')
         if not re.search(r"^- \[[ xX]\] ", steps, re.M):
             fails.append('progress file has no "## Steps" checklist')
         for g in sorted(defined):
@@ -242,7 +314,10 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
                 elif not os.path.isfile(path):
                     fails.append(f"ticked step's evidence file does not exist: {path}")
                 else:
-                    proven(path)
+                    shown = check_pr.use_cases(check_pr.section(proven(path), "Evidence"))
+                    fails.extend(f"{path} has no \"### {uc}\": Plan {step.group(1)} step {step.group(2)} proves it, "
+                                 f"so \"Supports {uc}\" does not stand in for its proof"
+                                 for uc in sorted(step_proves.get((step.group(1), step.group(2)), ())) if uc not in shown)
             if ticked and not re.search(r"^- \[ \] ", steps, re.M):
                 # Every piece is proven; now the whole: every use case again, on the final code, in one file.
                 whole = f"{evidence}/goal.md"
@@ -266,15 +341,7 @@ def main() -> None:
         sys.exit(__doc__)
     config.to_top()
     cfg = config.load()
-    plans, slug = cfg["plans_dir"], args[0]
-    dates = args[1:] or sorted(
-        os.path.basename(p)[:10]
-        for p in glob.glob(f"{plans}/????-??-??-{slug}-*.md")
-        if re.fullmatch(rf"\d{{4}}-\d\d-\d\d-{re.escape(slug)}-(goal|master|progress)\.md", os.path.basename(p))
-    )
-    if len(set(dates)) != 1:
-        sys.exit(f'no single goal for "{slug}" in {plans} (found {sorted(set(dates)) or "none"}); give its date')
-    base = f"{plans}/{dates[0]}-{slug}"
+    base = config.goal_base(cfg, args[0], args[1] if len(args) > 1 else "")
 
     texts, missing = [], []
     for kind in ("goal", "master", "progress"):
@@ -286,6 +353,9 @@ def main() -> None:
             missing.append(f"missing or empty: {path}")
             texts.append("")
     fails, warns = check(*texts, cfg, f"{base}-evidence")
+    ignored = subprocess.run(["git", "check-ignore", "-q", ".superpowers"]).returncode == 0
+    if os.path.isdir(".superpowers") and not ignored:
+        fails.append(".superpowers/ is not git-ignored: subagent ledgers will be committed (add it to .gitignore)")
     fails = missing + fails
 
     for w in warns:

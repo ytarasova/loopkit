@@ -21,6 +21,7 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 5. **Every changeset names its signal.** The success and the failure signal to watch during the rollout (a metric, log line or alert, with its threshold), or "not-applicable" and why.
 6. **Every changeset is simplified, self-reviewed and cross-checked against this constitution,** each with its result, and the work verifies itself piece by piece and as a whole: each changeset proves the use cases it touches, and the finished work proves every use case again, on the final code.
 7. **A UI is reviewed as a person uses it, not as a set of screens.** A reviewer that did not build it walks each use case as a first-time user, from where that person lands, never from a deep link. A screen that works but cannot be found, cannot be read (contrast, size, truncation), breaks the patterns of the screens around it, hides its empty, loading or error state, or leaves the person unsure what happened, fails the review.
+8. **Done is said, not asked for.** Every report says what shipped without being asked: merged or not, deployed or not, every pipeline green or not, verified in the real environment or not, and what was skipped, removed or left out, each with its reason.
 
 ## III. Causes, not symptoms
 
@@ -29,6 +30,7 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 3. **After a fix, look for the same shortcut elsewhere.** Grep the siblings of the function you fixed.
 4. **Three failed fixes for one failure means the model is wrong.** Question the design, not the fourth fix.
 5. **Delete or rename, then sweep every reference.** Your diff cannot show what it orphaned.
+6. **A defect you find is yours.** Fix it in this run, or file it and link the ticket in the report. "Left alone", "out of scope" or "pre-existing" with no link is not an answer.
 
 ## IV. Code
 
@@ -37,7 +39,8 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 3. **YAGNI.** No speculative scaffolding, no parameter with one valid value, no interface with one implementation.
 4. **Comments say why, never what.** No task references, ticket numbers or spec section numbers in code.
 5. **No shims for unused code.** If nothing calls it, delete it.
-6. **{{PROJECT: house writing rule, e.g. "No em-dashes in chat, code, docs or commits." or delete this line}}**
+6. **Limits are settings, not literals.** A threshold, window, size or count that someone may tune is a named setting with a default, never a number inside logic.
+7. **{{PROJECT: house writing rule, e.g. "No em-dashes in chat, code, docs or commits." or delete this line}}**
 
 ## V. Tests
 
@@ -55,6 +58,10 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 5. **Report BLOCKED instead of retrying blindly.** Bad work is worse than no work.
 6. **Big cross-cutting changes land in revertable steps,** each one verified.
 7. **Verification passes or fails.** A test, a build, a screenshot, a metric, with the output it printed. "Looks right" is not a verification.
+8. **Look before you ask.** The knowledge base, the CLI, the MCP servers and the CI runners come first. Never hand the owner a step you can take; a human step is one nothing you have can do.
+9. **Ask in plain words, one question at a time, with your recommendation.** Do the literal ask; when a verb has two readings, ask once. A question naming a file or an option number the owner has not seen is not a question.
+10. **A correction from the owner goes into the skill the same turn,** not into memory or a note, so it is never given twice; one that changes this file is proposed to the owner the same turn (§VIII.3).
+11. **Edit files with the edit tools.** The shell is the fallback for what they cannot do.
 
 ## VII. Branches and merges
 
@@ -71,6 +78,10 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 1. **Question an architecture that feels wrong.** Say so and propose the fix.
 2. **Ask before anything you cannot take back.** The test is whether one wrong attempt can be undone. Code and a commit on your own branch can be undone, so they need no permission (§VI.4). Merging follows §VII.3. A force-push to a shared branch, `rm -rf`, a dropped table, a deleted branch, discarded uncommitted work, a sent message and {{PROJECT: shared or production state, e.g. "anything in AWS, staging or production"}} cannot, so they wait for the owner. An authorization covers the operation named and nothing beyond it.
 3. **When the owner's directive contradicts this file,** the directive wins for that session. If the preference has changed for good, propose an edit here.
+4. **A choice about people or their data is the owner's.** One that changes what a person sees or can do, or where a customer's data goes or what happens to it on a failure, is asked in the turn it comes up, as one question with a recommendation, and recorded under Waiting on; work goes on with what does not depend on it. A ruling written in a ledger is not asking.
+5. **Protected resources need permission.** {{PROJECT: the environments, tenants, shared models, paid services and repos no agent touches unasked}}. Never mint a credential for yourself.
+6. **Trace before you delete.** Name what referenced it and why it goes; infrastructure shows its plan's destroys first.
+7. **Leave nothing behind.** At the end of the work, its worktrees, branches, containers and processes are gone.
 
 {{PROJECT: project sections from here on (domain language, stack idioms, deploy rules), numbered IX onward; each clause earned by a real mistake or a real constraint, or delete this line}}
 
