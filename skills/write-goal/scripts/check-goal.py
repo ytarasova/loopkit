@@ -29,7 +29,10 @@ Fails (exit 1) on what would break or mislead the run; warns on what a person sh
               use case proven for its surface, and has a "### UC<n>" for each use case its step proves;
               once every step is ticked, "<date>-<slug>-evidence/goal.md" passes check-pr.py and has a
               "### UC<n>" for every use case in the master plan
-  repo        .superpowers/ is git-ignored when it exists
+  progress    "## Owner corrections": every correction the owner gave, each row ending with the kit change that
+              encodes it (a commit, a PR or a ticket)
+  repo        .superpowers/ is git-ignored when it exists; on a branch other than main, no kit file
+              (CONSTITUTION.md, .claude/) changes unless the master plan says it touches one
 Settings: .claude/loopkit.json (see the write-goal skill).
 """
 
@@ -279,7 +282,11 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
             last = row.strip().strip("|").split("|")[-1]
             if not re.search(time_left, last, re.I):
                 fails.append(f'"What is left" row has no time left in its last column: {row.strip()[:60]}')
-        for s in ("Waiting on", "In flight", "What is left"):
+        for row in re.findall(r"^\|(?! *(?:When|:?-+:?) *\|)[^\n]*\|[ \t]*$", section_of(psecs, "Owner corrections"), re.M):
+            last = row.strip().strip("|").split("|")[-1]
+            if not re.search(r"\b[0-9a-f]{7,40}\b|#\d+|https://\S+/pull/\d+|\bticket\b", last, re.I):
+                fails.append(f"owner correction with no kit change: {row.strip()[:60]} (its commit, PR or ticket, §VI.10)")
+        for s in ("Waiting on", "In flight", "What is left", "Owner corrections"):
             if not any(h.startswith(s) for h in psecs):
                 fails.append(f'progress file has no "## {s}" section')
         steps = psecs.get("Steps", "")
@@ -355,6 +362,13 @@ def main() -> None:
             missing.append(f"missing or empty: {path}")
             texts.append("")
     fails, warns = check(*texts, cfg, f"{base}-evidence")
+    branch = subprocess.run(["git", "branch", "--show-current"], capture_output=True, text=True).stdout.strip()
+    if branch and branch not in ("main", "master") and texts[1] and not re.search(r"CONSTITUTION\.md|\.claude/", texts[1]):
+        kit = subprocess.run(["git", "diff", "--name-only", "origin/main...HEAD", "--", "CONSTITUTION.md", ".claude"],
+                             capture_output=True, text=True).stdout.split()
+        if kit:
+            fails.append(f"kit files changed on {branch} ({kit[0]}{' and more' if len(kit) > 1 else ''}): a kit fix ships as its "
+                         "own PR off main, so the next run and the other repos get it (rollout.md)")
     ignored = subprocess.run(["git", "check-ignore", "-q", ".superpowers"]).returncode == 0
     if os.path.isdir(".superpowers") and not ignored:
         fails.append(".superpowers/ is not git-ignored: subagent ledgers will be committed (add it to .gitignore)")

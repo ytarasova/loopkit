@@ -123,7 +123,9 @@ merged up or opened without it. Four sections, checked by
 
 - `## Assurance`: every check in `assurance` (tests, coverage, lint,
   typecheck, violations, security, by default), each with its command and the output it
-  printed in a fenced block. Counts are what ran, on the changeset's own commit
+  printed in a fenced block, naming the commit it ran on; on a PR,
+  `check-pr.py <PR>` fails assurance that ran on anything but the PR's head.
+  Counts are what ran, on the changeset's own commit
   (the reviewer checks this; the script cannot).
 - `## Evidence`, told by use case: a `### UC<n> <who does what>` per use case
   from the master plan that the changeset proves, failure cases included, each
@@ -232,10 +234,32 @@ with the screens in its scratchpad has shown nothing.
 4. When someone will operate what was built, a hand-off doc a sonnet-level
    agent can follow: setup, run, configuration, failure modes.
 5. When asking the owner to look, open the app for them, signed in and seeded.
-6. One short message: a row per plan (what shipped, its PR, each gate's
+6. The retro: every correction the owner gave during the run is a row of the
+   progress file's "Owner corrections", each with the kit change that encodes
+   it, shipped as its own PR off main, never on a plan branch (`check-goal.py`
+   fails a kit file changed on a feature branch, and a correction with no
+   change). Then roll the kit change out to the repos that use it
+   (`adopt/rollout.md`).
+7. One short message: a row per plan (what shipped, its PR, each gate's
    commands and output); what is merged, deployed, green and verified live,
    each yes or no; what was skipped, removed or left out and why; then every
    ruling the run made.
+
+**Landing the stack**, when the owner says to:
+`python3 <base>/scripts/land-stack.py <bottom PR> ... <top PR>` prints the
+plan, and `--run` lands it: each PR checked (open, based on main, `check-pr`
+ok, no failed check), the next retargeted to main before this branch goes,
+merged, its branch deleted, then `origin/main` merged up into the next with
+conflicts resolved to its side. It stops, and lands nothing more, when the
+next branch would then change files beyond its own (a fix below that was never
+merged up). `--method rebase` keeps each commit's author.
+
+**After the merge: watch.** Each PR's Success and Failure lines carry a
+threshold and a window (`check-pr.py` fails them without). Once it deploys,
+read each signal over its window, from the source it names, and write the
+reading under the PR. A Failure reading rolls back first, then is fixed
+(§III). When the run has ended by then, schedule the reading before it ends
+(the `schedule` skill: one run at the end of the longest window).
 
 ## 1. Measure the baselines first
 
@@ -347,3 +371,5 @@ By hand:
 | A subagent runs `git add -f` on an ignored file | Reports and ledgers land in the PR; stage by path, never force. |
 | A review agent reads the diff itself instead of running its skill's fan-out | Half the review never happens; check its report names the passes it ran. |
 | A shell loop splits a variable (`for c in $C`) | zsh does not split it; use an array or `xargs`. |
+| A kit fix is committed on the feature branch | It ships hidden in the feature's PR, and no other run or repo gets it; ship it off main. |
+| A Self-review line does not say who reviewed | Nobody can tell the implementer from a fresh context; name the model and the context. |
