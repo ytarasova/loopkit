@@ -82,10 +82,20 @@ merged up or opened without it. Four sections, checked by
 
 A UI changeset also carries `UX review: <result>`, and each UI use case shows
 its flow, two screenshots or more, from where the person lands to what they
-end up with. The UX review is a fresh subagent (the repo's UX reviewer agent
-when it has one) given the running app and the use cases, not the diff. It
-walks each use case as a first-time user, from the app's entry point, never a
-deep link, at the widths people use, and fails:
+end up with. Use the skills already installed rather than writing new ones:
+
+- building it: `frontend-design:frontend-design`, so the screen starts from a
+  design, not from whatever renders;
+- walking it: the `playwright` or `chrome-devtools-mcp` browser, driven like a
+  person, with clicks from the entry point;
+- reading it: `chrome-devtools-mcp:a11y-debugging` for contrast, sizes and
+  names;
+- judging it: the repo's UX reviewer agent when it has one, otherwise a fresh
+  subagent given this list.
+
+The reviewer gets the running app and the use cases, not the diff. It walks
+each use case as a first-time user, from the app's entry point, never a deep
+link, at the widths people use, and fails:
 
 - navigation a person could not follow to the feature, or back out of;
 - text that cannot be read: low contrast, too small, truncated, overlapping;

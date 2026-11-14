@@ -13,7 +13,8 @@ skills are generic; `adopt` fits them to each repo.
 ## Install
 
 Needs the `superpowers` plugin (`subagent-driven-development`, `writing-plans`)
-and Python 3.
+and Python 3. Repos with a UI also use `frontend-design`, `playwright` and
+`chrome-devtools-mcp` (its `a11y-debugging`) for the UX review.
 
 ```
 /plugin marketplace add ytarasova/loopkit
