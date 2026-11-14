@@ -20,6 +20,8 @@ DEFAULTS = {
     "runner": "",  # the one entry point for commands, e.g. "make", "rake", "./bin/dev"
     "bypass": [],  # backticked commands that skip the runner, e.g. ["npx", "bundle exec"]
     "goal_rules": {},  # {"text the goal must keep": "the rule it stands for"}
+    "assurance": ["tests", "coverage", "lint", "typecheck", "violations"],  # what every changeset shows run, by name
+    "surfaces": {},  # {"ui"|"service"|"cli": [regex on changed files]}: what evidence a PR needs, check-pr.py
     "rollback_pattern": "",  # regex every plan's Rollback must match, e.g. "[a-z-]+:\\d+"
     "ban_em_dash": True,
 }
@@ -43,6 +45,10 @@ def load() -> dict:
         bad.append(f'ends_at is {cfg["ends_at"]!r}; use "pr" or "production"')
     if not isinstance(cfg["bypass"], list):
         bad.append("bypass must be a list of commands")
+    if not isinstance(cfg["assurance"], list):
+        bad.append("assurance must be a list of check names")
+    if not isinstance(cfg["surfaces"], dict) or set(cfg["surfaces"]) - {"ui", "service", "cli"}:
+        bad.append('surfaces must be {"ui"|"service"|"cli": [regex, ...]}')
     if not isinstance(cfg["goal_rules"], dict):
         bad.append('goal_rules must be {"text": "rule"}')
     try:

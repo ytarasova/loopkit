@@ -13,7 +13,8 @@ skills are generic; `adopt` fits them to each repo.
 ## Install
 
 Needs the `superpowers` plugin (`subagent-driven-development`, `writing-plans`)
-and Python 3.
+and Python 3. Repos with a UI also use `frontend-design`, `playwright` and
+`chrome-devtools-mcp` (its `a11y-debugging`) for the UX review.
 
 ```
 /plugin marketplace add ytarasova/loopkit
@@ -35,7 +36,15 @@ and Python 3.
    resume after compaction or a restart.
 6. The run ends when the gates hold, or when it hits a step only you can
    take: then it records it under "Waiting on", pushes and stops. Read
-   "Waiting on" and "Rulings" in the progress file.
+   "Waiting on" and "Rulings" in the progress file. No part is done without
+   its complete evidence in its PR: tests and their output; screenshots
+   (UI), curl request and response (service) or the command's run (CLI);
+   success and failure signals for the rollout; simplify, self-review and
+   the constitution cross-checked. `check-pr.py <PR>` checks it.
+
+Upgrading from 0.2: `check-goal.py` now fails a goal without `check-pr.py`, a
+master plan without `## Use cases`, and a ticked step without its evidence
+file. Add them to goals already written before running it again.
 
 ## Customizing
 

@@ -5,6 +5,15 @@ State lives in [{{DATE}}-{{SLUG}}-progress.md]({{DATE}}-{{SLUG}}-progress.md); t
 [{{DATE}}-{{SLUG}}-goal.md]({{DATE}}-{{SLUG}}-goal.md). Baselines below were read at the time above. A fact not read from its
 source is marked `(unconfirmed)`, and a step reads it before anything depends on it.
 
+## Use cases
+
+What a person or system can do when the goal is done, failure cases included. They are the spine of the evidence: every step
+names the use cases it proves, and every changeset's evidence is told by them.
+
+| UC | Who does what, and what they end up with | Surface (ui, service, cli) |
+| --- | --- | --- |
+| UC1 | {{FILL: who does what, and what they end up with}} | {{FILL: ui, service or cli}} |
+
 ## Order
 
 | # | Plan | Delivers | Deletes | Touches |
@@ -30,7 +39,7 @@ An unanswered decision stops the run. An answer longer than a row is a decision 
 
 **Steps**
 
-1. {{FILL: step, with the exact command}}
+1. {{FILL: step, with the exact command}} Proves UC1.
 
 **Gates**
 

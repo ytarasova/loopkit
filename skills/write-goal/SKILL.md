@@ -54,9 +54,81 @@ under In flight, pushed. **At every state change** (a task merged, a gate
 read, a deploy, a decision changed, a human step hit): update the progress
 file, then commit and push it.
 
-**At the end**: the last gate read, the progress file closed out, and one
-short message: a row per plan (what shipped, its PR, each gate's commands and
-the output each printed), then every ruling the run made.
+**Every changeset is done only with its complete evidence** (constitution
+§II.4 to §II.7): a task merged to its plan branch, a fix, and each PR. Nothing is ticked,
+merged up or opened without it. Four sections, checked by
+`python3 <base>/scripts/check-pr.py <PR number | evidence file>`:
+
+- `## Assurance`: every check in `assurance` (tests, coverage, lint,
+  typecheck, violations, by default), each with its command and the output it
+  printed in a fenced block. Counts are what ran, on the changeset's own commit
+  (the reviewer checks this; the script cannot).
+- `## Evidence`, told by use case: a `### UC<n> <who does what>` per use case
+  from the master plan that the changeset proves, failure cases included, each
+  with its proof for the surface the master plan gives it (check-goal passes
+  the table; `--master <file>` does for a PR): UI, a screenshot per step taken after the
+  last change to its screen; service, the curl request and the response it got;
+  CLI, the command run and its output. Images go at an https URL a reviewer can
+  open: commit them to an `evidence/<slug>` branch and link
+  `https://github.com/<org>/<repo>/blob/evidence/<slug>/<file>?raw=true`. A
+  path in a scratchpad, `/tmp` or a git-ignored folder renders for nobody. A
+  report or doc link may follow; it never replaces the evidence.
+- `## Signal`: a line starting `Success` and one starting `Failure`, each the
+  metric, log line or alert to watch during the rollout, with its threshold;
+  or `not-applicable` and why.
+- `## Review`: a line each, `Simplify: <result>`, `Self-review: <by whom,
+  result>`, `Constitution: <result>`; the self-review by a context that did
+  not write the change.
+
+A UI changeset also carries `UX review: <result>`, and each UI use case shows
+its flow, two screenshots or more, from where the person lands to what they
+end up with. Use the skills already installed rather than writing new ones:
+
+- building it: `frontend-design:frontend-design`, so the screen starts from a
+  design, not from whatever renders;
+- walking it: the `playwright` or `chrome-devtools-mcp` browser, driven like a
+  person, with clicks from the entry point;
+- reading it: `chrome-devtools-mcp:a11y-debugging` for contrast, sizes and
+  names;
+- judging it: the repo's UX reviewer agent when it has one, otherwise a fresh
+  subagent given this list.
+
+The reviewer gets the running app and the use cases, not the diff. It walks
+each use case as a first-time user, from the app's entry point, never a deep
+link, at the widths people use, and fails:
+
+- navigation a person could not follow to the feature, or back out of;
+- text that cannot be read: low contrast, too small, truncated, overlapping;
+- a screen that breaks the patterns of the screens around it (layout, names,
+  controls, where actions sit);
+- a missing or unclear empty, loading, error or success state;
+- an outcome the person cannot see, or copy that does not say what happened.
+
+Each failure is fixed and the walk taken again; its result goes on the line.
+Screens that each work but do not add up to a usable flow are the failure this
+review exists for.
+
+The script checks shape, not truth: that a screenshot is newer than its
+screen, that output came from the changeset's commit, and that failure cases
+are among the use cases are the reviewer's to check.
+
+The loop verifies itself piece by piece and as a whole. A step's file is
+`<plans_dir>/<date>-<slug>-evidence/<plan>.<step>.md`, named
+in parentheses on its ticked line; `check-goal.py` fails a ticked step without
+one that passes. A PR body gathers its plan's steps: their assurance on the
+PR's head, every use case the plan proves, the signal and the review. Run
+`check-pr.py <PR>` after opening it; with the PR it also checks the changed
+files against `surfaces`. Once every step is ticked, the whole:
+`<plans_dir>/<date>-<slug>-evidence/goal.md`, taken on the top of the stack
+after the last code commit, proves every use case in the master plan again
+and passes the same check; `check-goal.py` fails without it. Showing the owner the evidence is the run's job,
+never a human step: a run that ends "waiting for the owner to see the screens"
+with the screens in its scratchpad has shown nothing.
+
+**At the end**: the last gate read, `check-pr.py` passing on every PR, the
+progress file closed out, and one short message: a row per plan (what shipped,
+its PR, each gate's commands and the output each printed), then every ruling
+the run made.
 
 ## 1. Measure the baselines first
 
@@ -80,6 +152,7 @@ step is that one read, named exactly, or it is a human step.
 
 | Section | Holds |
 | --- | --- |
+| Use cases | `UC<n>` rows: who does what, and what they end up with, failure cases included, and the surface (ui, service, cli). The spine of the evidence: every step names the use cases it proves (`Proves UC2.`), and a use case no step proves is a hole the checker fails. |
 | Order | One row per plan: what it delivers, what it deletes, what it touches. Each plan is one PR, stacked on the plan before it. Plans run in the order given unless the text under the table says two may run beside each other; those two share a base. |
 | Decisions, answered | Every open decision from the intent or spec, with the answer the run will use. An unanswered decision stops the run. An answer longer than a row is its own doc, linked from the row. |
 | `## Plan N: <name>` | One per Order row, even when the plan lives in its own file (link it here). **Measured facts** (with time and source), **Steps** (each with its exact command), **Gates**, **Failures**, **Coverage**, **Rollback**, **Human steps**. |
