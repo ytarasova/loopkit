@@ -39,7 +39,7 @@ import sys
 import config
 
 FENCE = re.compile(r"^```.*?^```[^\n]*$", re.M | re.S)
-IMAGE = re.compile(r"!\[[^\]]*\]\(\s*([^)\s]+)|<img[^>]*\ssrc=[\"']([^\"']+)", re.I)
+IMAGE = re.compile(r"!\[[^\]\n]{0,512}\]\(\s*([^)\s]+)|<img[^>]{0,1024}\ssrc=[\"']([^\"']+)", re.I)  # bounded: linear scan
 SPAN = re.compile(r"`[^`\n]+`")
 REVIEW = {"simplify": r"simplif\w*", "a self-review": r"self-review\w*", "a security review": r"security review\w*",
           "the constitution cross-check": r"constitution\w*"}
@@ -74,14 +74,15 @@ _FILLER = r"(?:(?:the|a|an|first|next|any|last|consecutive)\s+){0,2}"
 # A window to read a signal over, told apart from a threshold ("p99 over 2 s" has none):
 WINDOW = "|".join((
     rf"\b(?:for|within|during)\s+{_FILLER}{_COUNT}[\s-]*(?:consecutive\s+)?{_UNIT}\b",  # for 1 h, within 15 minutes, for five minutes
-    rf"\b(?:over|in|for|during)\s+(?:the|a|an|any)\s+(?:(?:first|next|last|consecutive|\d+[\s-]*{_UNIT})\s+)?(?:{_UNIT}|window)\b",  # over the first hour, in any 5-minute window
-    rf"\b{_COUNT}[\s-]*{_UNIT}\s+window\b",  # a 1h window
+    rf"\b(?:over|in|for|during)\s+(?:the|a|an|any)\s+(?:(?:first|next|last|following|consecutive)\s+)?(?:{_COUNT}[\s-]*)?(?:{_UNIT}|(?:rolling\s+)?window)\b",  # over the next 24 hours, in any 5-minute window
+    rf"\b{_COUNT}[\s-]*{_UNIT}\s+(?:rolling\s+)?window\b",  # a 1h window, a 1-hour rolling window
     rf"/\s*{_COUNT}\s*{_UNIT}\b",  # 5 errors / 10 min
     rf"\b(?:over|in|after)\s+{_COUNT}[\s-]*{_UNIT}\s+(?:of|after)\s+the\s+(?:deploy|release|rollout)",  # in 15 min of the deploy
 ))
 # "in 10 min" or "over 2 h" alone may be a threshold ("responds in 1 s"); it is a window when the line has its own threshold.
-_BARE = rf"\b(?:over|in)\s+{_COUNT}[\s-]*{_UNIT}\b"
-_THRESHOLD = r"\d+(?:\.\d+)?\s*%|\b(?:above|below|under|at least|at most|more than|less than|fewer than)\s+\d|[<>]=?\s*\d"
+# Seconds read as latency, so a bare window is minutes or longer: "in 10 min" beside its own number, not "in 1 s".
+_BARE = r"\b(?:over|in)\s+(?:\d+|one|two|three|four|five|six|ten|fifteen|twenty|thirty|an?)[\s-]*(?:mins?|minutes?|m|h|hrs?|hours?|d|days?|weeks?)\b"
+_THRESHOLD = r"\d"
 
 
 def has_window(line: str) -> bool:
