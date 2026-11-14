@@ -39,6 +39,7 @@ CORE_RULES = {
     "CONSTITUTION.md": "read CONSTITUTION.md and CLAUDE.md",
     "did not write": "each review stage runs in a context that did not write the change",
     "PASS is a claim": "an implementer's PASS is rerun, not trusted",
+    "nothing skipped": "each task runs the write-goal sequence in order",
     "In flight": "a dispatch or unsafe step is recorded before it runs",
     "Waiting on": "a human step is recorded, pushed and ends the run",
     "stacked PRs": "plans ship as stacked PRs, one per plan",

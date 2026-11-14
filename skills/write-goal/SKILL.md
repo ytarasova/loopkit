@@ -54,6 +54,39 @@ under In flight, pushed. **At every state change** (a task merged, a gate
 read, a deploy, a decision changed, a human step hit): update the progress
 file, then commit and push it.
 
+**The sequence.** Every task runs these steps in this order. A step starts
+only when the one before it passed; a failure goes back to the step that
+owns it, never forward. The orchestrator never skips, reorders or merges
+two steps, and never takes a subagent's word for a step it can rerun.
+
+| # | Step | Who | Passes when |
+| --- | --- | --- | --- |
+| 1 | Dispatch: the task, its use cases, its files, its worktree and branch, its evidence file path, this sequence | orchestrator | the dispatch is under In flight and pushed |
+| 2 | Build it test-first: a failing test per use case, then the code | implementer | each new test failed before the code and passes after |
+| 3 | Assurance: every check in `assurance`, on the task's own commit | implementer | all green, output kept |
+| 4 | Simplify: what the change can lose, applied | implementer | assurance still green |
+| 5 | Evidence: each use case shown for its surface, written to the step's evidence file with steps 3 and 4 | implementer | `check-pr.py <file>` prints ok, except Review |
+| 6 | Correctness review of the diff and the spec | reviewer, a context that did not write it | no open finding; fixes go back to step 2 |
+| 7 | Quality and constitution review | reviewer, a second fresh context | no open finding; fixes go back to step 2 |
+| 8 | UX review, for a UI use case: walked as a first-time user from the entry point | UX reviewer | passes; fixes go back to step 2 |
+| 9 | Review lines written into the evidence file | reviewer | `check-pr.py <file>` prints ok |
+| 10 | Verify: rerun the assurance and `check-pr.py` on the file, read the diff | orchestrator | its own run agrees with the file |
+| 11 | Merge into the plan branch, tick the step with its file, push the progress file | orchestrator | `check-goal.py <slug>` ok |
+
+At a plan's end, the same shape over the plan: the assurance on the plan
+branch with its base merged in, a whole-branch review by a fresh context,
+the PR opened with its plan's evidence, `check-pr.py <PR>` ok. At the goal's
+end, the whole: `evidence/goal.md` on the top of the stack after the last
+code commit, every use case again, then `check-goal.py <slug>` ok.
+
+**What every subagent prompt carries**, because a subagent knows only its
+prompt: the step numbers it owns and the sequence above; the task and the use
+cases it proves, quoted from the master plan; its worktree, branch and files;
+the commands for each check in `assurance`; its evidence file's path and the
+`check-pr.py` command; and that its report is a claim the orchestrator will
+rerun. A reviewer's prompt carries the diff range and the spec, never the
+implementer's account of them.
+
 **Every changeset is done only with its complete evidence** (constitution
 §II.4 to §II.7): a task merged to its plan branch, a fix, and each PR. Nothing is ticked,
 merged up or opened without it. Four sections, checked by

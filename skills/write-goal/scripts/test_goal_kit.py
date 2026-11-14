@@ -66,7 +66,7 @@ def main() -> None:
                 body = f.read()
             texts[kind] = re.sub(r"\{\{FILL:([^}]*)\}\}", fill, body)
         assert "Sam" in texts["goal"] and "up to 5 sonnet" in texts["goal"], texts["goal"]
-        assert "{{" not in texts["goal"] and "by a sonnet subagent" in texts["goal"], texts["goal"]
+        assert "{{" not in texts["goal"] and "fresh sonnet subagents" in texts["goal"], texts["goal"]
 
         def check(**changed: str) -> str:
             for kind, body in {**texts, **changed}.items():
@@ -83,6 +83,7 @@ def main() -> None:
         assert "In flight" in check(goal=texts["goal"].replace("In flight", "in flight"))
         assert "stacked PRs" in check(goal=texts["goal"].replace("stacked PRs", "PRs"))
         assert "complete evidence" in check(goal=texts["goal"].replace("check-pr.py", "a check"))
+        assert "write-goal sequence" in check(goal=texts["goal"].replace("nothing skipped", "mostly"))
         assert "In flight" in check(progress=texts["progress"].replace("## In flight", "## Later"))
         assert "runs `npx`" in check(master=m + "\n`npx vitest run`\n")
         assert "runs `npx`" in check(master=m + "\n`cd web && npx`\n")
