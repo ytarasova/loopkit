@@ -8,6 +8,7 @@ evidence and a signal, and fails one missing either, with a link alone, with a l
 changes and no screenshot.
 """
 
+import importlib.util
 import json
 import os
 import re
@@ -173,17 +174,36 @@ def land_stack_test() -> None:
                                        "7": add("b6", "b7", "seven.txt")}); save(st)
         skip = go("5", "7")
         assert skip.returncode and "#6 also targets b5" in skip.stderr, skip.stderr
+        st = load(); st["prs"]["5"]["checks"] = [  # failed on the push, passed on the body edit after it: past the checks
+            {"name": "check-pr", "status": "COMPLETED", "conclusion": "FAILURE", "startedAt": "2026-01-01T10:00:00Z"},
+            {"name": "check-pr", "status": "COMPLETED", "conclusion": "SUCCESS", "startedAt": "2026-01-01T10:05:00Z"}]; save(st)
+        rerun = land("5", "7", "--run")
+        assert rerun.returncode and "#6 also targets b5" in rerun.stderr, rerun.stderr
+        st = load(); st["prs"]["5"].pop("checks"); save(st)
         for key, value, words, flags in (("fork", True, "comes from a fork", ()), ("queue", True, "is not merged", ()),
                                          ("blocked", True, "base branch policy prohibits", ()),
                                          ("checks", [{"name": "ci", "status": "IN_PROGRESS"}], "checks still running", ("--run",)),
                                          ("checks", [{"context": "ci", "state": "FAILURE"}], "failed checks", ("--run",)),
-                                         ("checks", [{"name": "ci", "status": "COMPLETED", "conclusion": "STALE"}], "failed checks", ("--run",))):
+                                         ("checks", [{"name": "ci", "status": "COMPLETED", "conclusion": "STALE"}], "failed checks", ("--run",)),
+                                         ("checks", [{"name": "ci", "status": "COMPLETED", "conclusion": "SUCCESS", "startedAt": "2026-01-01T10:00:00Z"},
+                                                     {"name": "ci", "status": "COMPLETED", "conclusion": "FAILURE", "startedAt": "2026-01-01T10:05:00Z"}],
+                                          "failed checks", ("--run",)),
+                                         ("checks", [{"name": "ci", "status": "COMPLETED", "conclusion": "SUCCESS", "startedAt": "2026-01-01T10:00:00Z"},
+                                                     {"name": "ci", "status": "QUEUED"}], "checks still running", ("--run",))):
             st = load(); st["prs"]["5"][key] = value; save(st)
             stop = land("5", "6", *(flags or ("--run", "--allow-no-checks")))
             assert stop.returncode and words in stop.stderr, (key, stop.stderr)
             st = load()
             assert st["prs"]["5"]["state"] == "OPEN" and st["prs"]["6"]["base"] == "b5" and not gone("b5"), (key, "a stop changed something")
             st["prs"]["5"].pop(key); save(st)
+        # A run on a body edit replaces the failed run on the push before it: the newest run of each check decides.
+        spec = importlib.util.spec_from_file_location("land_stack", os.path.join(HERE, "land-stack.py"))
+        ls = importlib.util.module_from_spec(spec); spec.loader.exec_module(ls)
+        runs = [{"workflowName": "check-pr", "name": "check-pr", "conclusion": "FAILURE", "startedAt": "2026-01-01T10:00:00Z"},
+                {"workflowName": "check-pr", "name": "check-pr", "conclusion": "SUCCESS", "startedAt": "2026-01-01T10:05:00Z"},
+                {"workflowName": "ci", "name": "check-pr", "conclusion": "FAILURE", "startedAt": "2026-01-01T09:00:00Z"}]
+        assert [c["conclusion"] for c in ls.latest(runs)] == ["SUCCESS", "FAILURE"], ls.latest(runs)  # another workflow's job of that name still counts
+        assert [c["conclusion"] for c in ls.latest(runs[:2][::-1])] == ["SUCCESS"]
         st = load(); st["prs"]["5"]["push_before_merge"] = True; save(st)
         raced = go("5", "6")
         assert raced.returncode and "Head branch was modified" in raced.stderr and load()["prs"]["5"]["state"] == "OPEN", raced.stderr
