@@ -57,8 +57,9 @@ carries a threshold and a window to watch after the deploy, a PR's assurance
 must have run on its head, and every owner correction ends as a kit change
 shipped off main.
 
-Upgrading from 0.7: copy `.github/workflows/check-pr.yml` (set its `KIT`
-line) and `.github/pull_request_template.md` into the repo (adopt, step 8).
+Upgrading from 0.7: optionally, with the owner's yes, copy
+`.github/workflows/check-pr.yml` (set its `KIT` line) and
+`.github/pull_request_template.md` into the repo (adopt, step 8).
 `check-pr.py` no longer reads text inside HTML comments, and `land-stack.py`
 judges the newest run of each check.
 
