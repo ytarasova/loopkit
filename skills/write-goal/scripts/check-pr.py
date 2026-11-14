@@ -74,10 +74,11 @@ _FILLER = r"(?:(?:the|a|an|first|next|any|last|consecutive)\s+){0,2}"
 # A window to read a signal over, told apart from a threshold ("p99 over 2 s" has none):
 WINDOW = "|".join((
     rf"\b(?:for|within|during)\s+{_FILLER}{_COUNT}[\s-]*(?:consecutive\s+)?{_UNIT}\b",  # for 1 h, within 15 minutes, for five minutes
-    rf"\b(?:over|in|for|during)\s+(?:the|a|an|any)\s+(?:(?:first|next|last|following|consecutive)\s+)?(?:{_COUNT}[\s-]*)?(?:{_UNIT}|(?:rolling\s+)?window)\b",  # over the next 24 hours, in any 5-minute window
+    rf"\b(?:over|in|for|during)\s+(?:the|a|an|any)\s+(?:(?:first|next|last|following|consecutive)\s+(?:{_COUNT}[\s-]*)?{_UNIT}"
+    rf"|(?:{_COUNT}[\s-]*{_UNIT}[\s-]+)?(?:rolling\s+)?window|{_UNIT})\b",  # over the next 24 hours, in any 5-minute window, over the first hour
     rf"\b{_COUNT}[\s-]*{_UNIT}\s+(?:rolling\s+)?window\b",  # a 1h window, a 1-hour rolling window
     rf"/\s*{_COUNT}\s*{_UNIT}\b",  # 5 errors / 10 min
-    rf"\b(?:over|in|after)\s+{_COUNT}[\s-]*{_UNIT}\s+(?:of|after)\s+the\s+(?:deploy|release|rollout)",  # in 15 min of the deploy
+    rf"\b(?:over|in|after)\s+(?:the\s+)?{_COUNT}[\s-]*{_UNIT}\s+(?:of|after)\s+the\s+(?:deploy|release|rollout)",  # in the 30 min after the deploy
 ))
 # "in 10 min" or "over 2 h" alone may be a threshold ("responds in 1 s"); it is a window when the line has its own threshold.
 # Seconds read as latency, so a bare window is minutes or longer: "in 10 min" beside its own number, not "in 1 s".
