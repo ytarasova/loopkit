@@ -60,6 +60,8 @@ CORE_RULES = {
     "stacked PRs": "plans ship as stacked PRs, one per plan",
     "check-pr.py": "every changeset carries its complete evidence, checked",
 }
+# "Proves UC1, UC2 and UC3": the ids right after "Proves", and nothing after the first other word ("supports UC4").
+PROVES = r"\bProves\s+(UC\d+(?:\s*(?:,|and|&)\s*UC\d+)*)"
 UNIT = r"(s|sec|mins?|minutes?|m|h|hrs?|hours?|d|days?)\b"
 PLAN_PARTS = [
     "**Measured facts",
@@ -183,10 +185,10 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
             n = re.match(r"Plan (\d+)", head)
             block = body.split("**Steps**", 1)[1].split("\n**", 1)[0] if "**Steps**" in body else ""
             for m, line in re.findall(r"^(\d+)\.\s(.*?)(?=^\d+\.\s|\Z)", block, re.M | re.S):  # a step runs to the next
-                claim = re.search(r"\bProves\b([^.]*)", line)
+                claim = re.search(PROVES, line)
                 if n and claim:
                     step_proves[(n.group(1), m)] = set(re.findall(r"\bUC\d+\b", claim.group(1)))
-        claims = re.findall(r"\bProves\b[^.]*", "\n".join(plans.values()))
+        claims = re.findall(PROVES, "\n".join(plans.values()))
         proven = set(re.findall(r"\bUC\d+\b", "\n".join(claims)))
         for uc in cases:
             if uc not in proven:

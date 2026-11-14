@@ -146,7 +146,7 @@ def main() -> None:
             "## Assurance\n\n```\n$ make tests\n12 passed\n$ make lint\n0 errors\n```\n\n"
             "## Evidence\n\n### UC1 An admin exports a report and gets a CSV\n\n```\n$ curl -s /export\n200 a,b\n```\n\n"
             "## Signal\n\n- Success: exports.ok above 99% for 1 h\n- Failure: exports.error above 1% in 10 min\n\n"
-            "## Review\n\n- Simplify: 2 lines removed\n- Self-review, by a fresh context: clean\n- Constitution: cross-checked, clean\n"
+            "## Review\n\n- Simplify: 2 lines removed\n- Self-review, by a fresh context: clean\n- Security review: no input, auth or data exposure change; clean\n- Constitution: cross-checked, clean\n"
         )
         assert pr(good).strip() == "ok", pr(good)
         for name, cut in (("Assurance", "## Assurance"), ("Evidence", "## Evidence"), ("Signal", "## Signal"), ("Review", "## Review")):
@@ -165,6 +165,14 @@ def main() -> None:
         assert "line for simplify" in pr(good.replace("- Simplify: 2 lines removed", "- Simplify"))
         assert "a self-review" in pr(good.replace("- Self-review", "- Read"))
         assert "constitution" in pr(good.replace("- Constitution: cross-checked, clean", "- no constitution read"))
+        assert "a security review" in pr(good.replace("- Security review: no input, auth or data exposure change; clean\n", ""))
+        for leak in ("AKIA" + "ABCDEFGHIJKLMNOP", "ghp_" + "a" * 36, "sk-ant-" + "api03-" + "b" * 30, "xoxb-" + "1234567890-abc",
+                     "-----BEGIN " + "RSA PRIVATE KEY-----", "eyJ" + "a" * 12 + ".eyJ" + "b" * 12 + "." + "c" * 12,
+                     "Authorization: Bearer " + "d" * 30, "password=" + "hunter2hunter2"):
+            assert "looks like a credential" in pr(good.replace("200 a,b", "200 a,b\n" + leak)), leak
+        for safe in ("Authorization: Bearer <token>", "Authorization: Bearer " + "x" * 30, "Authorization: Bearer ***",
+                     "token=<redacted>", "token=redacted-" + "0" * 20, "password: " + "x" * 16, "api_key=" + "." * 20):
+            assert "looks like a credential" not in pr(good.replace("200 a,b", "200 a,b\n" + safe)), safe
         assert "does not show lint" in pr(good.replace("$ make lint\n0 errors", "x").replace("```\n\n## Evidence", "```\nlint was fine\n\n## Evidence"))
         fenced = good.replace("12 passed\n", "12 passed\n$ git status -sb\n## main...origin/main\n### UC9 not a heading\n")
         assert pr(fenced).strip() == "ok", pr(fenced)
@@ -228,6 +236,11 @@ def main() -> None:
         enables = m.replace("Proves UC1.", "Proves UC1. Supports UC2 through the fake.").replace("| UC1 |", "| UC2 | x | cli |\n| UC1 |")
         assert "UC2 is proven by no plan step" in check(master=enables, progress=ticked)
         assert 'has no "### UC2"' not in check(master=enables, progress=ticked)  # "Supports" is not part of the Proves sentence
+        comma = enables.replace("Proves UC1. Supports UC2 through the fake.", "Proves UC1, supports UC2 through the fake.")
+        assert "UC2 is proven by no plan step" in check(master=comma, progress=ticked)
+        both = enables.replace("Proves UC1. Supports UC2 through the fake.", "Proves UC1 and UC2.")
+        assert "UC2 is proven by no plan step" not in check(master=both, progress=ticked)
+        assert 'has no "### UC2": Plan 1 step 1 proves it' in check(master=both, progress=ticked)
         with open(f"{ev}/1.1.md", "w") as f:
             f.write(good)
         assert "UC1 is proven by no plan step" in check(master=m.replace("Proves UC1.", ""))

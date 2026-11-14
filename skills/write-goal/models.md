@@ -31,7 +31,7 @@ dispatches each subagent on that model.
 | --- | --- | --- |
 | haiku | Mechanical work with an output a script can check: a rename across files, a grep sweep, an inventory, collecting command output, rendering CLI pictures, running the checkers | Anything that decides, designs or reviews |
 | sonnet | A step the plan specifies fully: a function and its tests, a screen from a design, a spec, docs, an evidence walkthrough, most correctness reviews | Open design, a cross-module change, a failure nobody understands yet |
-| opus | Design inside a step, a change across modules, concurrency, data integrity, a migration, a failed gate's diagnosis, a whole-branch review, the UX review, a review of a high-risk path | Work a smaller model does as well |
+| opus | Design inside a step, a change across modules, concurrency, data integrity, a migration, a failed gate's diagnosis, a whole-branch review, the UX review, the security review, a review of a high-risk path | Work a smaller model does as well |
 
 Fable is for the orchestrator. A step that needs it is a step the plan has not split or specified yet; split it, or write
 the design down first.
