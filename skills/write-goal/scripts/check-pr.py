@@ -5,10 +5,9 @@
 Fails (exit 1) unless the body has all four sections:
   ## Assurance  each check in the repo's `assurance` list (tests, coverage, lint, typecheck, violations),
                 named in a heading, a bullet or a fenced block, with the output it printed in a fenced block
-  ## Evidence   a "### UC<n> <who does what, and what they end up with>" per use case it proves (a step that
-                proves none but enables one, such as a fake or a client, writes "### Supports UC<n> <how>" with
-                its tests' output), each
-                with its proof for the use case's surface:
+  ## Evidence   a "### UC<n> <who does what, and what they end up with>" per use case it proves, each with
+                its proof for the use case's surface (a step that only enables one, such as a fake or a
+                client, writes "### Supports UC<n> <how>" with its tests' output instead):
                   ui       the flow in screenshots, two or more (https URLs, not inside code): where the person
                            lands, each step, and what they end up with
                   service  a fenced block holding the curl request and the response it got

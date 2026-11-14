@@ -41,7 +41,8 @@ it is ported into that copy. Run these steps in order. A step starts only when t
    Message its orchestrator to:
    - merge main into its branch, then up its stack;
    - reload the skill;
-   - revise its goal and master plan to the new templates;
+   - revise its goal, master plan and progress file to the new templates (a progress file may need new
+     sections, or stamps written by the new tools, before the checker passes again);
    - meet any new evidence rule before it calls the goal done.
 
    Then check that it did: the new commit is an ancestor of its branch.

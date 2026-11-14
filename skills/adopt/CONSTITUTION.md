@@ -40,7 +40,7 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 4. **Comments say why, never what.** No task references, ticket numbers or spec section numbers in code.
 5. **No shims for unused code.** If nothing calls it, delete it.
 6. **Limits are settings, not literals.** A threshold, window, size or count that someone may tune is a named setting with a default, never a number inside logic.
-6. **{{PROJECT: house writing rule, e.g. "No em-dashes in chat, code, docs or commits." or delete this line}}**
+7. **{{PROJECT: house writing rule, e.g. "No em-dashes in chat, code, docs or commits." or delete this line}}**
 
 ## V. Tests
 
@@ -60,7 +60,7 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 7. **Verification passes or fails.** A test, a build, a screenshot, a metric, with the output it printed. "Looks right" is not a verification.
 8. **Look before you ask.** The knowledge base, the CLI, the MCP servers and the CI runners come first. Never hand the owner a step you can take; a human step is one nothing you have can do.
 9. **Ask in plain words, one question at a time, with your recommendation.** Do the literal ask; when a verb has two readings, ask once. A question naming a file or an option number the owner has not seen is not a question.
-10. **A correction from the owner goes into the skill or this file the same turn,** not into memory or a note, so it is never given twice.
+10. **A correction from the owner goes into the skill the same turn,** not into memory or a note, so it is never given twice; one that changes this file is proposed to the owner the same turn (§VIII.3).
 11. **Edit files with the edit tools.** The shell is the fallback for what they cannot do.
 
 ## VII. Branches and merges
@@ -78,7 +78,7 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 1. **Question an architecture that feels wrong.** Say so and propose the fix.
 2. **Ask before anything you cannot take back.** The test is whether one wrong attempt can be undone. Code and a commit on your own branch can be undone, so they need no permission (§VI.4). Merging follows §VII.3. A force-push to a shared branch, `rm -rf`, a dropped table, a deleted branch, discarded uncommitted work, a sent message and {{PROJECT: shared or production state, e.g. "anything in AWS, staging or production"}} cannot, so they wait for the owner. An authorization covers the operation named and nothing beyond it.
 3. **When the owner's directive contradicts this file,** the directive wins for that session. If the preference has changed for good, propose an edit here.
-4. **A choice about people or their data is the owner's.** One that changes what a person sees or can do, or where a customer's data goes or what happens to it on a failure, is asked in the turn it comes up, as one question with a recommendation. A ruling written in a ledger is not asking.
+4. **A choice about people or their data is the owner's.** One that changes what a person sees or can do, or where a customer's data goes or what happens to it on a failure, is asked in the turn it comes up, as one question with a recommendation, and recorded under Waiting on; work goes on with what does not depend on it. A ruling written in a ledger is not asking.
 5. **Protected resources need permission.** {{PROJECT: the environments, tenants, shared models, paid services and repos no agent touches unasked}}. Never mint a credential for yourself.
 6. **Trace before you delete.** Name what referenced it and why it goes; infrastructure shows its plan's destroys first.
 7. **Leave nothing behind.** At the end of the work, its worktrees, branches, containers and processes are gone.

@@ -23,7 +23,8 @@ def main() -> None:
     )
     p.add_argument("--slug", required=True)
     p.add_argument("--title", required=True)
-    p.add_argument("--date", default=datetime.date.today().isoformat())
+    now = datetime.datetime.now(datetime.timezone.utc)
+    p.add_argument("--date", default=now.date().isoformat(), help="the goal's date (default: today in UTC)")
     p.add_argument("--orchestrator", help='the model the intent recommended, e.g. "Fable 5.2" (default: the repo\'s orchestrator)')
     a = p.parse_args()
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", a.slug):
@@ -40,6 +41,7 @@ def main() -> None:
         "{{SLUG}}": a.slug,
         "{{TITLE}}": a.title,
         "{{DATE}}": a.date,
+        "{{NOW}}": now.strftime("%Y-%m-%d %H:%M"),  # the clock, in UTC: the first stamps are never typed
         "{{OWNER}}": cfg["owner"],
         "{{PLANS_DIR}}": plans,
         "{{ORCHESTRATOR}}": a.orchestrator or cfg["orchestrator"],

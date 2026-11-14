@@ -21,8 +21,8 @@ github.com/switch-dimension/molten-os-core).
 A design tree: every answer opens the questions that depend on it. The
 **frontier** is every question that can be asked now without guessing at an
 answer not yet heard. Ask one question at a time, the most blocking first, in
-plain words with your recommended answer, then wait (the owner's rule: "ask me
-one question at a time"). Recompute the frontier from the answer.
+plain words with your recommended answer, then wait. Recompute the frontier
+from the answer.
 The interview ends when the frontier is empty, not when the template is full.
 
 Facts are your job. Before asking, look up what the repo, the ticket and the
@@ -38,7 +38,7 @@ Recommended: <your answer and why, one line>
 ```
 
 Never name a file, a field or an option number the originator has not seen;
-say what it means. The interview runs until the originator says it is done.
+say what it means.
 
 If a ticket key was given, read the ticket and its linked PRs first and open
 with what is already known. Skip any question the first message already

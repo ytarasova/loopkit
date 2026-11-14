@@ -1,6 +1,6 @@
 # {{TITLE}}: master plan
 
-Written {{DATE}} {{FILL: HH:MM}} UTC. Spec: {{FILL: the spec, the decision doc, or the owner's words}}.
+Written {{NOW}} UTC. Spec: {{FILL: the spec, the decision doc, or the owner's words}}.
 State lives in [{{DATE}}-{{SLUG}}-progress.md]({{DATE}}-{{SLUG}}-progress.md); the goal text is
 [{{DATE}}-{{SLUG}}-goal.md]({{DATE}}-{{SLUG}}-goal.md). Baselines below were read at the time above. A fact not read from its
 source is marked `(unconfirmed)`, and a step reads it before anything depends on it.

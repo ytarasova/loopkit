@@ -49,46 +49,28 @@ file plus the list of decisions you answered for them.
    (`caffeinate -i` on macOS).
 5. Show the owner the master plan, its Asks and its Models ("This is best
    handled by ..."), and build nothing until they approve: their words go on
-   the progress file's `Approved by` line, which `check-goal.py` requires
-   before any step is ticked.
+   `progress.py <slug> approve "<their words>"`, which `check-goal.py`
+   requires before any step is ticked.
 6. Commit the three files on that branch and hand the owner the goal file.
 
-**While it runs**, the rules a long run drops first:
+**While it runs**, the rules a long run drops first; `check-goal.py` fails the
+first four:
 
-- **Times come from the clock.** `scripts/progress.py <slug> now|log|view`
-  stamps them; `check-goal.py` fails a time ahead of the clock. Never type or
-  reckon one.
-- **Every open item carries its time left.** Each In flight line and each row
-  of "What is left", which lists everything still to come, the steps after the
-  last task included (reviews, lanes, PRs, the report). Read again at every
-  state change; `check-goal.py` fails an item without one.
-- **The live view keeps pace.** When the repo has one (`view` in
-  `.claude/loopkit.json`), update it in the same step as the progress file,
-  then `progress.py <slug> view`; `check-goal.py` fails a view older than the
-  Now line.
-- **After a compaction, re-read before acting:** the goal file, the progress
-  file and this lifecycle. A rule kept only in a summary is a rule dropped.
-- **A choice about people or their data is the owner's** (constitution
-  §VIII.4): what a person sees or can do, where a customer's data goes, what
-  happens to it on a failure. Ask in the turn it comes up, one question with a
-  recommendation, and keep working on what does not depend on it. This
-  overrides `subagent-driven-development`'s "rulings, not stalls" for these
-  choices; a ledger line marked "hers to overrule" is not asking.
-- **Look before you ask** (§VI.8): the knowledge base, the CLI, MCP servers
-  and CI runners first. Never stop to ask whether to continue; the goal runs
-  until Done means holds.
-- **Watch the fleet.** An agent with no new output for twice its time left is
-  checked, then restarted or stopped. Keep the machine under about 80% load
-  and watch the CI queue; when runners back up, group work into fewer PRs
-  rather than piling on more. Five busy is the ceiling, not a quota.
-- **Hand off before the context fills.** Past about 200k tokens the progress
-  file is the handoff: bring it current, then compact or start a fresh session
-  from it.
-- **Other agents on the same repo** read and write the same progress file;
-  coordinate there, never by guessing.
-- **Every ask is tracked.** An ask stated in chat goes into the master plan's
-  Asks the same turn, mapped to its use cases; `check-goal.py` fails an ask
-  that maps to none and was not dropped by the owner.
+- Times come from the clock: `scripts/progress.py <slug> now|log|approve|view`.
+- Every In flight line and every "What is left" row (the steps after the last
+  task too: reviews, lanes, PRs, the report) ends with its time left.
+- The live view, when the repo has one (`view`), is updated with the progress
+  file, then stamped with `progress.py <slug> view`.
+- An ask stated in chat goes into the master plan's Asks the same turn.
+- After a compaction, re-read the goal and progress files and this lifecycle.
+- A choice about people or their data is asked (§VIII.4), overriding
+  `subagent-driven-development`'s "rulings, not stalls" for those choices.
+- Look before you ask (§VI.8); never stop to ask whether to continue.
+- An agent with no new output for twice its time left is checked, then
+  restarted or stopped. Keep the machine under about 80% load; when CI runners
+  back up, group work into fewer PRs. `max_parallel` is a ceiling, not a quota.
+- Past about 200k tokens, bring the progress file current and hand off from it.
+- Agents sharing a repo coordinate through the progress file.
 
 **Before each dispatch, deploy or other step unsafe to run twice**: a line
 under In flight, pushed. **At every state change** (a task merged, a gate
