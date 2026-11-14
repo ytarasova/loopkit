@@ -53,31 +53,40 @@ def git(*c):
 def fields(out):  # like gh: only what --json asked for
     want = a[a.index("--json") + 1].split(",")
     return {k: out[k] for k in want if k in out}
+def tip(branch):
+    return git("ls-remote", "--heads", "origin", branch).split()[:1]
 if a[:2] == ["repo", "view"]:
     print(st["repo"])
 elif a[:2] == ["pr", "view"]:
     p = st["prs"][a[2]]
-    git("fetch", "-q", "--prune", "origin")
     out = {"number": int(a[2]), "state": p["state"], "baseRefName": p["base"], "headRefName": p["head"],
            "isCrossRepository": p.get("fork", False), "statusCheckRollup": p.get("checks", []),
            "files": [{"path": f} for f in p["files"]], "body": p["body"]}
-    if p["state"] == "OPEN":
-        out["headRefOid"] = git("rev-parse", "origin/" + p["head"]).strip()
+    out["headRefOid"] = p["merged_oid"] if p["state"] == "MERGED" else (tip(p["head"]) or [""])[0]
     print(json.dumps(fields(out)))
 elif a[:2] == ["pr", "list"]:
-    base = a[a.index("--base") + 1]
-    print(json.dumps([{"number": int(k)} for k, q in st["prs"].items() if q["state"] == "OPEN" and q["base"] == base]))
+    key = "base" if "--base" in a else "head"
+    branch = a[a.index("--" + key) + 1]
+    print(json.dumps([{"number": int(k)} for k, q in st["prs"].items() if q["state"] == "OPEN" and q[key] == branch]))
 elif a[:2] == ["pr", "edit"]:
     st["prs"][a[2]]["base"] = a[a.index("--base") + 1]
 elif a[:2] == ["pr", "merge"]:
     p = st["prs"][a[2]]
     if p.get("blocked"):
         sys.exit("X Pull request is not mergeable: the base branch policy prohibits the merge.")
+    if p.get("push_before_merge"):  # someone pushes while the merge is on its way
+        git("fetch", "-q", "origin"); git("switch", "-q", "-C", "late", "origin/" + p["head"])
+        open(os.path.join(st["clone"], "late.txt"), "w").write("late\n"); git("add", "late.txt")
+        git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "late"); git("push", "-q", "origin", "late:" + p["head"])
+        p.pop("push_before_merge"); json.dump(st, open(state_path, "w"))
+    head = tip(p["head"])[0]
+    if "--match-head-commit" in a and a[a.index("--match-head-commit") + 1] != head:
+        sys.exit("X Head branch was modified. Review and try the merge again.")
     if not p.get("queue"):
         git("fetch", "-q", "origin"); git("switch", "-q", "-C", "main", "origin/main")
         git("merge", "-q", "--squash", "origin/" + p["head"])
         git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "squash " + a[2]); git("push", "-q", "origin", "main")
-        p["state"] = "MERGED"
+        p["state"], p["merged_oid"] = "MERGED", head
 else:
     sys.exit("fake gh: " + " ".join(a))
 json.dump(st, open(state_path, "w"))
@@ -85,7 +94,7 @@ json.dump(st, open(state_path, "w"))
 
 
 def land_stack_test() -> None:
-    """land-stack.py lands a stack one step per run, and stops before it can close a PR, revert a fix or half-finish."""
+    """land-stack.py lands one PR per run, never merges main up itself, and stops before it could close a PR or lose a commit."""
     with tempfile.TemporaryDirectory() as tmp:
         def git(*c, cwd=tmp):
             r = subprocess.run(["git", *c], cwd=cwd, capture_output=True, text=True)
@@ -94,14 +103,17 @@ def land_stack_test() -> None:
         ident = ["-c", "user.email=t@t", "-c", "user.name=t"]
         git("init", "-q", "--bare", "-b", "main", "origin.git")
         git("clone", "-q", "origin.git", "work"); w = os.path.join(tmp, "work")
-        bare = os.path.join(tmp, "origin.git")  # read the remote itself, not a clone's tracking refs
+        bare = os.path.join(tmp, "origin.git")
 
         def commit(branch, start, name, text):
             git("fetch", "-q", "origin", cwd=w)
-            git("switch", "-qC", branch, "origin/main" if start == "main" else start, cwd=w)
+            git("switch", "-qC", branch, "origin/" + start, cwd=w)
             open(os.path.join(w, name), "w").write(text)
             git("add", name, cwd=w); git(*ident, "commit", "-qm", name, cwd=w); git("push", "-q", "origin", branch, cwd=w)
-            return git("rev-parse", "HEAD", cwd=w).strip()
+
+        def merge_up(branch):  # what the agent does, by the printed steps
+            git("fetch", "-q", "origin", cwd=w); git("switch", "-qC", branch, "origin/" + branch, cwd=w)
+            git(*ident, "merge", "-q", "--no-edit", "origin/main", cwd=w); git("push", "-q", "origin", branch, cwd=w)
 
         open(os.path.join(w, "a.txt"), "w").write("base\n"); git("add", "a.txt", cwd=w); git(*ident, "commit", "-qm", "base", cwd=w)
         git("push", "-q", "origin", "HEAD:main", cwd=w)
@@ -117,40 +129,43 @@ def land_stack_test() -> None:
         state_file = os.path.join(tmp, "state.json")
         save = lambda st: json.dump(st, open(state_file, "w"))
         load = lambda: json.load(open(state_file))
-        add = lambda n, base, branch, f: dict(state="OPEN", base=base, head=branch, files=[f], body=body(head(branch)))
-        s1 = commit("b1", "main", "one.txt", "1\n"); s2 = commit("b2", "b1", "two.txt", "2\n")
+        add = lambda base, branch, f: dict(state="OPEN", base=base, head=branch, files=[f], body=body(head(branch)))
+        refresh = lambda n: (lambda st: (st["prs"][n].update(body=body(head(st["prs"][n]["head"]))), save(st)))(load())
+        commit("b1", "main", "one.txt", "1\n"); commit("b2", "b1", "two.txt", "2\n"); commit("b3", "b2", "three.txt", "3\n")
         save({"clone": os.path.join(tmp, "gh-clone"), "repo": os.path.basename(tmp) + "/origin",
-              "prs": {"1": add("1", "main", "b1", "one.txt"), "2": add("2", "b1", "b2", "two.txt")}})
+              "prs": {"1": add("main", "b1", "one.txt"), "2": add("b1", "b2", "two.txt"), "3": add("b2", "b3", "three.txt")}})
         os.makedirs(os.path.join(tmp, "bin")); gh = os.path.join(tmp, "bin", "gh")
         open(gh, "w").write(FAKE_GH); os.chmod(gh, 0o755)
         env = {**os.environ, "PATH": os.path.join(tmp, "bin") + os.pathsep + os.environ["PATH"], "FAKE_GH_STATE": state_file,
                "GIT_AUTHOR_NAME": "t", "GIT_AUTHOR_EMAIL": "t@t", "GIT_COMMITTER_NAME": "t", "GIT_COMMITTER_EMAIL": "t@t"}
         land = lambda *a: subprocess.run([sys.executable, os.path.join(HERE, "land-stack.py"), *a], cwd=w, env=env, capture_output=True, text=True)
         go = lambda *a: land(*a, "--run", "--allow-no-checks")
+        gone = lambda b: not git("branch", "--list", b, cwd=bare).strip()
 
-        planned = land("1", "2")
-        assert "retarget #2 to main before that branch goes" in planned.stdout and "plan only" in planned.stdout, planned.stdout
+        planned = land("1", "2", "3")
+        assert "merge main up into #2's branch" in planned.stdout and "plan only" in planned.stdout, planned.stdout
         assert load()["prs"]["1"]["state"] == "OPEN", "a plan changed something"
-        unchecked = land("1", "2", "--run")
+        unchecked = land("1", "2", "3", "--run")
         assert unchecked.returncode and "no checks registered yet" in unchecked.stderr, unchecked.stderr
-        first = go("1", "2")
-        assert first.returncode == 0 and "re-run its assurance on that commit" in first.stdout, first.stdout + first.stderr
+        one = go("1", "2", "3")
+        assert one.returncode == 0 and "merge main up into #2's branch" in one.stdout, one.stdout + one.stderr
         st = load()
-        assert st["prs"]["1"]["state"] == "MERGED" and st["prs"]["2"]["state"] == "OPEN" and st["prs"]["2"]["base"] == "main", st
-        assert not git("branch", "--list", "b1", cwd=bare).strip(), "the merged branch is still there"
-        assert subprocess.run(["git", "merge-base", "--is-ancestor", "main", "b2"], cwd=bare).returncode == 0, "b2 was not merged up"
-        stale_run = go("1", "2")  # #2's evidence names its old head
-        assert stale_run.returncode and "check-pr.py fails on #2" in stale_run.stderr, stale_run.stderr
-        st["prs"]["2"]["body"] = body(head("b2")); save(st)
-        second = go("1", "2")
-        assert second.returncode == 0 and "stack landed" in second.stdout, second.stdout + second.stderr
-        assert set(git("ls-tree", "--name-only", "main", cwd=bare).split()) == {"a.txt", "one.txt", "two.txt"}
-        assert "every PR in the stack is merged" in go("1", "2").stdout
+        assert st["prs"]["1"]["state"] == "MERGED" and st["prs"]["2"]["base"] == "main" and gone("b1"), st
+        early = go("1", "2", "3")  # the agent has not merged main up yet
+        assert early.returncode and "does not hold main" in early.stderr, early.stderr
+        merge_up("b2"); refresh("2")
+        two = go("1", "2", "3")  # b3 lacks only b2's merge-up commit: that is not a lost commit
+        assert two.returncode == 0 and "merge main up into #3's branch" in two.stdout, two.stdout + two.stderr
+        merge_up("b3"); refresh("3")
+        three = go("1", "2", "3")
+        assert three.returncode == 0 and "stack landed" in three.stdout, three.stdout + three.stderr
+        assert set(git("ls-tree", "--name-only", "main", cwd=bare).split()) == {"a.txt", "one.txt", "two.txt", "three.txt"}
+        assert gone("b2") and gone("b3") and "every PR in the stack is merged" in go("1", "2", "3").stdout
 
-        # Guards. Each stop leaves everything as it was.
+        # Guards: each stop leaves everything as it was.
         commit("b5", "main", "five.txt", "5\n"); commit("b6", "b5", "six.txt", "6\n"); commit("b7", "b6", "seven.txt", "7\n")
-        st = load(); st["prs"].update({"5": add("5", "main", "b5", "five.txt"), "6": add("6", "b5", "b6", "six.txt"),
-                                       "7": add("7", "b6", "b7", "seven.txt")}); save(st)
+        st = load(); st["prs"].update({"5": add("main", "b5", "five.txt"), "6": add("b5", "b6", "six.txt"),
+                                       "7": add("b6", "b7", "seven.txt")}); save(st)
         skip = go("5", "7")
         assert skip.returncode and "#6 also targets b5" in skip.stderr, skip.stderr
         for key, value, words, flags in (("fork", True, "comes from a fork", ()), ("queue", True, "is not merged", ()),
@@ -162,48 +177,44 @@ def land_stack_test() -> None:
             stop = land("5", "6", *(flags or ("--run", "--allow-no-checks")))
             assert stop.returncode and words in stop.stderr, (key, stop.stderr)
             st = load()
-            assert st["prs"]["5"]["state"] == "OPEN" and st["prs"]["6"]["base"] == "b5", (key, "a stop changed something")
+            assert st["prs"]["5"]["state"] == "OPEN" and st["prs"]["6"]["base"] == "b5" and not gone("b5"), (key, "a stop changed something")
             st["prs"]["5"].pop(key); save(st)
+        st = load(); st["prs"]["5"]["push_before_merge"] = True; save(st)
+        raced = go("5", "6")
+        assert raced.returncode and "Head branch was modified" in raced.stderr and load()["prs"]["5"]["state"] == "OPEN", raced.stderr
+        refresh("5")
         st = load(); st["repo"] = "someone/else"; save(st)
         other = go("5", "6")
         assert other.returncode and "gh talks to someone/else" in other.stderr, other.stderr
         st = load(); st["repo"] = os.path.basename(tmp) + "/origin"; save(st)
-        # Resume: #5 merged in a queue later; the next run finishes its landing before anything else.
+        # A queue merges #5 later; the next run finishes its landing (retarget, delete) and says what comes next.
         subprocess.run([gh, "pr", "merge", "5", "--squash"], env=env, check=True)
-        resumed = go("5", "6")
-        assert resumed.returncode == 0 and "finishing its landing" in resumed.stdout, resumed.stdout + resumed.stderr
-        st = load()
-        assert st["prs"]["6"]["base"] == "main" and not git("branch", "--list", "b5", cwd=bare).strip()
-        assert subprocess.run(["git", "merge-base", "--is-ancestor", "main", "b6"], cwd=bare).returncode == 0
-        apart_a = commit("b10", "main", "ten.txt", "10\n"); commit("b11", "main", "eleven.txt", "11\n")
-        st = load(); st["prs"].update({"10": add("10", "main", "b10", "ten.txt"), "11": add("11", "main", "b11", "eleven.txt")}); save(st)
-        apart = go("10", "11")  # two PRs that are not a stack
+        resumed = go("5", "6", "7")
+        assert resumed.returncode == 0 and "b5 deleted" in resumed.stdout and "merge main up into #6's branch" in resumed.stdout, resumed.stdout + resumed.stderr
+        assert load()["prs"]["6"]["base"] == "main" and gone("b5")
+        # A merged branch that moved, or that an open PR still uses, is never deleted.
+        commit("b20", "main", "twenty.txt", "20\n")
+        st = load(); st["prs"]["20"] = add("main", "b20", "twenty.txt"); save(st)
+        subprocess.run([gh, "pr", "merge", "20", "--squash"], env=env, check=True)
+        commit("b20", "b20", "twenty.txt", "20, later\n")
+        moved = go("20")
+        assert moved.returncode and "b20 moved after #20 merged" in moved.stderr and not gone("b20"), moved.stderr
+        commit("b21", "main", "x.txt", "x\n"); commit("b22", "b21", "y.txt", "y\n")
+        st = load(); st["prs"].update({"21": add("main", "b21", "x.txt"), "22": add("b21", "b22", "y.txt")}); save(st)
+        subprocess.run([gh, "pr", "merge", "21", "--squash"], env=env, check=True)
+        used = go("21")  # #22 still targets b21, and the stack given leaves it out
+        assert used.returncode and "#22 still uses b21" in used.stderr and not gone("b21"), used.stderr
+        # Two PRs that are not a stack; a fix below never merged up; a branch behind main.
+        commit("b10", "main", "ten.txt", "10\n"); commit("b11", "main", "eleven.txt", "11\n")
+        st = load(); st["prs"].update({"10": add("main", "b10", "ten.txt"), "11": add("main", "b11", "eleven.txt")}); save(st)
+        apart = go("10", "11")
         assert apart.returncode and "#11 is not based on #10's branch b10" in apart.stderr, apart.stderr
-        # A fix made below after the next branch was cut, never merged up: stop before anything merges.
-        commit("b8", "main", "eight.txt", "EIGHT\n"); commit("b9", "b8", "nine.txt", "9\n")
-        commit("b8", "b8", "eight.txt", "EIGHT-FIXED\n")
-        st = load(); st["prs"].update({"8": add("8", "main", "b8", "eight.txt"), "9": add("9", "b8", "b9", "nine.txt")}); save(st)
+        commit("b8", "main", "eight.txt", "EIGHT\n"); commit("b9", "b8", "nine.txt", "9\n"); commit("b8", "b8", "eight.txt", "EIGHT-FIXED\n")
+        st = load(); st["prs"].update({"8": add("main", "b8", "eight.txt"), "9": add("b8", "b9", "nine.txt")}); save(st)
         lost = go("8", "9")
-        assert lost.returncode and "#9's branch lacks commits of #8's" in lost.stderr, lost.stdout + lost.stderr
-        assert load()["prs"]["8"]["state"] == "OPEN", "landed although a fix below would be lost"
-        # main moves under the next branch, on a line it also changes, while #12 waits in a queue: the merge-up stops.
-        commit("b12", "main", "twelve.txt", "12\n"); s13 = commit("b13", "b12", "a.txt", "base\nthirteen\n")
-        st = load(); st["prs"].update({"12": add("12", "main", "b12", "twelve.txt"), "13": add("13", "b12", "b13", "a.txt")})
-        st["prs"]["12"]["queue"] = True; save(st)
-        queued = go("12", "13")
-        assert queued.returncode and "is not merged" in queued.stderr and load()["prs"]["13"]["base"] == "b12", queued.stderr
-        st = load(); st["prs"]["12"].pop("queue"); save(st)
-        subprocess.run([gh, "pr", "merge", "12", "--squash"], env=env, check=True)  # the queue merges it later
-        git("fetch", "-q", "origin", cwd=w); git("switch", "-qC", "hot", "origin/main", cwd=w)
-        open(os.path.join(w, "a.txt"), "w").write("base\nHOTFIX\n"); git(*ident, "commit", "-qam", "hotfix", cwd=w)
-        git("push", "-q", "origin", "HEAD:main", cwd=w)
-        clash = go("12", "13")
-        assert clash.returncode and "conflicts in ['a.txt']" in clash.stderr and "nothing was pushed" in clash.stderr, clash.stdout + clash.stderr
-        assert head("b13") == s13 and "HOTFIX" in git("show", "main:a.txt", cwd=bare), "pushed over a conflict"
-        commit("b14", "main", "fourteen.txt", "14\n")
-        git("switch", "-qC", "m", "origin/main", cwd=w); open(os.path.join(w, "later.txt"), "w").write("x\n")
-        git("add", "later.txt", cwd=w); git(*ident, "commit", "-qm", "later", cwd=w); git("push", "-q", "origin", "HEAD:main", cwd=w)
-        st = load(); st["prs"]["14"] = add("14", "main", "b14", "fourteen.txt"); save(st)
+        assert lost.returncode and "#9's branch lacks 1 commit(s) of #8's" in lost.stderr and load()["prs"]["8"]["state"] == "OPEN", lost.stderr
+        commit("b14", "main", "fourteen.txt", "14\n"); commit("main", "main", "later.txt", "x\n")
+        st = load(); st["prs"]["14"] = add("main", "b14", "fourteen.txt"); save(st)
         behind = go("14")
         assert behind.returncode and "does not hold main" in behind.stderr, behind.stderr
 
@@ -344,10 +355,12 @@ def main() -> None:
         for ok_line in ("error rate under 1% over the first hour", "0 5xx within 15 minutes of the deploy", "p95 under 300 ms for the next 2 hours",
                         "no more than 3 errors in any 5-minute window", "error rate under 1% for one hour", "error rate under 1%\n  over the first day",
                         "0 errors for five minutes", "5xx under 1% for 10 consecutive minutes", "p99 < 200ms, 1h window", "5 errors / 10 min",
-                        "error rate above 1% in 10 min"):
+                        "error rate above 1% in 10 min", "0 errors over the next 24 hours", "under 1% in the first 30 minutes",
+                        "below 1% errors, 1-hour rolling window", "5 errors in 5 minutes"):
             assert "needs a threshold and a window" not in pr(good.replace("exports.error above 1% in 10 min", ok_line)), ok_line
         for bad_line in ("any 500 after deploy", "HTTP 200 per request", "errors go down", "p99 latency over 2 s",
-                         "checkout responds in 1 s", "p99 for the API under 2s", "errors go down for an hour"):
+                         "checkout responds in 1 s", "p99 for the API under 2s", "errors go down for an hour",
+                         "99% of requests in 1 s", "more than 1% of requests over 2 s", "page loads in 2 s for 95% of users", "build over 20 minutes"):
             assert "needs a threshold and a window" in pr(good.replace("exports.error above 1% in 10 min", bad_line)), bad_line
         assert "names no model" in pr(good.replace("- Self-review, by a fresh opus context", "- Self-reviewed by a fresh context"))
         stale = __import__("importlib").import_module("check-pr").stale
@@ -377,6 +390,10 @@ def main() -> None:
                             "eyJ" * 333_333, "token=<" * 142_857, " -u a:<" * 142_857):
             began = time.time(); list(scan.finditer(adversarial))  # finditer, as check-pr does: every start, not the first match
             assert time.time() - began < 3, f"the scan is slow on {adversarial[:8]}..."
+        images = __import__("importlib").import_module("check-pr").images
+        for adversarial in ("<img " * 100_000, "![" * 200_000):
+            began = time.time(); images(adversarial)
+            assert time.time() - began < 3, f"the image scan is slow on {adversarial[:6]}..."
         leaked = pr(good.replace("200 a,b", "200 a,b\npassword=" + "hunter2hunter2"))
         assert "hunter2" not in leaked and re.search(r"line \d+ carries", leaked), leaked  # never echo the secret
         for safe in ("Authorization: Bearer <token>", "Authorization: Bearer " + "x" * 30, "Authorization: Bearer ***",

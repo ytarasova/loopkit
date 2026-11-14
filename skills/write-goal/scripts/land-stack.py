@@ -1,21 +1,22 @@
-"""Land a stack of PRs from the bottom, so no PR is closed and no change is lost.
+"""Land the lowest PR of a stack, so no PR is closed and no commit is lost.
 
     python3 land-stack.py <PR> [<PR> ...] [--method squash|rebase] [--allow-no-checks] [--run]
 
-PRs are given bottom first, each based on the one before. Without --run it prints the plan and changes nothing.
-With --run it does one step and stops, because merging main up into the next PR changes that PR's head and its
-evidence must be read again there (check-pr.py fails stale assurance). Run it again after that; PRs already merged
-are skipped, and a landing cut short (a merge queue, a failed push) is finished first.
+PRs are given bottom first, each based on the one before. Without --run it prints what it would do. With --run it lands
+the lowest open PR and stops; it never merges main up into the next branch, because a conflict there needs judgment:
+it prints the commands, and the agent runs them, re-runs that PR's assurance on its new head, then runs this again.
 
-Landing the lowest open PR:
-  1. check: open; from this repo; `gh` and git's `origin` are the same repository; based on main, and main is in its
-     head; every check complete and green (none registered fails unless --allow-no-checks); check-pr.py ok; no open PR
-     but the next is based on its branch; the next PR is based on its branch and holds all of it (a fix made below and
-     never merged up would otherwise be lost);
-  2. merge it (squash by default; rebase keeps each commit's author) and confirm GitHub says MERGED (a merge queue only
-     queues; then it stops, nothing else changed);
-  3. finish: retarget the next PR to main, delete the branch, merge origin/main into the next PR's branch in a temporary
-     worktree with a plain merge (any conflict stops it, nothing pushed), and push plainly: no rebase, no force-push.
+Before anything else, a PR of the stack that merged earlier (by this tool, a merge queue or by hand) is finished: the
+PR above it is retargeted to main, then its branch is deleted, only while its tip is still the merged commit and no
+open PR is based on it or comes from it. The lowest open PR lands only when:
+  - it is open, from this repo, and `gh` and git's `origin` are the same repository;
+  - it is based on main and holds main;
+  - its checks are complete and green (none registered stops it, unless --allow-no-checks);
+  - check-pr.py passes on it (its assurance ran on its head);
+  - no open PR but the next is based on its branch, and the next is based on its branch and holds every commit of it
+    that main does not (a fix made below and never merged up would otherwise be lost).
+It merges with --match-head-commit (a push after the checks cannot land unchecked) and confirms GitHub says MERGED (a
+merge queue only queues; then it stops and nothing else changes).
 """
 
 import json
@@ -23,19 +24,18 @@ import os
 import re
 import subprocess
 import sys
-import tempfile
 
 HERE = os.path.dirname(os.path.abspath(__file__))
-FIELDS = "number,state,baseRefName,headRefName,isCrossRepository,statusCheckRollup"
+FIELDS = "number,state,baseRefName,headRefName,headRefOid,isCrossRepository,statusCheckRollup"
 RED = ("FAILURE", "TIMED_OUT", "CANCELLED", "ACTION_REQUIRED", "STARTUP_FAILURE", "STALE", "ERROR")
 
 
-def run(*cmd: str, cwd: str | None = None) -> subprocess.CompletedProcess:
-    return subprocess.run(cmd, capture_output=True, text=True, cwd=cwd)
+def run(*cmd: str) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, capture_output=True, text=True)
 
 
-def sh(*cmd: str, cwd: str | None = None) -> str:
-    r = run(*cmd, cwd=cwd)
+def sh(*cmd: str) -> str:
+    r = run(*cmd)
     if r.returncode:
         sys.exit(f"stopped: {' '.join(cmd)}\n{(r.stderr or r.stdout).strip()}")
     return r.stdout
@@ -45,8 +45,8 @@ def pr(n: str) -> dict:
     return json.loads(sh("gh", "pr", "view", n, "--json", FIELDS))
 
 
-def contains(ancestor: str, ref: str) -> bool:
-    return run("git", "merge-base", "--is-ancestor", ancestor, ref).returncode == 0
+def open_prs(flag: str, branch: str) -> list[str]:
+    return [str(q["number"]) for q in json.loads(sh("gh", "pr", "list", flag, branch, "--state", "open", "--json", "number"))]
 
 
 def same_repo() -> None:
@@ -56,10 +56,35 @@ def same_repo() -> None:
         sys.exit(f"stopped: gh talks to {gh_repo} but git's origin is {origin}: point them at the same repository")
 
 
-def check(n: str, nxt: str, allow_no_checks: bool) -> dict:
-    p = pr(n)
-    if p["state"] != "OPEN":
-        sys.exit(f"stopped: #{n} is {p['state'].lower()}")
+def merge_up_steps(nxt: dict) -> str:
+    b, n = nxt["headRefName"], nxt["number"]
+    return (f"merge main up into #{n}'s branch, resolve any conflict by hand, push plainly:\n"
+            f"  git fetch origin && git switch {b} && git merge origin/main && git push origin {b}\n"
+            f"then re-run #{n}'s assurance on the new head, update its PR body, and run this again")
+
+
+def finish(merged: dict, nxt: dict | None) -> None:
+    """A merged PR's branch: retarget the next PR off it, then delete it, but only while nothing else depends on it."""
+    branch, oid = merged["headRefName"], merged["headRefOid"]
+    if nxt and nxt["baseRefName"] == branch:
+        sh("gh", "pr", "edit", str(nxt["number"]), "--base", "main")  # before the branch goes: deleting a PR's base closes it
+    tip = run("git", "ls-remote", "--heads", "origin", branch).stdout.split()
+    if not tip:
+        print(f"{branch} is already gone")
+        return
+    if tip[0] != oid:
+        sys.exit(f"stopped: {branch} moved after #{merged['number']} merged (now {tip[0][:9]}, merged {oid[:9]}): "
+                 "a later commit would be lost; land it in its own PR, then delete the branch by hand")
+    users = sorted(set(open_prs("--base", branch) + open_prs("--head", branch)))
+    if users:
+        sys.exit(f"stopped: open PR #{', #'.join(users)} still use{'s' if len(users) == 1 else ''} {branch}: retarget or close them first")
+    # The lease closes the race between the tip check above and this delete: a push in between makes it fail.
+    sh("git", "push", "-q", f"--force-with-lease=refs/heads/{branch}:{oid}", "origin", "--delete", branch)
+    print(f"{branch} deleted")
+
+
+def check(p: dict, nxt: dict | None, allow_no_checks: bool) -> None:
+    n = p["number"]
     if p["isCrossRepository"]:
         sys.exit(f"stopped: #{n} comes from a fork; land it by hand")
     if p["baseRefName"] != "main":
@@ -77,55 +102,22 @@ def check(n: str, nxt: str, allow_no_checks: bool) -> dict:
     if pending:
         sys.exit(f"stopped: #{n} has checks still running: {', '.join(map(str, pending))}")
     sh("git", "fetch", "-q", "origin")
-    if not contains("origin/main", f"origin/{p['headRefName']}"):
+    if run("git", "merge-base", "--is-ancestor", "origin/main", p["headRefOid"]).returncode:
         sys.exit(f"stopped: #{n}'s branch does not hold main: merge main up into it, re-run its assurance, then land it")
-    r = run(sys.executable, os.path.join(HERE, "check-pr.py"), n)
+    r = run(sys.executable, os.path.join(HERE, "check-pr.py"), str(n))
     if r.returncode:
         sys.exit(f"stopped: check-pr.py fails on #{n}:\n{(r.stdout + r.stderr).strip()}")
-    stacked = json.loads(sh("gh", "pr", "list", "--base", p["headRefName"], "--state", "open", "--json", "number"))
-    others = sorted(str(q["number"]) for q in stacked if str(q["number"]) != nxt)
+    others = [q for q in open_prs("--base", p["headRefName"]) if not nxt or q != str(nxt["number"])]
     if others:
         sys.exit(f"stopped: #{', #'.join(others)} also target{'s' if len(others) == 1 else ''} {p['headRefName']}: "
-                 "deleting it would close them; put them in the stack, or retarget them first")
+                 "landing would close them; put them in the stack, or retarget them first")
     if nxt:
-        q = pr(nxt)
-        if q["baseRefName"] != p["headRefName"]:
-            sys.exit(f"stopped: #{nxt} is not based on #{n}'s branch {p['headRefName']}: give the stack in order")
-        if not contains(f"origin/{p['headRefName']}", f"origin/{q['headRefName']}"):
-            sys.exit(f"stopped: #{nxt}'s branch lacks commits of #{n}'s ({p['headRefName']}): merge {p['headRefName']} up into "
-                     f"{q['headRefName']} first, or a fix made below is lost")
-    return p
-
-
-def finish(branch: str, nxt: str) -> None:
-    """After `branch`'s PR merged: retarget the next PR, delete the branch, merge main up into the next branch."""
-    if nxt and pr(nxt)["baseRefName"] != "main":
-        sh("gh", "pr", "edit", nxt, "--base", "main")  # before the branch goes: deleting a PR's base closes it
-    gone = run("git", "push", "-q", "origin", "--delete", branch)
-    if gone.returncode and "remote ref does not exist" not in gone.stderr:  # the repo may delete merged branches itself
-        sys.exit(f"stopped: deleting {branch} failed; rerun to finish:\n{gone.stderr.strip()}")
-    print(f"{branch} deleted")
-    if not nxt:
-        print("stack landed")
-        return
-    nb = pr(nxt)["headRefName"]
-    sh("git", "fetch", "-q", "origin")
-    if contains("origin/main", f"origin/{nb}"):
-        print(f"#{nxt} already holds main")
-        return
-    with tempfile.TemporaryDirectory() as tmp:
-        wt = os.path.join(tmp, "wt")
-        sh("git", "worktree", "add", "-q", "--detach", wt, f"origin/{nb}")  # detached: it may be checked out elsewhere
-        try:
-            if run("git", "merge", "-q", "--no-edit", "origin/main", cwd=wt).returncode:
-                conflicted = run("git", "diff", "--name-only", "--diff-filter=U", cwd=wt).stdout.split()
-                sys.exit(f"stopped: merging main into {nb} conflicts in {conflicted[:3]}: resolve it by hand, push, then rerun; "
-                         "nothing was pushed")
-            sh("git", "push", "-q", "origin", f"HEAD:{nb}", cwd=wt)
-            head = sh("git", "rev-parse", "HEAD", cwd=wt).strip()
-        finally:
-            run("git", "worktree", "remove", "--force", wt)
-    print(f"#{nxt} now holds main, at {head[:9]}: re-run its assurance on that commit, update its PR body, then run this again")
+        if nxt["baseRefName"] != p["headRefName"]:
+            sys.exit(f"stopped: #{nxt['number']} is not based on #{n}'s branch {p['headRefName']}: give the stack in order")
+        lost = sh("git", "rev-list", "--no-merges", p["headRefOid"], f"^{nxt['headRefOid']}", "^origin/main").split()
+        if lost:
+            sys.exit(f"stopped: #{nxt['number']}'s branch lacks {len(lost)} commit(s) of #{n}'s ({lost[0][:9]}): merge "
+                     f"{p['headRefName']} up into {nxt['headRefName']} first, or a fix made below is lost")
 
 
 def main() -> None:
@@ -144,44 +136,42 @@ def main() -> None:
     closed = next((n for n in todo if states[n]["state"] != "OPEN"), None)
     if closed:
         sys.exit(f"stopped: #{closed} is closed, not merged")
-    nxt = todo[1] if len(todo) > 1 else ""
-    # A landing cut short: the PR before the first open one merged, but its branch, the retarget or the merge-up remain.
-    done = [n for n in args if states[n]["state"] == "MERGED"]
-    if done and go:
-        last, first = states[done[-1]]["headRefName"], (todo[0] if todo else "")
-        sh("git", "fetch", "-q", "--prune", "origin")
-        unfinished = run("git", "rev-parse", "--verify", "-q", f"origin/{last}").returncode == 0 or bool(
-            first and (states[first]["baseRefName"] != "main"
-                       or not contains("origin/main", f"origin/{states[first]['headRefName']}")))
-        if unfinished:
-            same_repo()
-            print(f"#{done[-1]} merged earlier; finishing its landing")
-            finish(last, first)
-            return
-    if not todo:
-        print("every PR in the stack is merged")
-        return
-    n = todo[0]
+    first = states[todo[0]] if todo else None
+    nxt = states[todo[1]] if len(todo) > 1 else None
+    leftover = [states[n] for n in args if states[n]["state"] == "MERGED"
+                and run("git", "ls-remote", "--exit-code", "--heads", "origin", states[n]["headRefName"]).returncode == 0]
+    above = lambda d: next((states[m] for m in args[args.index(str(d["number"])) + 1:] if states[m]["state"] == "OPEN"), None)
     if not go:
-        print(f"- check #{n}: open, from this repo, based on main and holding it, checks green, check-pr ok, "
-              f"nothing else stacked on it{f', and #{nxt} holds all of it' if nxt else ''}")
-        print(f"- merge #{n} (--{method}) and confirm it is MERGED")
-        if nxt:
-            print(f"- retarget #{nxt} to main before that branch goes, delete the branch")
-            print(f"- merge origin/main into #{nxt}'s branch (any conflict stops it), push; then re-run #{nxt}'s assurance "
-                  "on its new head, update its PR body, and run this again")
-        else:
-            print(f"- delete #{n}'s branch")
-        print("plan only; add --run to land it")
+        for d in leftover:
+            print(f"- finish #{d['number']}, merged earlier: retarget the PR above it, delete {d['headRefName']} if unmoved and unused")
+        if first:
+            holds = f", and #{nxt['number']} holds all of it" if nxt else ""
+            print(f"- check #{first['number']}: open, from this repo, based on main and holding it, checks green, "
+                  f"check-pr ok, nothing else stacked on it{holds}")
+            print(f"- merge #{first['number']} (--{method}, matching its head), confirm MERGED, retarget the next PR, delete its branch")
+            if nxt:
+                print(f"- then {merge_up_steps(nxt)}")
+        print("plan only; add --run to do it")
         return
     same_repo()
-    p = check(n, nxt, allow_no_checks)
-    merged = run("gh", "pr", "merge", n, f"--{method}")
-    if pr(n)["state"] != "MERGED":
-        sys.exit(f"stopped: #{n} is not merged ({(merged.stderr or 'queued').strip()[:200]}): nothing else changed; "
-                 "rerun once it merges")
-    print(f"#{n} landed ({method})")
-    finish(p["headRefName"], nxt)
+    if leftover:
+        for d in leftover:  # bottom first; finish() retargets only a PR based on the merged branch
+            finish(d, above(d))
+        if first:
+            print(f"next: {merge_up_steps(pr(str(first['number'])))}")
+        return
+    if not first:
+        print("every PR in the stack is merged")
+        return
+    check(first, nxt, allow_no_checks)
+    merged = run("gh", "pr", "merge", str(first["number"]), f"--{method}", "--match-head-commit", first["headRefOid"])
+    after = pr(str(first["number"]))
+    if after["state"] != "MERGED":
+        sys.exit(f"stopped: #{first['number']} is not merged ({(merged.stderr or 'queued').strip()[:200]}): nothing else "
+                 "changed; rerun once it merges")
+    print(f"#{first['number']} landed ({method})")
+    finish(after, nxt)
+    print(f"next: {merge_up_steps(nxt)}" if nxt else "stack landed")
 
 
 if __name__ == "__main__":
