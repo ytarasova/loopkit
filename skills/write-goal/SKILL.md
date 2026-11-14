@@ -122,7 +122,7 @@ merged up or opened without it. Four sections, checked by
 `python3 <base>/scripts/check-pr.py <PR number | evidence file>`:
 
 - `## Assurance`: every check in `assurance` (tests, coverage, lint,
-  typecheck, violations, by default), each with its command and the output it
+  typecheck, violations, security, by default), each with its command and the output it
   printed in a fenced block. Counts are what ran, on the changeset's own commit
   (the reviewer checks this; the script cannot).
 - `## Evidence`, told by use case: a `### UC<n> <who does what>` per use case
@@ -149,8 +149,8 @@ CodeQL), each with its output. The review (step 7) reads the diff for input
 handling, authorization, data exposure and secrets; `security-review` runs it
 on a branch, and the `security-guidance` hooks see each edit. `check-pr.py`
 fails a body or evidence file that carries anything shaped like a credential:
-blank tokens, keys and signed URLs in every curl exchange and CLI run before
-it is written down.
+blank tokens, keys, signed URLs and passwords in every curl exchange and CLI
+run before it is written down. The failure names the line, never the value.
 
 A UI changeset also carries `UX review: <result>`, and each UI use case shows
 its flow, two screenshots or more, from where the person lands to what they

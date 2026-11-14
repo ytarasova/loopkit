@@ -29,7 +29,7 @@ things:
   "runner": "make",
   "bypass": ["npx", "npm run", "pytest"],
   "goal_rules": { "one tier at a time": "test tiers share a database" },
-  "assurance": ["tests", "coverage", "lint", "typecheck", "violations"],
+  "assurance": ["tests", "coverage", "lint", "typecheck", "violations", "security"],
   "surfaces": { "ui": ["^web/src/"], "service": ["^api/"], "cli": ["^cli/"] },
   "view": "Claude Doc",
   "rollback_pattern": "",
@@ -45,7 +45,7 @@ things:
 | `runner` | The one entry point for commands (`make`, `rake`, `just`, `./bin/dev`). Empty when the repo has none; then drop the runner sentence from the goal template. |
 | `bypass` | Backticked commands that skip the runner. The checker fails a goal or master plan that uses one. |
 | `goal_rules` | `{"text": "rule"}`: text every goal must keep, for rules a run here cannot do without. |
-| `assurance` | The technical checks every changeset shows run, by the name its evidence uses: tests, coverage, lint, typecheck, violations (static analysis, security, fitness). |
+| `assurance` | The technical checks every changeset shows run, by the name its evidence uses: tests, coverage, lint, typecheck, violations (static analysis, fitness), security (a secret scan, a dependency audit). A repo's list replaces the default, so keep `security` in it. |
 | `surfaces` | Which changed files are a UI, a service or a CLI. `check-pr.py` then asks the PR for use-case screenshots, a curl request and response, or the command's run. |
 | `view` | The live view the owner reads, if any (a Claude Doc, a board). `progress.py <slug> view` stamps its update; `check-goal.py` fails a view older than the progress file's Now line. Empty when there is none. |
 | `rollback_pattern` | A regex every plan's Rollback must match, e.g. `[a-z-]+-production:\d+` for a task definition revision. |
