@@ -3,7 +3,7 @@
     python3 check-pr.py <PR number or URL | evidence file> [--master <master plan>]
 
 Fails (exit 1) unless the body has all four sections:
-  ## Assurance  each check in the repo's `assurance` list (tests, coverage, lint, typecheck, violations),
+  ## Assurance  each check in the repo's `assurance` list (tests, coverage, lint, typecheck, violations, security),
                 named in a heading, a bullet or a fenced block, with the output it printed in a fenced block
   ## Evidence   a "### UC<n> <who does what, and what they end up with>" per use case it proves, each with
                 its proof for the use case's surface (a step that only enables one, such as a fake or a
@@ -21,8 +21,9 @@ Fails (exit 1) unless the body has all four sections:
                 review and the constitution cross-check, each with its result; a UI changeset also a "UX review:" line: each
                 use case walked as a first-time person from where they land, never a deep link (can they find
                 it, read it, tell what happened, recover from an error; does it match the screens around it)
-Anything shaped like a credential (cloud keys, GitHub, Anthropic, OpenAI and Slack tokens, private keys,
-JWTs, bearer headers, password= or token= values) fails: evidence is posted where others read it.
+Anything shaped like a credential fails, reported by line number only: AWS and Google keys, GitHub, GitLab,
+Anthropic, OpenAI, Stripe, npm and Slack tokens, private keys, JWTs, signed URLs, credentials in a URL or a
+curl -u, bearer and basic headers, and password=, token= or api_key= values that mix letters and digits: evidence is posted where others read it.
 An image that is not an https URL fails: a local or relative path renders for nobody. "## " and "### " lines
 inside fenced blocks are output, not sections. A PR reads its body and changed files with `gh`.
 Settings: .claude/loopkit.json (see the write-goal skill).
@@ -42,15 +43,29 @@ SPAN = re.compile(r"`[^`\n]+`")
 REVIEW = {"simplify": r"simplif\w*", "a self-review": r"self-review\w*", "a security review": r"security review\w*",
           "the constitution cross-check": r"constitution\w*"}
 # Shapes of credentials that evidence (a curl exchange, a CLI run, a screenshot's caption) must never carry.
+# A value that is wholly a placeholder, or names itself one, is not a credential.
+_PLACEHOLDER = (r"(?!(?:x+|X+|\*+|\.+|<[^>]*>|\[?redacted\]?|\$\{?\w+\}?)(?![\w.~+/=-]))"
+                r"(?![\w-]*(?i:example|dummy|fake|sample|your_|placeholder|changeme))")
+# A keyword's value counts only when it mixes letters and digits, as real secrets do ("hunter2..."), so test names,
+# resource names ("app-db-credentials-prod") and calls ("make_test_token()") pass.
+_MIXED = r"(?=[^\s\"'<>]*\d)(?=[^\s\"'<>]*[A-Za-z])"
 SECRET = re.compile(
-    r"AKIA[0-9A-Z]{16}|ASIA[0-9A-Z]{16}"
-    r"|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}"
-    r"|sk-ant-[A-Za-z0-9_-]{20,}|sk-(?:proj-)?[A-Za-z0-9]{32,}"
-    r"|xox[abprs]-[A-Za-z0-9-]{10,}"
-    r"|-----BEGIN [A-Z ]*PRIVATE KEY-----"
+    r"AKIA(?![0-9A-Z]*EXAMPLE)[0-9A-Z]{16}|ASIA[0-9A-Z]{16}"
+    r"|(?i:aws.{0,20}?secret.{0,20}?[=:\"'\s])\s*[\"']?[A-Za-z0-9/+]{40}\b"
+    r"|AIza[0-9A-Za-z_-]{35}"
+    r"|gh[pousr]_[A-Za-z0-9]{30,}|github_pat_[A-Za-z0-9_]{40,}|glpat-[A-Za-z0-9_-]{20,}"
+    r"|sk-ant-[A-Za-z0-9_-]{20,}|sk-(?:proj|svcacct|admin)-[A-Za-z0-9_-]{20,}|sk-[A-Za-z0-9]{32,}"
+    r"|[sr]k_live_[0-9A-Za-z]{20,}|npm_[A-Za-z0-9]{36}"
+    r"|xox[abprs]-[A-Za-z0-9-]{10,}|xapp-[0-9A-Za-z-]{10,}|hooks\.slack\.com/services/T\w+/B\w+/\w+"
+    r"|-----BEGIN [A-Z ]*PRIVATE KEY(?: BLOCK)?-----"
     r"|eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"
-    r"|(?i:authorization:\s*bearer\s+)(?![<*x.]|redacted)[A-Za-z0-9._~+/=-]{20,}"
-    r"|(?i:(?:password|passwd|secret|api[_-]?key|token)\s*[=:]\s*)[\"']?(?![<*x.]|redacted)[A-Za-z0-9._~+/=-]{12,}"
+    r"|\b[a-z][a-z0-9+.-]*://[^\s:/@]*:(?!\$|\*+@|<)[^\s@/<*]{3,}@"
+    r"|(?i:x-goog-signature|[?&]sig)=[A-Za-z0-9%/+=]{16,}"
+    r"|(?i:authorization:\s*bearer\s+)" + _PLACEHOLDER + r"[A-Za-z0-9._~+/=-]{20,}"
+    r"|(?i:authorization:\s*basic\s+)" + _PLACEHOLDER + r"[A-Za-z0-9+/=]{12,}"
+    r"|(?i:(?:^|\s)(?:-u|--user)\s+)[^\s:'\"]+:" + _PLACEHOLDER + r"[^\s'\"]{6,}"
+    r"|(?i:\b(?:password|passwd|pwd|secret|client[_-]?secret|api[_-]?key|access[_-]?key|token)\b[\"']?\s*[=:]\s*[\"']?)"
+    + _PLACEHOLDER + _MIXED + r"[^\s\"'<>,;()]{8,}(?![\w(])"
 )
 NEED = {"ui": "the flow in screenshots (two or more: where the person lands, through to the outcome)", "service": "a curl request and its response", "cli": 'a "$ <command>" run and its output'}
 
@@ -134,11 +149,12 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
             out.append('a UI changeset needs a "UX review: <result>" line: each use case walked as a first-time person '
                        "from where they land (navigation, legibility, coherence with the screens around it, every state, copy)")
     if not review:
-        out.append('no "## Review" section: simplify, a self-review and the constitution cross-check, each with its result')
+        out.append('no "## Review" section: simplify, a self-review, a security review and the constitution cross-check, each with its result')
     else:
         out += [f"Review has no line for {what} with its result" for what, pat in REVIEW.items()
                 if not re.search(rf"^[^\w\n]*{pat}\b[^\w\n]*\w", review, re.M | re.I)]
-    out += [f"the body carries what looks like a credential ({m.group(0)[:12]}...): blank it before it is posted" for m in SECRET.finditer(body)][:3]
+    out += [f"line {body.count(chr(10), 0, m.start()) + 1} carries what looks like a credential: blank it before it is posted"
+            for m in SECRET.finditer(body)][:3]
     return out
 
 

@@ -170,8 +170,23 @@ def main() -> None:
                      "-----BEGIN " + "RSA PRIVATE KEY-----", "eyJ" + "a" * 12 + ".eyJ" + "b" * 12 + "." + "c" * 12,
                      "Authorization: Bearer " + "d" * 30, "password=" + "hunter2hunter2"):
             assert "looks like a credential" in pr(good.replace("200 a,b", "200 a,b\n" + leak)), leak
+        # Built from parts so this file never holds a credential-shaped string whole.
+        for leak in ("AWS_SECRET_ACCESS_KEY=" + "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEZ", "AIza" + "S" * 35, "sk_" + "live_" + "4eC39HqLyjWDarjtT1zdp7dc",
+                     "npm_" + "a1" * 18, "postgres://app:" + "s3cretP4ss@db.internal:5432/app", "-----BEGIN PGP " + "PRIVATE KEY BLOCK-----",
+                     "sk-svcacct-" + "abc_DEF-1234567890abcdefgh", "glpat-" + "abcdefghij1234567890", "xapp-" + "1-A0123-abcdef",
+                     "hooks.slack.com/services/" + "T0001/B0002/abcdef", "Authorization: Basic " + "YWRtaW46c2VjcmV0MTIz", "curl -u admin:" + "SuperSecret123 x",
+                     '"token": "' + "abcdef0123456789abcdef" + '"', "password=" + "xK9mPq2vL8nR4tWz", "Authorization: Bearer " + "xyzABC123def456ghi789jkl",
+                     "password=" + "redactedButReal12345", "password=" + "hunter2abc", "password=" + "Tr0ub4dor&3-horse!",
+                     "https://s.blob.core.windows.net/c/f?sv=2020&" + "sig=abcdefghijklmnopqrstuv%3D"):
+            assert "looks like a credential" in pr(good.replace("200 a,b", "200 a,b\n" + leak)), leak
+        leaked = pr(good.replace("200 a,b", "200 a,b\npassword=" + "hunter2hunter2"))
+        assert "hunter2" not in leaked and re.search(r"line \d+ carries", leaked), leaked  # never echo the secret
         for safe in ("Authorization: Bearer <token>", "Authorization: Bearer " + "x" * 30, "Authorization: Bearer ***",
-                     "token=<redacted>", "token=redacted-" + "0" * 20, "password: " + "x" * 16, "api_key=" + "." * 20):
+                     "token=<redacted>", "password: " + "x" * 16, "api_key=" + "." * 20,
+                     "token=dummy-token-for-tests", "api_key=YOUR_API_KEY_HERE", "secret: app-db-credentials-prod",
+                     "token = make_test_token()", "token = build_token_v2()", "token: refresh_rejects_expired_tokens PASSED", "AKIA" + "IOSFODNN7EXAMPLE",
+                     "0123456789abcdef0123456789abcdef01234567", "123e4567-e89b-12d3-a456-426614174000", "${{ secrets.TOKEN }}",
+                     "password=$DB_PASSWORD", "token=example-" + "abc123def456"):
             assert "looks like a credential" not in pr(good.replace("200 a,b", "200 a,b\n" + safe)), safe
         assert "does not show lint" in pr(good.replace("$ make lint\n0 errors", "x").replace("```\n\n## Evidence", "```\nlint was fine\n\n## Evidence"))
         fenced = good.replace("12 passed\n", "12 passed\n$ git status -sb\n## main...origin/main\n### UC9 not a heading\n")
@@ -238,6 +253,8 @@ def main() -> None:
         assert 'has no "### UC2"' not in check(master=enables, progress=ticked)  # "Supports" is not part of the Proves sentence
         comma = enables.replace("Proves UC1. Supports UC2 through the fake.", "Proves UC1, supports UC2 through the fake.")
         assert "UC2 is proven by no plan step" in check(master=comma, progress=ticked)
+        oxford = enables.replace("Proves UC1. Supports UC2 through the fake.", "Proves UC1, UC2, and UC3.").replace("| UC1 |", "| UC3 | x | cli |\n| UC1 |")
+        assert "UC3 is proven by no plan step" not in check(master=oxford, progress=ticked)
         both = enables.replace("Proves UC1. Supports UC2 through the fake.", "Proves UC1 and UC2.")
         assert "UC2 is proven by no plan step" not in check(master=both, progress=ticked)
         assert 'has no "### UC2": Plan 1 step 1 proves it' in check(master=both, progress=ticked)
@@ -323,6 +340,19 @@ def main() -> None:
         assert "Claude Doc lags" in lag.stdout, lag.stdout + lag.stderr
         stamp("view")
         assert "Claude Doc lags" not in run("check-goal.py", "t", cwd=repo).stdout
+    # The kit is public: the skills never name the people who build or run it. Their names come from git config and
+    # the commit authors at test time, so they are never written into the repo, not even here.
+    names = subprocess.run(["git", "config", "user.name"], capture_output=True, text=True, cwd=HERE).stdout
+    names += subprocess.run(["git", "log", "--format=%an"], capture_output=True, text=True, cwd=HERE).stdout
+    me = {w for w in names.split() if w.isalpha()}
+    skills = os.path.dirname(os.path.dirname(HERE))
+    for root, _, files in os.walk(skills):
+        for name in files:
+            if name.endswith((".md", ".py", ".json")):
+                with open(os.path.join(root, name)) as f:
+                    text = f.read()
+                for word in (w for w in me if len(w) > 2):
+                    assert not re.search(rf"\b{re.escape(word)}\b", text, re.I), f"{name} names the kit's user ({word})"
     print("goal kit ok")
 
 

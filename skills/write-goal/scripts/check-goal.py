@@ -61,7 +61,7 @@ CORE_RULES = {
     "check-pr.py": "every changeset carries its complete evidence, checked",
 }
 # "Proves UC1, UC2 and UC3": the ids right after "Proves", and nothing after the first other word ("supports UC4").
-PROVES = r"\bProves\s+(UC\d+(?:\s*(?:,|and|&)\s*UC\d+)*)"
+PROVES = r"\bProves\s+(UC\d+(?:\s*(?:,\s*(?:and\s+)?|and|&)\s*UC\d+)*)"
 UNIT = r"(s|sec|mins?|minutes?|m|h|hrs?|hours?|d|days?)\b"
 PLAN_PARTS = [
     "**Measured facts",
