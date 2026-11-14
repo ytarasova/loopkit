@@ -148,15 +148,22 @@ def main() -> None:
         assert pr(shot.replace("/private/tmp/s/j1.jpg", "https://github.com/o/r/blob/evidence/t/j1.jpg?raw=true")).strip() == "ok"
         assert pr(good.replace("200 a,b", "200 a,b\n`![x](/tmp/a.png)`")).strip() == "ok"
         coded = good.replace("```\n$ curl -s /export\n200 a,b\n```", "`![x](https://x.y/a.png)`")
-        assert "UC1 shows no output or screenshot" in pr(coded), pr(coded)
+        assert "UC1 is not proven: it needs output or a screenshot" in pr(coded), pr(coded)
         sys.path.insert(0, HERE)
         problems = __import__("importlib").import_module("check-pr").problems
         kinds = {"ui": [r"^web/"], "service": [r"^api/"], "cli": [r"^cli/"]}
         assert problems(good, ["api/x.py"], kinds, ["tests"]) == []
-        assert "changes ui files but Evidence shows no a screenshot" in problems(good, ["web/a.tsx"], kinds, ["tests"])
+        assert any(x.startswith("changes ui files, so Evidence needs the flow") for x in problems(good, ["web/a.tsx"], kinds, ["tests"]))
         assert any("curl" in x for x in problems(good.replace("curl -s /export", "GET /export"), ["api/x.py"], kinds, ["tests"]))
-        assert any("changes cli" in x for x in problems(good.replace("$ curl", "curl"), ["cli/main.go"], kinds, ["tests"]))
-        assert "UC1 (ui) shows no a screenshot; a link alone is not evidence" in problems(good, [], {}, ["tests"], {"UC1": "ui"})
+        assert any("changes cli files" in x for x in problems(good.replace("$ curl", "curl"), ["cli/main.go"], kinds, ["tests"]))
+        ui_fail = problems(good, [], {}, ["tests"], {"UC1": "ui"})
+        assert any(x.startswith("UC1 (ui) is not proven: it needs the flow") for x in ui_fail) and any("UX review" in x for x in ui_fail), ui_fail
+        shot1 = "![land](https://x.y/1.png)\n\n```\n$ curl"
+        flow = good.replace("```\n$ curl", shot1.replace("\n\n```", "\n![done](https://x.y/2.png)\n\n```"))
+        assert any("needs the flow" in x for x in problems(good.replace("```\n$ curl", shot1), [], {}, ["tests"], {"UC1": "ui"}))
+        assert ["a UI" in x for x in problems(flow, [], {}, ["tests"], {"UC1": "ui"})] == [True], problems(flow, [], {}, ["tests"], {"UC1": "ui"})
+        assert problems(flow + "- UX review, walked from the home page: clean\n", [], {}, ["tests"], {"UC1": "ui"}) == []
+        assert any("UX review" in x for x in problems(flow, ["web/a.tsx"], kinds, ["tests"]))
         assert problems(good, [], {}, ["tests"], {"UC1": "service"}) == []
         assert any("UC1 (cli)" in x for x in problems(good.replace("$ curl", "curl"), [], {}, ["tests"], {"UC1": "cli"}))
 
@@ -180,7 +187,7 @@ def main() -> None:
         assert "UC1 is proven by no plan step" in check(master=m.replace("Proves UC1.", ""))
         assert "UC1 is proven by no plan step" in check(master=m.replace("Proves UC1.", "Does not cover UC1."))
         ui = m.replace("| UC1 | filled | filled |", "| UC1 | filled | ui |")
-        assert "1.1.md: UC1 (ui) shows no a screenshot" in check(master=ui, progress=ticked), check(master=ui, progress=ticked)
+        assert "1.1.md: UC1 (ui) is not proven: it needs the flow" in check(master=ui, progress=ticked), check(master=ui, progress=ticked)
         done = re.sub(r"^- \[ \] ", "- [x] ", ticked, flags=re.M)
         assert "the whole has no evidence" in check(progress=done), check(progress=done)
         two = m.replace("| UC1 |", "| UC2 | x | cli |\n| UC1 |").replace("Proves UC1.", "Proves UC1 and UC2.")

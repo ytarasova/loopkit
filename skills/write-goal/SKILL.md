@@ -55,7 +55,7 @@ read, a deploy, a decision changed, a human step hit): update the progress
 file, then commit and push it.
 
 **Every changeset is done only with its complete evidence** (constitution
-§II.4 to §II.6): a task merged to its plan branch, a fix, and each PR. Nothing is ticked,
+§II.4 to §II.7): a task merged to its plan branch, a fix, and each PR. Nothing is ticked,
 merged up or opened without it. Four sections, checked by
 `python3 <base>/scripts/check-pr.py <PR number | evidence file>`:
 
@@ -79,6 +79,24 @@ merged up or opened without it. Four sections, checked by
 - `## Review`: a line each, `Simplify: <result>`, `Self-review: <by whom,
   result>`, `Constitution: <result>`; the self-review by a context that did
   not write the change.
+
+A UI changeset also carries `UX review: <result>`, and each UI use case shows
+its flow, two screenshots or more, from where the person lands to what they
+end up with. The UX review is a fresh subagent (the repo's UX reviewer agent
+when it has one) given the running app and the use cases, not the diff. It
+walks each use case as a first-time user, from the app's entry point, never a
+deep link, at the widths people use, and fails:
+
+- navigation a person could not follow to the feature, or back out of;
+- text that cannot be read: low contrast, too small, truncated, overlapping;
+- a screen that breaks the patterns of the screens around it (layout, names,
+  controls, where actions sit);
+- a missing or unclear empty, loading, error or success state;
+- an outcome the person cannot see, or copy that does not say what happened.
+
+Each failure is fixed and the walk taken again; its result goes on the line.
+Screens that each work but do not add up to a usable flow are the failure this
+review exists for.
 
 The script checks shape, not truth: that a screenshot is newer than its
 screen, that output came from the changeset's commit, and that failure cases

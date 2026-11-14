@@ -7,7 +7,8 @@ Fails (exit 1) unless the body has all four sections:
                 named in a heading, a bullet or a fenced block, with the output it printed in a fenced block
   ## Evidence   a "### UC<n> <who does what, and what they end up with>" per use case it proves, each
                 with its proof for the use case's surface:
-                  ui       a screenshot (an image at an https URL, not inside code)
+                  ui       the flow in screenshots, two or more (https URLs, not inside code): where the person
+                           lands, each step, and what they end up with
                   service  a fenced block holding the curl request and the response it got
                   cli      a fenced block holding the run, "$ <command>" and its output
                   unknown  a fenced block or a screenshot
@@ -16,7 +17,9 @@ Fails (exit 1) unless the body has all four sections:
   ## Signal     a "Success: ..." line and a "Failure: ..." line (the metric, log line or alert to watch during
                 the rollout, with its threshold), or, with neither, "not-applicable" and the reason
   ## Review     a line each for simplify, a self-review (by a context that did not write it) and the
-                constitution cross-check, each with its result
+                constitution cross-check, each with its result; a UI changeset also a "UX review:" line: each
+                use case walked as a first-time person from where they land, never a deep link (can they find
+                it, read it, tell what happened, recover from an error; does it match the screens around it)
 An image that is not an https URL fails: a local or relative path renders for nobody. "## " and "### " lines
 inside fenced blocks are output, not sections. A PR reads its body and changed files with `gh`.
 Settings: .claude/loopkit.json (see the write-goal skill).
@@ -34,7 +37,7 @@ FENCE = re.compile(r"^```.*?^```[^\n]*$", re.M | re.S)
 IMAGE = re.compile(r"!\[[^\]]*\]\(\s*([^)\s]+)|<img[^>]*\ssrc=[\"']([^\"']+)", re.I)
 SPAN = re.compile(r"`[^`\n]+`")
 REVIEW = {"simplify": r"simplif\w*", "a self-review": r"self-review\w*", "the constitution cross-check": r"constitution\w*"}
-NEED = {"ui": "a screenshot", "service": "a curl request and its response", "cli": 'a "$ <command>" run and its output'}
+NEED = {"ui": "the flow in screenshots (two or more: where the person lands, through to the outcome)", "service": "a curl request and its response", "cli": 'a "$ <command>" run and its output'}
 
 
 def masked(text: str) -> str:
@@ -60,7 +63,7 @@ def images(text: str) -> list[str]:
 def proof(text: str, surface: str) -> bool:
     fences = FENCE.findall(text)
     if surface == "ui":
-        return bool(images(text))
+        return len(images(text)) >= 2  # a flow: where the person lands, through to what they end up with
     if surface == "service":
         return any(re.search(r"\bcurl\b", f) for f in fences)
     if surface == "cli":
@@ -96,11 +99,11 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
         kind = (ucs or {}).get(uc, "")
         if not proof(text, kind):
             label = f"{uc} ({kind})" if kind else uc
-            out.append(f"{label} shows no {NEED.get(kind, 'output or screenshot')}; a link alone is not evidence")
+            out.append(f"{label} is not proven: it needs {NEED.get(kind, 'output or a screenshot')}; a link alone is not evidence")
     out += [f"image no reviewer can open (not an https URL): {src}" for src in images(evidence)
             if not src.startswith("https://")]
     hit = {kind for kind, pats in surfaces.items() for f in files if any(re.search(p, f) for p in pats)}
-    out += [f"changes {kind} files but Evidence shows no {NEED[kind]}" for kind in sorted(hit) if not proof(evidence, kind)]
+    out += [f"changes {kind} files, so Evidence needs {NEED[kind]}" for kind in sorted(hit) if not proof(evidence, kind)]
 
     found = {w: re.search(rf"^[^\w\n]*{w}\b[^\w\n]*\w", signal, re.M | re.I) for w in ("Success", "Failure")}
     if not signal:
@@ -111,6 +114,10 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
     else:
         out += [f'Signal has no "{w}: <metric, log line or alert, and threshold>" line' for w, m in found.items() if not m]
 
+    if "ui" in hit or "ui" in {(ucs or {}).get(uc) for uc in cases}:
+        if not re.search(r"^[^\w\n]*UX review\b[^\w\n]*\w", review, re.M | re.I):
+            out.append('a UI changeset needs a "UX review: <result>" line: each use case walked as a first-time person '
+                       "from where they land (navigation, legibility, coherence with the screens around it, every state, copy)")
     if not review:
         out.append('no "## Review" section: simplify, a self-review and the constitution cross-check, each with its result')
     else:
