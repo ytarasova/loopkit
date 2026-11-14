@@ -46,6 +46,7 @@ def main() -> None:
         "{{REVIEWER}}": cfg["reviewer"],
         "{{MAX_PARALLEL}}": str(cfg["max_parallel"]),
         "{{RUNNER}}": cfg["runner"],
+        "{{ASSURANCE}}": ", ".join(cfg["assurance"]),
     }
     targets = {f"{plans}/{a.date}-{a.slug}-{k}.md": k for k in ("goal", "master", "progress")}
     clash = [t for t in targets if os.path.exists(t)]

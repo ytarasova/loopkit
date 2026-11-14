@@ -13,7 +13,10 @@ Fails (exit 1) on what would break or mislead the run; warns on what a person sh
               every gate with a baseline that is a number or (unconfirmed), a source, and a window
               ("within 15 min") when ends_at is production; every Rollback non-empty, and
               every rollback matching rollback_pattern when one is set
-  progress    a Now line, "Waiting on", "In flight", Steps with a checkbox per gate, a Log; warns over 80 KB
+  master      "## Use cases" with "| UC<n> |" rows, each named by some plan section (a use case no step proves is a hole)
+  progress    a Now line, "Waiting on", "In flight", Steps with a checkbox per gate, a Log; warns over 80 KB;
+              every ticked "Plan N step M" names its evidence file "(<plans_dir>/<date>-<slug>-evidence/<n>.<m>.md)",
+              which exists and passes check-pr.py (assurance, evidence by use case, signal, review)
 Settings: .claude/loopkit.json (see the write-goal skill).
 """
 
@@ -24,6 +27,8 @@ import sys
 
 import config
 
+check_pr = __import__("importlib").import_module("check-pr")
+
 EM_DASH = "\u2014"
 CORE_RULES = {
     "CONSTITUTION.md": "read CONSTITUTION.md and CLAUDE.md",
@@ -32,7 +37,7 @@ CORE_RULES = {
     "In flight": "a dispatch or unsafe step is recorded before it runs",
     "Waiting on": "a human step is recorded, pushed and ends the run",
     "stacked PRs": "plans ship as stacked PRs, one per plan",
-    "check-pr.py": "every PR carries its evidence and signal, checked",
+    "check-pr.py": "every changeset carries its complete evidence, checked",
 }
 UNIT = r"(s|sec|min|minutes?|m|h|hours?|d|days?)\b"
 PLAN_PARTS = [
@@ -114,9 +119,16 @@ def check(goal: str, master: str, prog: str, cfg: dict) -> tuple[list[str], list
                 fails.append(f"{name} runs `{cmd}` directly; every command goes through {cfg['runner']}")
 
     if master:
-        for s in ("Order", "Decisions, answered"):
+        for s in ("Use cases", "Order", "Decisions, answered"):
             if s not in secs:
                 fails.append(f'master plan has no "## {s}" section')
+        cases = sorted(set(re.findall(r"^\| *(UC\d+) *\|", secs.get("Use cases", ""), re.M)), key=lambda c: int(c[2:]))
+        if "Use cases" in secs and not cases:
+            fails.append('master plan "## Use cases" has no "| UC1 | ..." row')
+        proven = set(re.findall(r"\bUC\d+\b", "\n".join(plans.values())))
+        for uc in cases:
+            if uc not in proven:
+                fails.append(f"{uc} is proven by no plan step: a use case no step proves is a hole")
         rows = re.findall(r"^\| *\d+ *\|", secs.get("Order", ""), re.M)
         if len(rows) != len(plans):
             fails.append(
@@ -183,6 +195,16 @@ def check(goal: str, master: str, prog: str, cfg: dict) -> tuple[list[str], list
         for g in sorted(defined):
             if not re.search(rf"^- \[[ x]\] G{g}\b", steps, re.M):
                 fails.append(f"progress file Steps has no checkbox for G{g}")
+        for line in re.findall(r"^- \[x\] (Plan \d+ step[^\n]*)", steps, re.M):
+            path = re.search(r"\(([^()\s]*-evidence/[^()\s]+\.md)\)", line)
+            if not path:
+                fails.append(f"ticked step names no evidence file: {line[:60]}")
+            elif not os.path.isfile(path.group(1)):
+                fails.append(f"ticked step's evidence file does not exist: {path.group(1)}")
+            else:
+                with open(path.group(1)) as f:
+                    for p in check_pr.problems(f.read(), [], cfg["surfaces"], cfg["assurance"]):
+                        fails.append(f"{path.group(1)}: {p}")
         if not re.search(r"^- \S", psecs.get("Log", ""), re.M):
             fails.append('progress file has no "## Log" line')
         size = len(prog.encode())

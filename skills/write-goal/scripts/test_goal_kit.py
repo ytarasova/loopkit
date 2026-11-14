@@ -81,7 +81,7 @@ def main() -> None:
         assert "missing or empty" in check(progress="")
         assert "In flight" in check(goal=texts["goal"].replace("In flight", "in flight"))
         assert "stacked PRs" in check(goal=texts["goal"].replace("stacked PRs", "PRs"))
-        assert "evidence and signal" in check(goal=texts["goal"].replace("check-pr.py", "a check"))
+        assert "complete evidence" in check(goal=texts["goal"].replace("check-pr.py", "a check"))
         assert "In flight" in check(progress=texts["progress"].replace("## In flight", "## Later"))
         assert "runs `npx`" in check(master=m + "\n`npx vitest run`\n")
         assert "runs `npx`" in check(master=m + "\n`cd web && npx`\n")
@@ -102,25 +102,62 @@ def main() -> None:
         assert "slug" in run("new-goal.py", "--slug", "a/b", "--title", "T", cwd=repo).stderr
 
         with open(f"{repo}/.claude/loopkit.json", "w") as f:
-            json.dump({"ui_paths": [r"^web/"]}, f)
+            json.dump({"assurance": ["tests", "lint"], "surfaces": {"ui": ["^web/"]}}, f)
 
         def pr(body: str) -> str:
             with open(f"{repo}/body.md", "w") as f:
                 f.write(body)
             return run("check-pr.py", "body.md", cwd=repo).stdout
 
-        out = "## Evidence\n\n```\n$ make test\n12 passed\n```\n\n## Signal\n\nnot-applicable, a docs change\n"
-        assert pr(out).strip() == "ok", pr(out)
-        assert "Evidence" in pr("## Signal\n\nx\n") and "Signal" in pr("## Evidence\n\n```\nx\n```\n")
-        assert "a link alone" in pr("## Evidence\n\nSee [the report](https://x.y/r)\n\n## Signal\n\nx\n")
-        local = out.replace("```\n$", "![step 1](/private/tmp/s/j1-01.jpg)\n\n```\n$")
-        assert "(not an https URL): /private/tmp/s/j1-01.jpg" in pr(local), pr(local)
-        assert "not an https" not in pr(out.replace("```\n$", "![a](https://github.com/o/r/blob/evidence/t/a.jpg?raw=true)\n```\n$"))
-        assert pr(out.replace("12 passed", "12 passed\n```\n`![x](/tmp/a.png)`\n```")).strip() == "ok"
+        good = (
+            "## Assurance\n\n```\n$ make tests\n12 passed\n$ make lint\n0 errors\n```\n\n"
+            "## Evidence\n\n### UC1 An admin exports a report and gets a CSV\n\n```\n$ curl -s /export\n200 a,b\n```\n\n"
+            "## Signal\n\n- Success: exports.ok above 99% for 1 h\n- Failure: exports.error above 1% in 10 min\n\n"
+            "## Review\n\nSimplify: 2 removed. Self-review by a fresh context: clean. Constitution: cross-checked, clean.\n"
+        )
+        assert pr(good).strip() == "ok", pr(good)
+        for name, cut in (("Assurance", "## Assurance"), ("Evidence", "## Evidence"), ("Signal", "## Signal"), ("Review", "## Review")):
+            assert f'no "## {name}"' in pr(good.replace(cut, "## Other")), name
+        assert "does not show lint" in pr(good.replace("make lint\n0 errors", "x"))
+        assert "not told by use case" in pr(good.replace("### UC1", "### Export"))
+        assert "a link alone" in pr(good.replace("```\n$ curl -s /export\n200 a,b\n```", "[report](https://x.y/r)"))
+        assert "no failure signal" in pr(good.replace("- Failure", "- Watch"))
+        assert "no success signal" not in pr(good.replace("- Success", "Success"))
+        assert pr(good.replace("- Success: exports.ok above 99% for 1 h\n- Failure: exports.error above 1% in 10 min", "not-applicable, docs only")).strip() == "ok"
+        assert "does not name simplify" in pr(good.replace("Simplify: 2 removed. ", ""))
+        assert "a self-review" in pr(good.replace("Self-review", "Read"))
+        assert "constitution" in pr(good.replace("Constitution: cross-checked, clean.", ""))
+        shot = good.replace("```\n$ curl", "![step 1](/private/tmp/s/j1.jpg)\n\n```\n$ curl")
+        assert "(not an https URL): /private/tmp/s/j1.jpg" in pr(shot), pr(shot)
+        assert pr(shot.replace("/private/tmp/s/j1.jpg", "https://github.com/o/r/blob/evidence/t/j1.jpg?raw=true")).strip() == "ok"
+        assert pr(good.replace("200 a,b", "200 a,b\n`![x](/tmp/a.png)`")).strip() == "ok"
+        coded = good.replace("```\n$ curl -s /export\n200 a,b\n```", "`![x](https://x.y/a.png)`")
+        assert "UC1 An admin exports a report and gets a CSV: no output" in pr(coded), pr(coded)
         sys.path.insert(0, HERE)
         problems = __import__("importlib").import_module("check-pr").problems
-        assert "no screenshot" in problems(out, ["web/src/a.tsx"], [r"^web/src/.*\.tsx$"])[0]
-        assert problems(out, ["api/a.py"], [r"^web/src/.*\.tsx$"]) == []
+        kinds = {"ui": [r"^web/"], "service": [r"^api/"], "cli": [r"^cli/"]}
+        assert problems(good, ["api/x.py"], kinds, ["tests"]) == []
+        assert "no screenshot" in problems(good, ["web/a.tsx"], kinds, ["tests"])[0]
+        assert "no curl" in problems(good.replace("curl -s /export", "GET /export"), ["api/x.py"], kinds, ["tests"])[0]
+        assert "changes the CLI" in problems(good.replace("$ curl", "curl"), ["cli/main.go"], kinds, ["tests"])[0]
+
+        ev = f"{repo}/docs/plans/2026-01-01-t-evidence"
+        os.makedirs(ev)
+        with open(f"{repo}/.claude/loopkit.json", "w") as f:
+            json.dump({"owner": "Sam", "runner": "make", "bypass": ["npx"], "assurance": ["tests", "lint"]}, f)
+        p = texts["progress"]
+        assert check().strip().endswith("ok"), check()
+        ticked = p.replace("- [ ] Plan 1 step 1: filled", "- [x] Plan 1 step 1: filled (docs/plans/2026-01-01-t-evidence/1.1.md)")
+        assert "evidence file does not exist" in check(progress=ticked)
+        with open(f"{ev}/1.1.md", "w") as f:
+            f.write(good.replace("## Review", "## Other"))
+        assert '1.1.md: no "## Review"' in check(progress=ticked)
+        with open(f"{ev}/1.1.md", "w") as f:
+            f.write(good)
+        assert check(progress=ticked).strip().endswith("ok"), check(progress=ticked)
+        assert "names no evidence file" in check(progress=p.replace("- [ ] Plan 1 step 1", "- [x] Plan 1 step 1"))
+        assert "UC1 is proven by no plan step" in check(master=m.replace("Proves UC1.", ""))
+        assert '"## Use cases"' in check(master=m.replace("## Use cases", "## Cases"))
     print("goal kit ok")
 
 

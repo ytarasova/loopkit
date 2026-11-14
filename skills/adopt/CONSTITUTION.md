@@ -17,7 +17,11 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 1. **A feature is done when a real user path shows it working.** Types, lint and unit tests are necessary, not enough.
 2. **Smoke steps in a PR are obligations.** Run them, or say in the PR why they could not run.
 3. **UI changes are opened and clicked through.** A screenshot in the PR proves it ran.
-4. **Every PR carries its own evidence and signal.** Evidence: for each claim, the command and the output it printed, and a screenshot of every UI change taken after the last change to it, in the body where a reviewer opens it. A link to a report or a local file is not evidence. Signal: the metric, log line or alert that shows the change working after deploy, with its threshold, or "not-applicable" and why.
+4. **Every changeset is done only with its complete evidence** (a task merged to its branch, a fix, a PR), where a reviewer opens it:
+   - **Assurance:** every technical check, each with its command and the output it printed: {{PROJECT: the checks, e.g. "tests, coverage, lint, typecheck, and violations (static analysis, security, fitness)"}}.
+   - **The change working, told by use case** (who does what, and what they end up with, failures included), proven for its surface: a UI, a screenshot per step, taken after the last change to its screen; a service, the real exchange, the curl request and the response; a CLI, the command run and its output. A link to a report or a local file is not evidence.
+   - **Signal:** the success signal and the failure signal to watch during the rollout (a metric, log line or alert, with its threshold), or "not-applicable" and why.
+   - **Review:** simplified, self-reviewed by a context that did not write it, and cross-checked against this constitution, each with its result.
 
 ## III. Causes, not symptoms
 

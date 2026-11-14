@@ -35,9 +35,11 @@ and Python 3.
    resume after compaction or a restart.
 6. The run ends when the gates hold, or when it hits a step only you can
    take: then it records it under "Waiting on", pushes and stops. Read
-   "Waiting on" and "Rulings" in the progress file. Every PR it opens carries
-   its own evidence (command output, screenshots) and the signal that shows
-   it working; `check-pr.py <PR>` checks both.
+   "Waiting on" and "Rulings" in the progress file. No part is done without
+   its complete evidence in its PR: tests and their output; screenshots
+   (UI), curl request and response (service) or the command's run (CLI);
+   success and failure signals for the rollout; simplify, self-review and
+   the constitution cross-checked. `check-pr.py <PR>` checks it.
 
 ## Customizing
 

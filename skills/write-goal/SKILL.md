@@ -54,22 +54,37 @@ under In flight, pushed. **At every state change** (a task merged, a gate
 read, a deploy, a decision changed, a human step hit): update the progress
 file, then commit and push it.
 
-**Every PR carries its evidence and signal** (constitution §II.4), checked by
-`python3 <base>/scripts/check-pr.py <PR number>`:
+**Every changeset is done only with its complete evidence** (constitution
+§II.4): a task merged to its plan branch, a fix, and each PR. Nothing is ticked,
+merged up or opened without it. Four sections, checked by
+`python3 <base>/scripts/check-pr.py <PR number | evidence file>`:
 
-- `## Evidence`: each gate's command and the output it printed, in a fenced
-  block; a screenshot per UI step, taken after the last change to its screen.
-  Images go at an https URL a reviewer can open: commit them to an
-  `evidence/<slug>` branch and link `https://github.com/<org>/<repo>/blob/evidence/<slug>/<file>?raw=true`.
-  A path in a scratchpad, `/tmp` or a git-ignored folder renders for nobody.
-  A report or doc link may follow; it never replaces the evidence.
-- `## Signal`: the metric, log line or alert that shows the change working
-  after deploy, with its threshold, or `not-applicable` and why.
+- `## Assurance`: every check in `assurance` (tests, coverage, lint,
+  typecheck, violations, by default), each with its command and the output it
+  printed in a fenced block. Counts are what ran, on the changeset's own commit.
+- `## Evidence`, told by use case: a `### UC<n> <who does what>` per use case
+  from the master plan that the changeset proves, failure cases included, each
+  with its proof for its surface: UI, a screenshot per step taken after the
+  last change to its screen; service, the curl request and the response it got;
+  CLI, the command run and its output. Images go at an https URL a reviewer can
+  open: commit them to an `evidence/<slug>` branch and link
+  `https://github.com/<org>/<repo>/blob/evidence/<slug>/<file>?raw=true`. A
+  path in a scratchpad, `/tmp` or a git-ignored folder renders for nobody. A
+  report or doc link may follow; it never replaces the evidence.
+- `## Signal`: a line starting `Success` and one starting `Failure`, each the
+  metric, log line or alert to watch during the rollout, with its threshold;
+  or `not-applicable` and why.
+- `## Review`: simplify run, a self-review by a context that did not write the
+  change, and the constitution cross-checked, each with its result.
 
-Files matching `ui_paths` in `.claude/loopkit.json` need a screenshot. Showing
-the owner the evidence is the run's job, never a human step: a run that ends
-"waiting for the owner to see the screens" with the screens in its scratchpad
-has shown nothing.
+A step's file is `<plans_dir>/<date>-<slug>-evidence/<plan>.<step>.md`, named
+in parentheses on its ticked line; `check-goal.py` fails a ticked step without
+one that passes. A PR body gathers its plan's steps: their assurance on the
+PR's head, every use case the plan proves, the signal and the review. Run
+`check-pr.py <PR>` after opening it; with the PR it also checks the changed
+files against `surfaces`. Showing the owner the evidence is the run's job,
+never a human step: a run that ends "waiting for the owner to see the screens"
+with the screens in its scratchpad has shown nothing.
 
 **At the end**: the last gate read, `check-pr.py` passing on every PR, the
 progress file closed out, and one short message: a row per plan (what shipped,
@@ -98,6 +113,7 @@ step is that one read, named exactly, or it is a human step.
 
 | Section | Holds |
 | --- | --- |
+| Use cases | `UC<n>` rows: who does what, and what they end up with, failure cases included, and the surface (ui, service, cli). The spine of the evidence: every step names the use cases it proves (`Proves UC2.`), and a use case no step proves is a hole the checker fails. |
 | Order | One row per plan: what it delivers, what it deletes, what it touches. Each plan is one PR, stacked on the plan before it. Plans run in the order given unless the text under the table says two may run beside each other; those two share a base. |
 | Decisions, answered | Every open decision from the intent or spec, with the answer the run will use. An unanswered decision stops the run. An answer longer than a row is its own doc, linked from the row. |
 | `## Plan N: <name>` | One per Order row, even when the plan lives in its own file (link it here). **Measured facts** (with time and source), **Steps** (each with its exact command), **Gates**, **Failures**, **Coverage**, **Rollback**, **Human steps**. |
