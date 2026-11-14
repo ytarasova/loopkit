@@ -20,6 +20,7 @@ DEFAULTS = {
     "runner": "",  # the one entry point for commands, e.g. "make", "rake", "./bin/dev"
     "bypass": [],  # backticked commands that skip the runner, e.g. ["npx", "bundle exec"]
     "goal_rules": {},  # {"text the goal must keep": "the rule it stands for"}
+    "ui_paths": [],  # regexes for files whose change needs a screenshot in the PR, e.g. ["^web/src/.*\\.tsx$"]
     "rollback_pattern": "",  # regex every plan's Rollback must match, e.g. "[a-z-]+:\\d+"
     "ban_em_dash": True,
 }
@@ -43,6 +44,8 @@ def load() -> dict:
         bad.append(f'ends_at is {cfg["ends_at"]!r}; use "pr" or "production"')
     if not isinstance(cfg["bypass"], list):
         bad.append("bypass must be a list of commands")
+    if not isinstance(cfg["ui_paths"], list):
+        bad.append("ui_paths must be a list of regexes")
     if not isinstance(cfg["goal_rules"], dict):
         bad.append('goal_rules must be {"text": "rule"}')
     try:

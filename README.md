@@ -35,7 +35,9 @@ and Python 3.
    resume after compaction or a restart.
 6. The run ends when the gates hold, or when it hits a step only you can
    take: then it records it under "Waiting on", pushes and stops. Read
-   "Waiting on" and "Rulings" in the progress file.
+   "Waiting on" and "Rulings" in the progress file. Every PR it opens carries
+   its own evidence (command output, screenshots) and the signal that shows
+   it working; `check-pr.py <PR>` checks both.
 
 ## Customizing
 

@@ -32,6 +32,7 @@ CORE_RULES = {
     "In flight": "a dispatch or unsafe step is recorded before it runs",
     "Waiting on": "a human step is recorded, pushed and ends the run",
     "stacked PRs": "plans ship as stacked PRs, one per plan",
+    "check-pr.py": "every PR carries its evidence and signal, checked",
 }
 UNIT = r"(s|sec|min|minutes?|m|h|hours?|d|days?)\b"
 PLAN_PARTS = [

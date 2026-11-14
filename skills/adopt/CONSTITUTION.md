@@ -17,6 +17,7 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 1. **A feature is done when a real user path shows it working.** Types, lint and unit tests are necessary, not enough.
 2. **Smoke steps in a PR are obligations.** Run them, or say in the PR why they could not run.
 3. **UI changes are opened and clicked through.** A screenshot in the PR proves it ran.
+4. **Every PR carries its own evidence and signal.** Evidence: for each claim, the command and the output it printed, and a screenshot of every UI change taken after the last change to it, in the body where a reviewer opens it. A link to a report or a local file is not evidence. Signal: the metric, log line or alert that shows the change working after deploy, with its threshold, or "not-applicable" and why.
 
 ## III. Causes, not symptoms
 

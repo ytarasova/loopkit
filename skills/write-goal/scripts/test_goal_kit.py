@@ -3,7 +3,9 @@
 In a throwaway git repo: new-goal refuses an unadopted template, then scaffolds an adopted one; the
 checker fails it unfilled, passes it filled, and fails it over 4,000 characters, with an em-dash,
 with a gate that has no baseline, and with a command that skips the runner; in production
-mode it also fails a gate with no window and a rollback with no revision.
+mode it also fails a gate with no window and a rollback with no revision. check-pr passes a body with
+evidence and a signal, and fails one missing either, with a link alone, with a local image, or with UI
+changes and no screenshot.
 """
 
 import json
@@ -79,6 +81,7 @@ def main() -> None:
         assert "missing or empty" in check(progress="")
         assert "In flight" in check(goal=texts["goal"].replace("In flight", "in flight"))
         assert "stacked PRs" in check(goal=texts["goal"].replace("stacked PRs", "PRs"))
+        assert "evidence and signal" in check(goal=texts["goal"].replace("check-pr.py", "a check"))
         assert "In flight" in check(progress=texts["progress"].replace("## In flight", "## Later"))
         assert "runs `npx`" in check(master=m + "\n`npx vitest run`\n")
         assert "runs `npx`" in check(master=m + "\n`cd web && npx`\n")
@@ -97,6 +100,26 @@ def main() -> None:
             f.write('{"ends_at": "prod"}')
         assert "ends_at" in run("check-goal.py", "t", cwd=repo).stderr
         assert "slug" in run("new-goal.py", "--slug", "a/b", "--title", "T", cwd=repo).stderr
+
+        with open(f"{repo}/.claude/loopkit.json", "w") as f:
+            json.dump({"ui_paths": [r"^web/"]}, f)
+
+        def pr(body: str) -> str:
+            with open(f"{repo}/body.md", "w") as f:
+                f.write(body)
+            return run("check-pr.py", "body.md", cwd=repo).stdout
+
+        out = "## Evidence\n\n```\n$ make test\n12 passed\n```\n\n## Signal\n\nnot-applicable, a docs change\n"
+        assert pr(out).strip() == "ok", pr(out)
+        assert "Evidence" in pr("## Signal\n\nx\n") and "Signal" in pr("## Evidence\n\n```\nx\n```\n")
+        assert "a link alone" in pr("## Evidence\n\nSee [the report](https://x.y/r)\n\n## Signal\n\nx\n")
+        local = out.replace("```\n$", "![step 1](/private/tmp/s/j1-01.jpg)\n\n```\n$")
+        assert "(not an https URL): /private/tmp/s/j1-01.jpg" in pr(local), pr(local)
+        assert "not an https" not in pr(out.replace("```\n$", "![a](https://github.com/o/r/blob/evidence/t/a.jpg?raw=true)\n```\n$"))
+        sys.path.insert(0, HERE)
+        problems = __import__("importlib").import_module("check-pr").problems
+        assert "no screenshot" in problems(out, ["web/src/a.tsx"], [r"^web/src/.*\.tsx$"])[0]
+        assert problems(out, ["api/a.py"], [r"^web/src/.*\.tsx$"]) == []
     print("goal kit ok")
 
 

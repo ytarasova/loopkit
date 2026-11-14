@@ -54,9 +54,27 @@ under In flight, pushed. **At every state change** (a task merged, a gate
 read, a deploy, a decision changed, a human step hit): update the progress
 file, then commit and push it.
 
-**At the end**: the last gate read, the progress file closed out, and one
-short message: a row per plan (what shipped, its PR, each gate's commands and
-the output each printed), then every ruling the run made.
+**Every PR carries its evidence and signal** (constitution §II.4), checked by
+`python3 <base>/scripts/check-pr.py <PR number>`:
+
+- `## Evidence`: each gate's command and the output it printed, in a fenced
+  block; a screenshot per UI step, taken after the last change to its screen.
+  Images go at an https URL a reviewer can open: commit them to an
+  `evidence/<slug>` branch and link `https://github.com/<org>/<repo>/blob/evidence/<slug>/<file>?raw=true`.
+  A path in a scratchpad, `/tmp` or a git-ignored folder renders for nobody.
+  A report or doc link may follow; it never replaces the evidence.
+- `## Signal`: the metric, log line or alert that shows the change working
+  after deploy, with its threshold, or `not-applicable` and why.
+
+Files matching `ui_paths` in `.claude/loopkit.json` need a screenshot. Showing
+the owner the evidence is the run's job, never a human step: a run that ends
+"waiting for the owner to see the screens" with the screens in its scratchpad
+has shown nothing.
+
+**At the end**: the last gate read, `check-pr.py` passing on every PR, the
+progress file closed out, and one short message: a row per plan (what shipped,
+its PR, each gate's commands and the output each printed), then every ruling
+the run made.
 
 ## 1. Measure the baselines first
 

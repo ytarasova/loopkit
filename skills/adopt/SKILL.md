@@ -31,6 +31,7 @@ things:
   "runner": "make",
   "bypass": ["npx", "npm run", "pytest"],
   "goal_rules": { "one tier at a time": "test tiers share a database" },
+  "ui_paths": ["^web/src/.*\\.tsx$"],
   "rollback_pattern": "",
   "ban_em_dash": true
 }
@@ -45,6 +46,7 @@ things:
 | `runner` | The one entry point for commands (`make`, `rake`, `just`, `./bin/dev`). Empty when the repo has none; then drop the runner sentence from the goal template. |
 | `bypass` | Backticked commands that skip the runner. The checker fails a goal or master plan that uses one. |
 | `goal_rules` | `{"text": "rule"}`: text every goal must keep, for rules a run here cannot do without. |
+| `ui_paths` | Regexes for files whose change is UI; `check-pr.py` fails a PR that changes one and shows no screenshot. |
 | `rollback_pattern` | A regex every plan's Rollback must match, e.g. `[a-z-]+-production:\d+` for a task definition revision. |
 | `ban_em_dash` | Fail any goal file with an em-dash. |
 
