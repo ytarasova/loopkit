@@ -41,6 +41,14 @@ box is ticked, `{{PLANS_DIR}}/{{DATE}}-{{SLUG}}-evidence/goal.md` proves every u
 - [ ] Plan 1 step 1: {{FILL: what}}
 - [ ] G1 {{FILL: name}}
 
+## Owner corrections
+
+Every correction {{OWNER}} gives during the run, in their words, and the kit change that encodes it so it is never given
+twice (constitution §VI.10): a commit or PR off main, never on a plan branch.
+
+| When | Their words | Kit change |
+| --- | --- | --- |
+
 ## Rulings
 
 Decisions the run made alone: `Ruling: <what>; <why>; <cost if wrong>`.

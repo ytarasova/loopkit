@@ -67,6 +67,7 @@ SECRET = re.compile(
     r"|(?i:\b(?:password|passwd|pwd|secret|client[_-]?secret|api[_-]?key|access[_-]?key|token)\b[\"']?\s*[=:]\s*[\"']?)"
     + _PLACEHOLDER + _MIXED + r"[^\s\"'<>,;()]{8,}(?![\w(])"
 )
+WINDOW = r"\b(?:for|over|within|in|after|per)\s+(?:the\s+)?(?:\d+\s*)?(?:s|sec|seconds?|mins?|minutes?|m|h|hrs?|hours?|d|days?|weeks?|deploys?|runs?|requests?)\b"
 NEED = {"ui": "the flow in screenshots (two or more: where the person lands, through to the outcome)", "service": "a curl request and its response", "cli": 'a "$ <command>" run and its output'}
 
 
@@ -107,6 +108,16 @@ def master_surfaces(master: str) -> dict[str, str]:
     return dict(rows)
 
 
+def stale(body: str, head: str) -> list[str]:
+    """The Assurance must name the commit it ran on, and on a PR that commit is the PR's head."""
+    shas = re.findall(r"\b[0-9a-f]{7,40}\b", section(body, "Assurance"))
+    if not shas:
+        return [f'Assurance names no commit: say what it ran on ("on {head[:9]}"), so a reader can tell it is current']
+    if not any(head.startswith(s) for s in shas):
+        return [f"Assurance ran on {', '.join(sorted(set(s[:9] for s in shas)))}, not the PR head {head[:9]}: run it again on the head"]
+    return []
+
+
 def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks: list[str],
              ucs: dict[str, str] | None = None) -> list[str]:
     out = []
@@ -143,6 +154,11 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
             out.append('Signal has no "Success:" or "Failure:" line, and no "not-applicable" with a reason')
     else:
         out += [f'Signal has no "{w}: <metric, log line or alert, and threshold>" line' for w, m in found.items() if not m]
+        # The watch after the merge reads these lines: each needs a number to compare and a window to read it over.
+        for w in ("Success", "Failure"):
+            line = re.search(rf"^[^\w\n]*{w}\b[^\n]*", signal, re.M | re.I)
+            if line and not (re.search(r"\d", line.group(0)) and re.search(WINDOW, line.group(0), re.I)):
+                out.append(f'Signal\'s {w} line needs a threshold and a window to read it over ("above 99% for 1 h", "0 errors within 15 min")')
 
     if "ui" in hit or "ui" in {(ucs or {}).get(uc) for uc in cases}:
         if not re.search(r"^[^\w\n]*UX review\b[^\w\n]*\w", review, re.M | re.I):
@@ -153,6 +169,9 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
     else:
         out += [f"Review has no line for {what} with its result" for what, pat in REVIEW.items()
                 if not re.search(rf"^[^\w\n]*{pat}\b[^\w\n]*\w", review, re.M | re.I)]
+        own = re.search(r"^[^\w\n]*self-review\b[^\n]*", review, re.M | re.I)
+        if own and not re.search(r"\b(?:haiku|sonnet|opus|fable)\b", own.group(0), re.I):
+            out.append('the Self-review line names no model: say which ran it, in a context that did not write the change ("Self-review, by a fresh opus context: ...")')
     out += [f"line {body.count(chr(10), 0, m.start()) + 1} carries what looks like a credential: blank it before it is posted"
             for m in SECRET.finditer(body)][:3]
     return out
@@ -173,22 +192,24 @@ def main() -> None:
     config.to_top()
     cfg = config.load()
     ucs = master_surfaces(open(master).read()) if master else {}
+    head = ""
     if os.path.isfile(arg):
         body, files = open(arg).read(), []
     elif re.fullmatch(r"\d+|https://\S+/pull/\d+", arg):
         try:
-            r = subprocess.run(["gh", "pr", "view", arg, "--json", "body,files"], capture_output=True, text=True)
+            r = subprocess.run(["gh", "pr", "view", arg, "--json", "body,files,headRefOid"], capture_output=True, text=True)
         except FileNotFoundError:
             sys.exit("gh not found: install it, or pass the evidence file")
         if r.returncode:
             sys.exit(r.stderr.strip())
         pr = json.loads(r.stdout)
         body, files = pr["body"] or "", [f["path"] for f in pr["files"]]
+        head = pr["headRefOid"]
         if len(files) >= 100:
             print("warning: gh lists at most 100 changed files; the surface check may miss some")
     else:
         sys.exit(f"no such file, and not a PR number or URL: {args[0]}")
-    fails = problems(body, files, cfg["surfaces"], cfg["assurance"], ucs)
+    fails = problems(body, files, cfg["surfaces"], cfg["assurance"], ucs) + (stale(body, head) if head else [])
     for f in fails:
         print(f"FAIL {f}")
     print("ok" if not fails else f"{len(fails)} failure(s)")

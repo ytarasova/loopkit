@@ -51,7 +51,17 @@ fuller UX walk, and an ending that cleans up and says what shipped.
 Security is part of every changeset's proof: `security` is in the default
 `assurance` (a secret scan, a dependency audit, static analysis), the Review
 needs a `Security review:` line, and `check-pr.py` fails a body or evidence
-file carrying anything shaped like a credential. Upgrading from 0.5: add
+file carrying anything shaped like a credential. The loop closes after the PRs too: `land-stack.py` lands a stack in order
+(retarget first, merge up, stop before a fix is lost), each Signal line
+carries a threshold and a window to watch after the deploy, a PR's assurance
+must have run on its head, and every owner correction ends as a kit change
+shipped off main.
+
+Upgrading from 0.6: Signal lines need a threshold and a window, the
+Self-review line names its model, a PR's Assurance names the commit it ran
+on, and progress files need "## Owner corrections".
+
+Upgrading from 0.5: add
 `security` to a repo's own `assurance` list and the line to its PR bodies.
 
 Upgrading from 0.4: master plans need `## Asks`; progress files need a timed
