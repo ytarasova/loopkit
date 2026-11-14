@@ -284,7 +284,7 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
                 fails.append(f'"What is left" row has no time left in its last column: {row.strip()[:60]}')
         for row in re.findall(r"^\|(?! *(?:When|:?-+:?) *\|)[^\n]*\|[ \t]*$", section_of(psecs, "Owner corrections"), re.M):
             last = row.strip().strip("|").split("|")[-1]
-            if not re.search(r"\b[0-9a-f]{7,40}\b|#\d+|https://\S+/pull/\d+|\b[A-Z][A-Z0-9]+-\d+\b", last):
+            if not re.search(r"\b[0-9a-f]{7,40}\b|#\d+|https://\S+/pull/\d+|\b(?!(?:UTF|SHA|ISO|RFC|TLS|CVE)-)[A-Z][A-Z0-9]+-\d+\b", last):
                 fails.append(f"owner correction with no kit change: {row.strip()[:60]} (its commit, PR or ticket, §VI.10)")
         for s in ("Waiting on", "In flight", "What is left", "Owner corrections"):
             if not any(h.startswith(s) for h in psecs):
@@ -369,7 +369,7 @@ def main() -> None:
         diff = subprocess.run(["git", "diff", "--name-only", "origin/main...HEAD", "--", "CONSTITUTION.md", ".claude"],
                               capture_output=True, text=True)
         # A kit file the master plan names is part of the goal's own work; any other is a fix that belongs off main.
-        kit = [f for f in diff.stdout.split() if f not in texts[1]]
+        kit = [f for f in diff.stdout.split() if f"`{f}`" not in texts[1]]  # named as a path, not merely mentioned
         if diff.returncode:
             warns.append("no origin/main to compare with: the kit-on-a-feature-branch check did not run")
         elif kit:

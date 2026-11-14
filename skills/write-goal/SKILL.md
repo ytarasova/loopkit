@@ -248,12 +248,16 @@ with the screens in its scratchpad has shown nothing.
 
 **Landing the stack**, when the owner says to:
 `python3 <base>/scripts/land-stack.py <bottom PR> ... <top PR>` prints the
-plan, and `--run` lands it: each PR checked (open, based on main, `check-pr`
-ok, no failed check), the next retargeted to main before this branch goes,
-merged, its branch deleted, then `origin/main` merged up into the next with
-conflicts resolved to its side. It stops, and lands nothing more, when the
-next branch would then change files beyond its own (a fix below that was never
-merged up). `--method rebase` keeps each commit's author.
+plan; `--run` does one step and stops. It lands the lowest open PR only when
+it is from this repo, based on main and holding it, its checks are complete
+and green (`--allow-no-checks` for a repo without CI), `check-pr` passes,
+nothing else is stacked on its branch, and the next PR holds all of it (a fix
+made below and never merged up would otherwise be lost). It confirms GitHub
+says MERGED (a merge queue only queues), retargets the next PR to main before
+deleting the branch, merges main up into the next branch with a plain merge,
+and stops on any conflict with nothing pushed. Then re-run the next PR's
+assurance on its new head, update its body, and run it again; a landing cut
+short is finished first. `--method rebase` keeps each commit's author.
 
 **After the merge: watch.** Each PR's Success and Failure lines carry a
 threshold and a window (`check-pr.py` fails them without). Once it deploys,
