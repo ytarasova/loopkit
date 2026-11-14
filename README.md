@@ -42,6 +42,8 @@ and Python 3. Repos with a UI also use `frontend-design`, `playwright` and
    success and failure signals for the rollout; simplify, self-review and
    the constitution cross-checked. `check-pr.py <PR>` checks it.
 
+Rolling a loopkit change out to repos that adopted it: `skills/adopt/rollout.md`.
+
 Models: the intent says which orchestrator the work needs ("This is best
 handled by Fable 5.2, because ..." or Opus 5.5), and the master plan names a
 model per step (haiku, sonnet or opus), from `write-goal/models.md`.
