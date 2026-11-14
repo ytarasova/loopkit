@@ -57,6 +57,11 @@ carries a threshold and a window to watch after the deploy, a PR's assurance
 must have run on its head, and every owner correction ends as a kit change
 shipped off main.
 
+Upgrading from 0.7: copy `.github/workflows/check-pr.yml` (set its `KIT`
+line) and `.github/pull_request_template.md` into the repo (adopt, step 8).
+`check-pr.py` no longer reads text inside HTML comments, and `land-stack.py`
+judges the newest run of each check.
+
 Upgrading from 0.6: Signal lines need a threshold and a window, the
 Self-review line names its model, a PR's Assurance names the commit it ran
 on, and progress files need "## Owner corrections".
