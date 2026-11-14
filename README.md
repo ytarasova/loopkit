@@ -40,7 +40,7 @@ and Python 3.10 or newer (macOS's own `/usr/bin/python3` is 3.9 and fails). Repo
    its complete evidence in its PR: tests and their output; screenshots
    (UI), curl request and response (service) or the command's run (CLI);
    success and failure signals for the rollout; simplify, self-review and
-   the constitution cross-checked. `check-pr.py <PR>` checks it.
+   the constitution cross-checked. `check-pr.py <PR>` checks it, and CI runs it on every PR.
 
 Lessons from the owner's corrections across runs are built in: asks tracked
 from the intent to the final message, no code before the owner approves the
