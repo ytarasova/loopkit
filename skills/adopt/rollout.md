@@ -33,7 +33,8 @@ it is ported into that copy. Run these steps in order. A step starts only when t
 6. **Verify each port yourself before landing it.** A port's report is a claim, so check it:
    - Rerun the repo's kit tests.
    - Run `check-pr.py` on its PR or body file.
-   - Diff its `check-pr.py` against loopkit's: only the settings may differ.
+   - Diff its `check-pr.py` against loopkit's: only the settings may differ. Its `check-pr` workflow differs
+     only in the `KIT` line, and it ran green on the port's own PR.
    - Read its mutation list and its character counts.
    - Check for files clobbered by another port.
 7. **Land each port by its repo's rule:** merge the PR, push to main, or fast-forward local main.
