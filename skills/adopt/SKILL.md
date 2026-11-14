@@ -109,8 +109,11 @@ absolute paths before running anything from the target repo.
    confirm it writes three files with no `{{PROJECT:` and the knobs filled
    in, run `check-goal.py adopt-smoke` (it must fail only on unfilled placeholders
    and the unfilled `Done means:` line), and delete the three files it wrote.
-8. **Check every PR in CI.** Copy loopkit's `.github/workflows/check-pr.yml` into the repo and set its
-   `KIT` line to the repo's copy of the write-goal scripts. It runs `check-pr.py` on each PR, drafts
+8. **Check PRs in CI, when the owner wants it.** Ask first: the check fails every PR without the four
+   sections, so ask whose PRs it judges (only the owner's account, which agents push as; every human's;
+   none yet). Copy loopkit's `.github/workflows/check-pr.yml` into the repo, set its `KIT` line to the
+   repo's copy of the write-goal scripts, and narrow its `if:` to the owner's answer; it always skips bots
+   such as dependabot. It runs `check-pr.py` on each PR, drafts
    included, again on each push and body edit. It runs the base branch's checker and settings, so a PR
    cannot loosen the gate that judges it, and a PR that changes the checker is judged by the old one until
    it merges. Where the repo's plan allows branch protection or rulesets, ask the owner to make the

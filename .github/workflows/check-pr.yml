@@ -19,6 +19,9 @@ env:
 
 jobs:
   check-pr:
+    # Bots (dependabot) write no evidence. An adopter narrows this to the PRs its owner wants judged, e.g.
+    # `&& github.event.pull_request.user.login == '<the owner's account>'` (skills/adopt, step 8).
+    if: ${{ github.event.pull_request.user.type != 'Bot' }}
     runs-on: ubuntu-latest
     steps:
       # The checker and its settings come from the base branch, so a PR cannot loosen the gate that judges it.
