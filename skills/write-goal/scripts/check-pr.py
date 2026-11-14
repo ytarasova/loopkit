@@ -26,7 +26,8 @@ Anything shaped like a credential fails, reported by line number only: AWS and G
 Anthropic, OpenAI, Stripe, npm and Slack tokens, private keys, JWTs, signed URLs, credentials in a URL or a
 curl -u, bearer and basic headers, and password=, token= or api_key= values that mix letters and digits: evidence is posted where others read it.
 An image that is not an https URL fails: a local or relative path renders for nobody. "## " and "### " lines
-inside fenced blocks are output, not sections. A PR reads its body and changed files with `gh`.
+inside fenced blocks are output, not sections, and HTML comments outside them are not read (GitHub does not
+render them), except by the credential scan. A PR reads its body and changed files with `gh`.
 Settings: .claude/loopkit.json (see the write-goal skill).
 """
 
@@ -101,7 +102,32 @@ def masked(text: str) -> str:
     return FENCE.sub(lambda m: re.sub(r"[^\n]", " ", m.group()), text)
 
 
+def uncommented(text: str) -> str:
+    """The text with HTML comments blanked, offsets kept, as GitHub hides them: nothing inside one is evidence. A comment
+    inside a fenced block or an inline code span is output. An unclosed one hides the rest of the body only where it
+    starts a line (indented at most 3 spaces); anywhere else GitHub shows it as text."""
+    shown = SPAN.sub(lambda m: " " * len(m.group()), masked(text))
+    out, i, at, closes = [], 0, 0, True
+    while (start := shown.find("<!--", at)) != -1:
+        at = start + 4
+        end = shown.find("-->", start + 2) if closes else -1
+        if end < 0:
+            closes = False  # no "-->" after this one, so none after a later one: the scan stays linear
+            k = start
+            while k > 0 and start - k < 4 and shown[k - 1] == " ":
+                k -= 1
+            if (k and shown[k - 1] != "\n") or start - k > 3:
+                continue
+            end = len(text)
+        else:
+            end += 3
+        out += [text[i:start], re.sub(r"[^\n]", " ", text[start:end])]
+        i = at = end
+    return "".join(out) + text[i:]
+
+
 def section(body: str, name: str) -> str:
+    body = uncommented(body.replace("\r\n", "\n"))  # a body edited in the browser comes back with CRLF
     m = re.search(rf"^## {name}[ \t]*\n(.*?)(?=^## |\Z)", masked(body), re.M | re.S)
     return body[m.start(1):m.end(1)].strip() if m else ""
 

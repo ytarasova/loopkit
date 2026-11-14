@@ -395,6 +395,27 @@ def main() -> None:
         assert pr(good.replace(signals, "not-applicable: a docs change")).strip() == "ok"
         assert "no \"not-applicable\" with a reason" in pr(good.replace(signals, "not-applicable"))
         assert '"Failure: <metric' in pr(good.replace(signals, "- Success: a\nnot-applicable here really"))
+        # GitHub does not render an HTML comment, so nothing inside one counts: a PR template's guidance proves nothing.
+        assert 'no "## Signal"' in pr(good.replace(signals, "<!-- Or not-applicable, and why. -->"))
+        assert "line for simplify" in pr(good.replace("- Simplify: 2 lines removed", "<!--\n- Simplify: 2 lines removed\n-->"))
+        assert 'no "## Review"' in pr(good.replace("## Review", "<!-- unclosed\n## Review"))  # hides the rest, as on GitHub
+        assert pr(good.replace("200 a,b", "<!-- a,b")).strip() == "ok"  # inside a fence it is output, not a comment
+        assert pr(good.replace("## Review", "<!-- a note -->\n\n## Review")).strip() == "ok"
+        assert "credential" in pr(good.replace("## Review", "<!-- api_key=" + "a1b2c3d4e5f6 -->\n## Review"))
+        spans = good.replace("## Signal", "Strips `<!--`.\n\n## Signal").replace("cross-checked, clean", "cross-checked, clean; to `-->`")
+        assert pr(spans).strip() == "ok"  # inline code is output, never a comment's ends
+        assert pr(good.replace("cross-checked, clean", "cross-checked, clean; a <!-- b")).strip() == "ok"  # mid-line: shown as text
+        assert pr(good.replace("## Review", "    <!-- indented code\n## Review")).strip() == "ok"
+        assert 'no "## Review"' in pr(good.replace("## Review", "   <!-- unclosed\n## Review"))
+        assert 'no "## Review"' in pr(good.replace("## Review", "x <!-- a\n<!-- b\n## Review"))  # a later one at a line start
+        assert pr(good.replace("## Review", "<!-->\n\n## Review")).strip() == "ok"  # an empty comment closes itself
+        assert __import__("importlib").import_module("check-pr").problems(good.replace("\n", "\r\n"), [], {}, ["tests", "lint"]) == []  # a body edited in the browser, as gh returns it
+        top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, cwd=HERE).stdout.strip()
+        if os.path.exists(f"{top}/.github/pull_request_template.md"):  # the repo's own template, wherever its kit lives
+            with open(f"{top}/.github/pull_request_template.md") as f:
+                template = pr(f.read())
+            for name in ("Assurance", "Evidence", "Signal", "Review"):
+                assert name in template, template  # the unfilled template fails every section
         assert "line for simplify" in pr(good.replace("- Simplify: 2 lines removed\n", ""))
         assert "line for simplify" in pr(good.replace("- Simplify: 2 lines removed", "- Simplify"))
         assert "a self-review" in pr(good.replace("- Self-review", "- Read"))
@@ -452,6 +473,10 @@ def main() -> None:
         for adversarial in ("<img " * 100_000, "![" * 200_000):
             began = time.time(); images(adversarial)
             assert time.time() - began < 3, f"the image scan is slow on {adversarial[:6]}..."
+        uncommented = __import__("importlib").import_module("check-pr").uncommented
+        for adversarial in ("x<!--" * 200_000, "<!--\n" * 200_000, "`<!--` " * 140_000):
+            began = time.time(); uncommented(adversarial)
+            assert time.time() - began < 3, f"the comment scan is slow on {adversarial[:6]}..."
         leaked = pr(good.replace("200 a,b", "200 a,b\npassword=" + "hunter2hunter2"))
         assert "hunter2" not in leaked and re.search(r"line \d+ carries", leaked), leaked  # never echo the secret
         for safe in ("Authorization: Bearer <token>", "Authorization: Bearer " + "x" * 30, "Authorization: Bearer ***",
