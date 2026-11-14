@@ -13,7 +13,7 @@ skills are generic; `adopt` fits them to each repo.
 ## Install
 
 Needs the `superpowers` plugin (`subagent-driven-development`, `writing-plans`)
-and Python 3. Repos with a UI also use `frontend-design`, `playwright` and
+and Python 3.10 or newer (macOS's own `/usr/bin/python3` is 3.9 and fails). Repos with a UI also use `frontend-design`, `playwright` and
 `chrome-devtools-mcp` (its `a11y-debugging`) for the UX review.
 
 ```
@@ -92,7 +92,7 @@ file. Add them to goals already written before running it again.
   core clauses in `skills/adopt/CONSTITUTION.md`.
 
 From this repo, `python3 skills/write-goal/scripts/test_goal_kit.py` checks the
-scripts.
+scripts; CI runs it on Python 3.10 and 3.14, and gitleaks over the history, on every PR.
 
 The intent skill credits Matt Pocock's `grilling` and Switch Dimension's
 `molten-validate`, both MIT.
