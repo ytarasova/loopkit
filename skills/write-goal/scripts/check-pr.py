@@ -61,7 +61,7 @@ SECRET = re.compile(
     r"|-----BEGIN [A-Z ]*PRIVATE KEY(?: BLOCK)?-----"
     r"|(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}"
     r"|\b[a-z][a-z0-9+.-]{0,31}://[^\s:/@]{0,128}:(?!\$|\*+@|<)[^\s@/<*]{3,128}@"
-    r"|(?i:x-goog-signature|[?&]sig)=[A-Za-z0-9%/+=]{16,}"
+    r"|(?i:x-goog-signature|x-amz-signature|[?&]sig)=[A-Za-z0-9%/+=]{16,}"
     r"|(?i:authorization:\s*bearer\s+)" + _PLACEHOLDER + r"[A-Za-z0-9._~+/=-]{20,}"
     r"|(?i:authorization:\s*basic\s+)" + _PLACEHOLDER + r"[A-Za-z0-9+/=]{12,}"
     r"|(?i:(?:^|\s)(?:-u|--user)\s+)[^\s:'\"]+:" + _PLACEHOLDER + r"[^\s'\"]{6,}"
@@ -181,7 +181,8 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
         out += [f'Signal has no "{w}: <metric, log line or alert, and threshold>" line' for w, m in found.items() if not m]
         # The watch after the merge reads these lines: each needs a number to compare and a window to read it over.
         for w in ("Success", "Failure"):
-            line = re.search(rf"^[^\w\n]*{w}\b[^\n]*(?:\n(?![^\w\n]*(?:Success|Failure)\b|\s*$)[^\n]*)*", signal, re.M | re.I)
+            # the bullet and its indented continuation lines only: never the window of the bullet after it
+            line = re.search(rf"^[^\w\n]*{w}\b[^\n]*(?:\n(?![ \t]*(?:[-*+]|\d+\.)\s)[ \t]+\S[^\n]*)*", signal, re.M | re.I)
             if line and not (re.search(r"\d", line.group(0)) and has_window(line.group(0))):
                 out.append(f'Signal\'s {w} line needs a threshold and a window to read it over ("above 99% for 1 h", "0 errors within 15 min")')
 

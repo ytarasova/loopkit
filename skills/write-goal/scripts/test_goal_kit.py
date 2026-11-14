@@ -230,8 +230,12 @@ def land_stack_test() -> None:
         st = load(); st["prs"].update({"8": add("main", "b8", "eight.txt"), "9": add("b8", "b9", "nine.txt")}); save(st)
         lost = go("8", "9")
         assert lost.returncode and "#9's branch lacks 1 commit(s) of #8's" in lost.stderr and load()["prs"]["8"]["state"] == "OPEN", lost.stderr
-        commit("b14", "main", "fourteen.txt", "14\n"); commit("main", "main", "later.txt", "x\n")
-        st = load(); st["prs"]["14"] = add("main", "b14", "fourteen.txt"); save(st)
+        commit("b14", "main", "fourteen.txt", "14\n")
+        st = load(); st["prs"]["14"] = add("main", "b14", "fourteen.txt"); st["prs"]["14"]["body"] = body(head("b14")).replace("## Signal", "## Other"); save(st)
+        gated = go("14")  # land-stack lands nothing check-pr refuses
+        assert gated.returncode and "check-pr.py fails on #14" in gated.stderr and 'no "## Signal"' in gated.stderr, gated.stderr
+        assert load()["prs"]["14"]["state"] == "OPEN"
+        refresh("14"); commit("main", "main", "later.txt", "x\n")
         behind = go("14")
         assert behind.returncode and "does not hold main" in behind.stderr, behind.stderr
 
@@ -375,6 +379,8 @@ def main() -> None:
                         "error rate above 1% in 10 min", "0 errors over the next 24 hours", "under 1% in the first 30 minutes",
                         "below 1% errors, 1-hour rolling window", "5 errors in 5 minutes", "0 errors in the 30 min after the deploy"):
             assert "needs a threshold and a window" not in pr(good.replace("exports.error above 1% in 10 min", ok_line)), ok_line
+        borrowed = good.replace("- Failure: exports.error above 1% in 10 min", "- Failure: exports.error goes up\n- Note: within 15 minutes")
+        assert "Failure line needs a threshold and a window" in pr(borrowed), pr(borrowed)  # no window from the next bullet
         for bad_line in ("any 500 after deploy", "HTTP 200 per request", "errors go down", "p99 latency over 2 s",
                          "checkout responds in 1 s", "p99 for the API under 2s", "errors go down for an hour",
                          "99% of requests in 1 s", "more than 1% of requests over 2 s", "page loads in 2 s for 95% of users", "build over 20 minutes",
@@ -398,7 +404,9 @@ def main() -> None:
                      "hooks.slack.com/services/" + "T0001/B0002/abcdef", "Authorization: Basic " + "YWRtaW46c2VjcmV0MTIz", "curl -u admin:" + "SuperSecret123 x",
                      '"token": "' + "abcdef0123456789abcdef" + '"', "password=" + "xK9mPq2vL8nR4tWz", "Authorization: Bearer " + "xyzABC123def456ghi789jkl",
                      "password=" + "redactedButReal12345", "password=" + "hunter2abc", "password=" + "Tr0ub4dor&3-horse!",
-                     "https://s.blob.core.windows.net/c/f?sv=2020&" + "sig=abcdefghijklmnopqrstuv%3D"):
+                     "https://s.blob.core.windows.net/c/f?sv=2020&" + "sig=abcdefghijklmnopqrstuv%3D",
+                     "https://b.s3.amazonaws.com/k?X-Amz-Date=20260101&" + "X-Amz-Signature=" + "a1" * 32,
+                     "token=x1" + "a" * 70 + "example"):  # past the placeholder's 64-character look, a real value
             assert "looks like a credential" in pr(good.replace("200 a,b", "200 a,b\n" + leak)), leak
         echo = pr(good.replace("```\n$ curl", "![s](http://admin:" + "s3cretP4ss9@host/a.png?sig=abc)\n\n```\n$ curl"))
         assert "s3cret" not in echo and "sig=" not in echo and "(not an https URL): http://host/a.png" in echo, echo
