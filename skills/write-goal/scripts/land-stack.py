@@ -56,7 +56,8 @@ def same_repo() -> None:
     gh_repo = sh("gh", "repo", "view", "--json", "nameWithOwner", "-q", ".nameWithOwner").strip().lower()
     origin = re.sub(r"\.git$", "", sh("git", "remote", "get-url", "origin").strip()).lower()
     if not origin.endswith("/" + gh_repo) and not origin.endswith(":" + gh_repo):
-        sys.exit(f"stopped: gh talks to {gh_repo} but git's origin is {origin}: point them at the same repository")
+        shown = re.sub(r"//[^/@]*@", "//", origin)  # an origin URL may carry a token
+        sys.exit(f"stopped: gh talks to {gh_repo} but git's origin is {shown}: point them at the same repository")
 
 
 def merge_up_steps(nxt: dict) -> str:
@@ -71,7 +72,7 @@ def finish(merged: dict, nxt: dict | None) -> None:
     branch, oid = merged["headRefName"], merged["headRefOid"]
     if nxt and nxt["baseRefName"] == branch:  # onto the merged PR's own base: main, or a branch below that is still open
         sh("gh", "pr", "edit", str(nxt["number"]), "--base", merged["baseRefName"])  # before the branch goes: deleting a base closes its PRs
-    tip = sh("git", "ls-remote", "--heads", "origin", branch).split()
+    tip = sh("git", "ls-remote", "origin", f"refs/heads/{branch}").split()  # the full ref: a bare name also matches a/<branch>
     if not tip:
         print(f"{branch} is already gone")
         return
@@ -142,7 +143,7 @@ def main() -> None:
     first = states[todo[0]] if todo else None
     nxt = states[todo[1]] if len(todo) > 1 else None
     def present(branch: str) -> bool:
-        r = run("git", "ls-remote", "--exit-code", "--heads", "origin", branch)
+        r = run("git", "ls-remote", "--exit-code", "origin", f"refs/heads/{branch}")
         if r.returncode not in (0, 2):  # 2: no such branch; anything else is a failure, not an answer
             sys.exit(f"stopped: cannot read origin's branches:\n{r.stderr.strip()}")
         return r.returncode == 0
