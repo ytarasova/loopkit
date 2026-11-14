@@ -54,7 +54,7 @@ def fields(out):  # like gh: only what --json asked for
     want = a[a.index("--json") + 1].split(",")
     return {k: out[k] for k in want if k in out}
 def tip(branch):
-    return git("ls-remote", "--heads", "origin", branch).split()[:1]
+    return git("ls-remote", "origin", "refs/heads/" + branch).split()[:1]
 if a[:2] == ["repo", "view"]:
     print(st["repo"])
 elif a[:2] == ["pr", "view"]:
@@ -189,6 +189,10 @@ def land_stack_test() -> None:
         assert raced.returncode and "Head branch was modified" in raced.stderr and load()["prs"]["5"]["state"] == "OPEN", raced.stderr
         refresh("5")
         st = load(); st["repo"] = "someone/else"; save(st)
+        git("remote", "set-url", "origin", "https://user:" + "ghp_" + "t" * 36 + "@example.invalid/x.git", cwd=w)
+        tokened = go("5", "6")
+        git("remote", "set-url", "origin", bare, cwd=w)
+        assert tokened.returncode and "ghp_" not in tokened.stderr and "user:" not in tokened.stderr, tokened.stderr
         other = go("5", "6")
         assert other.returncode and "gh talks to someone/else" in other.stderr, other.stderr
         st = load(); st["repo"] = os.path.basename(tmp) + "/origin"; save(st)
@@ -209,6 +213,12 @@ def land_stack_test() -> None:
         assert middle.returncode == 0 and "b31 deleted" in middle.stdout and "run this again to land #30" in middle.stdout, middle.stdout + middle.stderr
         st = load()
         assert st["prs"]["32"]["base"] == "b30" and st["prs"]["30"]["base"] == "main", st["prs"]
+        # A branch named like the tail of another (a/b40 beside b40) is told apart.
+        commit("b40", "main", "f40.txt", "40\n"); commit("a/b40", "main", "g40.txt", "g\n")
+        st = load(); st["prs"]["40"] = add("main", "b40", "f40.txt"); save(st)
+        subprocess.run([gh, "pr", "merge", "40", "--squash"], env=env, check=True)
+        tail = go("40")
+        assert tail.returncode == 0 and "b40 deleted" in tail.stdout and not gone("a/b40") and gone("b40"), tail.stdout + tail.stderr
         # A merged branch that moved, or that an open PR still uses, is never deleted.
         commit("b20", "main", "twenty.txt", "20\n")
         st = load(); st["prs"]["20"] = add("main", "b20", "twenty.txt"); save(st)
@@ -406,10 +416,12 @@ def main() -> None:
                      "password=" + "redactedButReal12345", "password=" + "hunter2abc", "password=" + "Tr0ub4dor&3-horse!",
                      "https://s.blob.core.windows.net/c/f?sv=2020&" + "sig=abcdefghijklmnopqrstuv%3D",
                      "https://b.s3.amazonaws.com/k?X-Amz-Date=20260101&" + "X-Amz-Signature=" + "a1" * 32,
-                     "token=x1" + "a" * 70 + "example"):  # past the placeholder's 64-character look, a real value
+                     "token=x1" + "a" * 70 + "example", "DB_PASSWORD=" + "s3cretP4ssw0rd", "export API_TOKEN=" + "abc123def456ghi"):  # past the placeholder's 64-character look, a real value
             assert "looks like a credential" in pr(good.replace("200 a,b", "200 a,b\n" + leak)), leak
         echo = pr(good.replace("```\n$ curl", "![s](http://admin:" + "s3cretP4ss9@host/a.png?sig=abc)\n\n```\n$ curl"))
         assert "s3cret" not in echo and "sig=" not in echo and "(not an https URL): http://host/a.png" in echo, echo
+        keyed = pr(good.replace("```\n$ curl", "![s](./shots/token=" + "abc123def456ghi.png)\n\n```\n$ curl"))
+        assert "abc123def456" not in keyed and "(not an https URL)" in keyed, keyed  # a path that is itself a credential is not named
         import time
         scan = __import__("importlib").import_module("check-pr").SECRET
         for adversarial in ("pwd=" * 250_000, "a." * 500_000, "AKIA" * 250_000 + "EXAMPLE", "a" * 1_000_000 + "://",

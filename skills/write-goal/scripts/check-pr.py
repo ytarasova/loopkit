@@ -65,7 +65,7 @@ SECRET = re.compile(
     r"|(?i:authorization:\s*bearer\s+)" + _PLACEHOLDER + r"[A-Za-z0-9._~+/=-]{20,}"
     r"|(?i:authorization:\s*basic\s+)" + _PLACEHOLDER + r"[A-Za-z0-9+/=]{12,}"
     r"|(?i:(?:^|\s)(?:-u|--user)\s+)[^\s:'\"]+:" + _PLACEHOLDER + r"[^\s'\"]{6,}"
-    r"|(?i:\b(?:password|passwd|pwd|secret|client[_-]?secret|api[_-]?key|access[_-]?key|token)\b[\"']?\s*[=:]\s*[\"']?)"
+    r"|(?i:(?<![A-Za-z0-9])(?:password|passwd|pwd|secret|client[_-]?secret|api[_-]?key|access[_-]?key|token)\b[\"']?\s*[=:]\s*[\"']?)"
     + _PLACEHOLDER + _MIXED + r"[^\s\"'<>,;()]{8,}(?![\w(])"
 )
 _UNIT = r"(?:s|sec|seconds?|mins?|minutes?|m|h|hrs?|hours?|d|days?|weeks?)"
@@ -166,8 +166,9 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
         if not proof(text, kind):
             label = f"{uc} ({kind})" if kind else uc
             out.append(f"{label} is not proven: it needs {NEED.get(kind, 'output or a screenshot')}; a link alone is not evidence")
-    out += [f"image no reviewer can open (not an https URL): {re.sub(r'//[^/@]*@', '//', src).split('?')[0]}"
-            for src in images(evidence) if not src.startswith("https://")]  # never echo a URL's credentials or query
+    for src in (s for s in images(evidence) if not s.startswith("https://")):
+        shown = re.split(r"[?#]", re.sub(r"//[^/@]*@", "//", src))[0]  # never echo a URL's credentials, query or fragment
+        out.append("image no reviewer can open (not an https URL)" + ("" if SECRET.search(shown) else f": {shown}"))
     hit = {kind for kind, pats in surfaces.items() for f in files if any(re.search(p, f) for p in pats)}
     out += [f"changes {kind} files, so Evidence needs {NEED[kind]}" for kind in sorted(hit) if not proof(evidence, kind)]
 
