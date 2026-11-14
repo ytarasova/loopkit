@@ -92,7 +92,7 @@ file. Add them to goals already written before running it again.
   core clauses in `skills/adopt/CONSTITUTION.md`.
 
 From this repo, `python3 skills/write-goal/scripts/test_goal_kit.py` checks the
-scripts; CI runs it on Python 3.10 and 3.14, and gitleaks over the history, on every PR.
+scripts; CI runs it on Python 3.10 and 3.14 on every PR and push to main, and gitleaks over each PR's commits and each push to main.
 
 The intent skill credits Matt Pocock's `grilling` and Switch Dimension's
 `molten-validate`, both MIT.
