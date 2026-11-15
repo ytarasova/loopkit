@@ -54,14 +54,14 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 
 1. **Plan first, then execute fast.** Non-trivial work goes intent, spec, plan, execute. A plan names exact files and exact commands.
 2. **Divide the work so each piece verifies alone, and verify every join.** Split until a unit fits one context and has its own verification; fan out only for independent units with files that do not overlap. Give each one unit, rerun its verification before accepting it, check the whole once the pieces are joined, and end with one table: unit, result, evidence (`analysis-synthesis`).
-3. **Two review stages per task: correctness, then quality.** Each stage runs in a context that did not write the change and reads the diff and the spec, never the author's account of them. An implementer's PASS is a claim: rerun its test and read the diff.
+3. **Every task is reviewed by a context that did not write it; a risky path gets two stages, correctness then quality.** Each stage reads the diff and the spec, never the author's account of them. An implementer's PASS is a claim: rerun its test and read the diff.
 4. **Do the obvious next step without asking.** When something fails, change the model, the context or the scope before retrying. The same input to the same model gives the same failure.
 5. **Report BLOCKED instead of retrying blindly.** Bad work is worse than no work.
 6. **Big cross-cutting changes land in revertable steps,** each one verified.
-7. **Verification passes or fails.** A test, a build, a screenshot, a metric, with the output it printed. "Looks right" is not a verification. One that flips on the same code is broken: fix it, or record why with its runs; never count it green. A warning is answered with evidence, never dismissed.
+7. **Verification passes or fails.** A test, a build, a screenshot, a metric, with the output it printed. "Looks right" is not a verification. One that flips on the same code is broken: fix it, or file it (§III.6) and list it under Waiting on; never count it green. A warning is answered with evidence (a retake, a diff, a run), never in words.
 8. **Look before you ask.** The knowledge base, the CLI, the MCP servers and the CI runners come first. Never hand the owner a step you can take; a human step is one nothing you have can do.
 9. **Ask in plain words, one question at a time, with your recommendation.** Do the literal ask; when a verb has two readings, ask once. A question naming a file or an option number the owner has not seen is not a question.
-10. **A correction from the owner goes into the skill the same turn,** not into memory or a note, so it is never given twice; one that changes this file is proposed to the owner the same turn (§VIII.3).
+10. **A correction from the owner goes into the kit the same turn,** not into memory or a note, so it is never given twice: into the skill when any repo would hit it, into this repo's `.claude/loopkit/lessons.md` when only this one would. One that changes this file is proposed to the owner the same turn (§VIII.3).
 11. **Edit files with the edit tools.** The shell is the fallback for what they cannot do.
 
 ## VII. Branches and merges
@@ -72,14 +72,14 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 4. **Every CI gate is green before merge.** {{PROJECT: name the required checks}}. A failing check is a bug to fix, not to bypass.
 5. **Never skip hooks or signing** unless the owner asks for it.
 6. **Pull before starting and again before merging.**
-7. **Changes ship as stacked PRs.** One reviewable PR per step, each branched from the step before it and targeting that branch. Merge from the bottom; after each merge, merge `origin/main` into the next branch and retarget it, with no rebase or force-push (§VII.2).
+7. **Changes ship as stacked PRs.** One reviewable PR per step, each branched from the step before it and targeting that branch. A step that needs nothing from the one before branches from the base they share. Merge from the bottom; after each merge, merge `origin/main` into the next branch and retarget it, with no rebase or force-push (§VII.2).
 
 ## VIII. When in doubt
 
 1. **Question an architecture that feels wrong.** Say so and propose the fix.
 2. **Ask before anything you cannot take back.** The test is whether one wrong attempt can be undone. Code and a commit on your own branch can be undone, so they need no permission (§VI.4). Merging follows §VII.3. A force-push to a shared branch, `rm -rf`, a dropped table, a deleted branch, discarded uncommitted work, a sent message and {{PROJECT: shared or production state, e.g. "anything in AWS, staging or production"}} cannot, so they wait for the owner. An authorization covers the operation named and nothing beyond it.
 3. **When the owner's directive contradicts this file,** the directive wins for that session. If the preference has changed for good, propose an edit here.
-4. **A choice about people or their data is the owner's.** One that changes what a person sees or can do, or where a customer's data goes or what happens to it on a failure, is asked in the turn it comes up, as one question with a recommendation, and recorded under Waiting on; work goes on with what does not depend on it. A ruling written in a ledger is not asking.
+4. **A choice about people or their data is the owner's, asked up front.** One that changes what a person sees or can do, or where a customer's data goes or what happens to it on a failure, is asked at intake, where each use case's data is walked through change, sharing, removal and failure, as one question at a time with a recommendation. One found later takes the default that keeps the data and can be undone, recorded as a ruling under Waiting on for the owner to reverse; work does not stop for it. One that cannot be undone still waits for the owner (§VIII.2).
 5. **Protected resources need permission.** {{PROJECT: the environments, tenants, shared models, paid services and repos no agent touches unasked}}. Never mint a credential for yourself.
 6. **Trace before you delete.** Name what referenced it and why it goes; infrastructure shows its plan's destroys first. A blanket `git checkout -- .`, `git restore .`, `git reset --hard` or `git clean` discards work you have not seen: run `git status` first and name the files.
 7. **Leave nothing behind.** At the end of the work, its worktrees, branches, containers and processes are gone.

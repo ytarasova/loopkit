@@ -20,7 +20,9 @@ never live in the goal itself.
 
 Settings come from `.claude/loopkit.json` and templates from `.claude/loopkit/`
 in the repo; both are written by the `adopt` skill. If either is missing, run
-`adopt` first. The scripts live under this skill's base directory, shown when
+`adopt` first. The repo's own lessons, `.claude/loopkit/lessons.md` when it
+exists, are read with this skill: corrections only this repo needs, kept out
+of the kit. The scripts live under this skill's base directory, shown when
 the skill loads; run them by absolute path from the target repo:
 
 ```bash
@@ -47,10 +49,15 @@ file plus the list of decisions you answered for them.
    for the owner with the allow rule that would clear it. State the
    permission mode the goal needs, and on a laptop that it must stay awake
    (`caffeinate -i` on macOS).
-5. Show the owner the master plan, its Asks and its Models ("This is best
-   handled by ..."), and build nothing until they approve: their words go on
-   `progress.py <slug> approve "<their words>"`, which `check-goal.py`
-   requires before any step is ticked.
+5. Check the plan against the accepted intent in a fresh context: every ask
+   reaches a use case, every use case a step that verifies it, the grants
+   are named, and each use case's data was walked through change, sharing,
+   removal and failure, with every choice about people or their data in
+   "Decisions, answered". Log the check. Then send the owner the master plan,
+   its Asks and its Models ("This is best handled by ...") as a notice and
+   start; the run does not wait for them. Their words, when they give them, go
+   on `progress.py <slug> approve "<their words>"`; an objection sends the
+   work back to the step it names.
 6. Commit the three files on that branch and hand the owner the goal file.
 
 **While it runs**, the rules a long run drops first; `check-goal.py` fails the
@@ -63,8 +70,9 @@ first three:
   file, then stamped with `progress.py <slug> view`.
 - An ask stated in chat goes into the master plan's Asks the same turn.
 - After a compaction, re-read the goal and progress files and this lifecycle.
-- A choice about people or their data is asked (§VIII.4), overriding
-  `subagent-driven-development`'s "rulings, not stalls" for those choices.
+- Choices about people or their data are asked at intake (§VIII.4). One
+  found later takes the default that keeps data and can be undone, as a
+  ruling under Waiting on for the owner to see; work does not stop for it.
 - Look before you ask (§VI.8); never stop to ask whether to continue.
 - An agent with no new output for twice its time left is checked, then
   restarted or stopped. Keep the machine under about 80% load; when CI runners
@@ -95,18 +103,17 @@ two steps, and never takes a subagent's word for a step it can rerun.
 | 3 | Assurance: every check in `assurance`, on the task's own commit | implementer | all green, output kept |
 | 4 | Simplify: what the change can lose, applied | implementer | assurance still green |
 | 5 | Evidence: each use case shown for its surface, written to the step's evidence file with steps 3 and 4 | implementer | `check-pr.py <file>` prints ok, except Review |
-| 6 | Correctness review of the diff and the spec | reviewer, a context that did not write it, on at least the step's model | no open finding; fixes go back to step 2 |
-| 7 | Quality, security and constitution review: input handling, authorization, data exposure, secrets, dependencies | reviewer, a second fresh context | no open finding; fixes go back to step 2 |
-| 8 | UX review, for a UI use case: walked as a first-time user from the entry point | UX reviewer | passes; fixes go back to step 2 |
-| 9 | Review lines written into the evidence file | reviewer | `check-pr.py <file>` prints ok |
-| 10 | Verify: rerun the assurance and `check-pr.py` on the file, read the diff | orchestrator | its own run agrees with the file |
-| 11 | Merge into the plan branch, tick the step with its file, push the progress file | orchestrator | `check-goal.py <slug>` ok |
+| 6 | Review of the diff and the spec: correctness, then quality, security (input handling, authorization, data exposure, secrets, dependencies) and the constitution. On a risky path (`models.md`: auth, data, money, migrations, concurrency) these are two reviewers, correctness first | reviewer, a context that did not write it, on at least the step's model | no open finding; fixes go back to step 2 |
+| 7 | UX review, for a UI use case: walked as a first-time user from the entry point | UX reviewer | passes; fixes go back to step 2 |
+| 8 | Review lines written into the evidence file | reviewer | `check-pr.py <file>` prints ok |
+| 9 | Verify: rerun the assurance and `check-pr.py` on the file, read the diff | orchestrator | its own run agrees with the file |
+| 10 | Merge into the plan branch, tick the step with its file, push the progress file | orchestrator | `check-goal.py <slug>` ok |
 
 At a plan's end, the same shape over the plan: the assurance on the plan
 branch with its base merged in, a whole-branch review by a fresh context,
 the PR opened with its plan's evidence, its release notes and its user guide,
 `check-pr.py <PR>` ok. At the goal's end, the whole: `evidence/goal.md` on the
-top of the stack after the last code commit, every use case again, the goal's
+top of the stack after the last code commit, gathering every use case, the goal's
 release notes and the guide, then `check-goal.py <slug>` ok.
 
 **What every subagent prompt carries**, because a subagent knows only its
@@ -126,8 +133,11 @@ check that `land-stack.py` will not land:
 
 - `## Assurance`: every check in `assurance` (tests, coverage, mutation,
   lint, typecheck, violations, security, by default), each with its command and the output it
-  printed in a fenced block, naming the commit it ran on; on a PR,
-  `check-pr.py <PR>` fails assurance that ran on anything but the PR's head.
+  printed in a fenced block, naming the commit it ran on; on a PR, the head,
+  or an earlier commit when only Markdown and the goal's own files changed
+  since (`check-pr.py <PR>` checks). Evidence is written once, by whoever
+  produced it, when it was produced; a commit that changes no code never
+  makes it be taken again.
   Counts are what ran, on the changeset's own commit
   (the reviewer checks this; the script cannot).
 - `## Evidence`, told by use case: a `### UC<n> <who does what>` per use case
@@ -191,7 +201,7 @@ mutant.
 **Security, on every changeset.** Assurance includes `security`: a secret scan
 of the diff (gitleaks or trufflehog), a dependency audit (the package
 manager's audit), and static analysis where the repo has it (semgrep, bandit,
-CodeQL), each with its output. The review (step 7) reads the diff for input
+CodeQL), each with its output. The review (step 6) reads the diff for input
 handling, authorization, data exposure and secrets; `security-review` runs it
 on a branch, and the `security-guidance` hooks see each edit. `check-pr.py`
 fails a body or evidence file that carries anything shaped like a credential:
@@ -221,17 +231,8 @@ link, at the widths people use, and fails:
   controls, where actions sit);
 - a missing or unclear empty, loading, error or success state;
 - an outcome the person cannot see, or copy that does not say what happened;
-- a card or form judged in one state or for one option only: walk every state
-  the change reaches (draft, tested, active, after a sync) and every option
-  that shares the screen, not just the new one;
-- the wrong count or place of actions: one Save per decision, a step's
-  actions in one place, one primary button;
-- a form that saves invalid input, or a thing that can be made but not
-  renamed, moved or removed;
-- the same thing looking or behaving differently on two screens (tables,
-  buttons, sizes), or two words for one state;
-- internal words on screen (ids, enum values, how the system works), or a
-  dialog cut off at the viewport.
+- a screen judged in one state only: walk every state the change reaches;
+- whatever the repo's lessons add.
 
 A fault on a shared screen that the change puts in front of people is in
 scope; it is not "shared, unchanged".
@@ -246,11 +247,9 @@ What to show, and what not:
   A claim that something is unchanged is proven by the tests that pin it
   (`cli`), never by screens of the unchanged thing.
 - Screens show only the app the change touches, web and terminal apart,
-  nothing cut off.
+  nothing cut off. A faulty capture is retaken, never captioned.
 - A step that proves no use case itself but enables one (a fake, a client,
   plumbing) writes `### Supports UC<n> <how>` with its tests' output.
-- Adopting this kit mid-run, assurance cannot be re-run on old commits: run
-  it on each plan branch's head and label it so.
 
 The script checks shape, not truth: that a screenshot is newer than its
 screen, that output came from the changeset's commit, and that failure cases
@@ -259,13 +258,16 @@ are among the use cases are the reviewer's to check.
 The loop verifies itself piece by piece and as a whole. A step's file is
 `<plans_dir>/<date>-<slug>-evidence/<plan>.<step>.md`, named
 in parentheses on its ticked line; `check-goal.py` fails a ticked step without
-one that passes. A PR body gathers its plan's steps: their assurance on the
-PR's head, every use case the plan proves, the signal and the review. Run
+one that passes. A PR body gathers its plan's steps: their assurance (on the
+PR's head, or carried over while no code changed), every use case the plan
+proves, the signal and the review. Run
 `check-pr.py <PR>` after opening it; with the PR it also checks the changed
 files against `surfaces`. Once every step is ticked, the whole:
-`<plans_dir>/<date>-<slug>-evidence/goal.md`, taken on the top of the stack
-after the last code commit, proves every use case in the master plan again
-and passes the same check as a deliverable (release notes and the guide too); `check-goal.py` fails without it. Showing the owner the evidence is the run's job,
+`<plans_dir>/<date>-<slug>-evidence/goal.md`, on the top of the stack after
+the last code commit, gathers every use case in the master plan: each one's
+proof from the step that gave it, carried over with its commit while the code
+it covers is unchanged, taken again only where it changed, plus the whole's
+own gates on the final code. It passes the same check as a deliverable (release notes and the guide too); `check-goal.py` fails without it. Showing the owner the evidence is the run's job,
 never a human step: a run that ends "waiting for the owner to see the screens"
 with the screens in its scratchpad has shown nothing.
 
@@ -279,17 +281,20 @@ with the screens in its scratchpad has shown nothing.
    agent can follow: setup, run, configuration, failure modes.
 5. When asking the owner to look, open the app for them, signed in and seeded.
 6. The retro: every correction the owner gave during the run is a row of the
-   progress file's "Owner corrections", each with the kit change that encodes
-   it, shipped as its own PR off main, never on a plan branch (`check-goal.py`
+   progress file's "Owner corrections", each with the change that encodes it,
+   shipped as its own PR off main, never on a plan branch (`check-goal.py`
    fails a kit file changed on a feature branch, and a correction with no
-   change). Then roll the kit change out to the repos that use it
-   (`adopt/rollout.md`).
+   change). A correction any repo would hit changes loopkit and rolls out to
+   the repos that use it (`adopt/rollout.md`); one only this repo would hit
+   goes in its `.claude/loopkit/lessons.md`.
 7. One short message: a row per plan (what shipped, its PR, each gate's
    commands and output); what is merged, deployed, green and verified live,
-   each yes or no; what was skipped, removed or left out and why; then every
-   ruling the run made.
+   each yes or no; what was skipped, removed or left out and why; every
+   ruling the run made; and a link to each page the owner reads (the report,
+   the live view) at its current version.
 
-**Landing the stack**, when the owner says to:
+**Landing the stack**, when the intent's Grants name merging or the owner
+says to:
 `python3 <base>/scripts/land-stack.py <bottom PR> ... <top PR>` prints what
 it would do; `--run` lands the lowest open PR and stops. It lands only a PR
 from this repo, based on main and holding it, with its checks complete and
@@ -321,6 +326,13 @@ reading under the PR. A Failure reading rolls back first, then is fixed
 (§III). When the run has ended by then, schedule the reading before it ends
 (the `schedule` skill: one run at the end of the longest window).
 
+**Shipping in phases**, when the Grants say ship (`ends_at: production`, or
+`new-goal.py --ends-at production`): each plan is a phase. Land it, deploy
+it, read its signals over their windows, then the next phase on green. A
+Failure reading rolls back, sends the work back (to building, or to planning
+when the plan was wrong), and ships it again. The run repeats until every plan
+is live and its signals read green, or a piece is parked with its evidence.
+
 ## 1. Measure the baselines first
 
 Every gate compares a number after the work with a number from before it.
@@ -328,6 +340,12 @@ Read the before numbers now, from the real source, and write down the source
 and the window. Which sources exist is the repo's business: CI runs, a deploy
 API, logs, a metrics query, `curl` against a host, a test count. `adopt`
 records them in `CLAUDE.md` or the constitution; read them there.
+
+Time each gate as well. A gate that takes more than a few minutes names the
+quick check that predicts it, which workers run after every change; the slow
+gate then runs once per join (a plan's head, the top of the stack), not per
+step. A check that flips on the same code is broken: fix it, or file it and
+list it under Waiting on (§VI.7); it is never counted green.
 
 A gate with no baseline cannot fail, so the run can declare it met without
 doing anything. If a baseline cannot be read yet, the plan's first step reads
@@ -365,6 +383,16 @@ big for one orchestrator's context gives a plan a lead, written in Models: it
 runs that plan's steps by the sequence and reports; the orchestrator still
 writes the progress file, asks the owner and reruns the lead's verification.
 
+**Sending work back.** The run is not only forward: verification sends a
+piece back to building, building sends a plan back to planning, planning sends
+an ask back to intake. Work goes back to the level that caused the failure,
+no further; the level above decides, and logs one ruling: what failed, where
+it went, what it invalidated, what changed. Each return changes something
+(the check, the split, the model, or the reading of the ask). A second return
+for the same cause goes one level higher. At the top, the piece is parked:
+the rest ships, and the piece is listed as not done, with its evidence. A
+ticked step reopens only by such a ruling.
+
 ## 3. The progress file
 
 The only place the run records where it is. The goal text never changes to
@@ -374,8 +402,8 @@ Every time in it is stamped by `scripts/progress.py`, never typed.
 
 - **Now:** one line, `progress.py <slug> now "<text>"`, rewritten at each
   state change; `log` moves its time too.
-- **Approved by:** the owner's words approving the master plan,
-  `progress.py <slug> approve "<words>"`; no step is ticked before it.
+- **Approved by:** the owner's words on the master plan, when they give
+  them, `progress.py <slug> approve "<words>"`; the run does not wait for it.
 - **Waiting on the owner:** every human step hit and open question, most
   blocking first, each with what it unblocks and the run's recommendation.
 - **In flight:** each dispatched subagent and each step unsafe to run twice,
@@ -434,14 +462,12 @@ By hand:
 | The gate is "tests green" | Tests pass while nothing the user sees changes; the goal reads as met. |
 | An open decision is left open | The run stops at it, or guesses. |
 | A cause is written without being measured | The run fixes the wrong thing with authority. |
-| A permission is not written down | The run stops on a step it could have taken. |
+| A permission is not granted at intake | The run stops on a step it could have taken. |
 | A human step is not listed | The run waits on it forever, or works around it. |
+| A failing check is answered in words (a caption, "a false alarm", "passes alone") | The fault ships under a description of it; retake, fix, or file it. |
 | One PR for the whole goal | Review cannot keep up, and one bad plan holds back every good one. |
 | Implementers share a checkout | Their edits and test runs collide; one worktree each. |
 | The implementer reviews its own change | It reads the diff for what it meant; the blind spot passes. |
 | A time is typed or reckoned | It lands ahead of the clock and the owner stops trusting every ETA. |
-| A subagent runs `git add -f` on an ignored file | Reports and ledgers land in the PR; stage by path, never force. |
-| A review agent reads the diff itself instead of running its skill's fan-out | Half the review never happens; check its report names the passes it ran. |
-| A shell loop splits a variable (`for c in $C`) | zsh does not split it; use an array or `xargs`. |
 | A kit fix is committed on the feature branch | It ships hidden in the feature's PR, and no other run or repo gets it; ship it off main. |
 | A Self-review line does not say who reviewed | Nobody can tell the implementer from a fresh context; name the model and the context. |

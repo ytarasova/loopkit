@@ -41,13 +41,8 @@ it is ported into that copy. Run these steps in order. A step starts only when t
    - Read its mutation list and its character counts.
    - Check for files clobbered by another port.
 7. **Land each port by its repo's rule:** merge the PR, push to main, or fast-forward local main.
-8. **Tell every live run in an adopting repo.** A goal already running keeps its old goal text and its old copy of the skill.
-   Message its orchestrator to:
-   - merge main into its branch, then up its stack;
-   - reload the skill;
-   - revise its goal, master plan and progress file to the new templates (a progress file may need new
-     sections, or stamps written by the new tools, before the checker passes again);
-   - meet any new evidence rule before it calls the goal done.
-
-   Then check that it did: the new commit is an ancestor of its branch.
+8. **Leave live runs on their kit.** A goal already running finishes on the kit it started with: its goal text,
+   its copy of the skill and its evidence rules do not change under it. Migrating a run mid-flight makes it redo
+   finished work. Tell its orchestrator only the new commit range and one line on what changed, for its next goal.
+   A fix the run itself needs (a checker bug that blocks it) is the exception: send that fix alone, and say why.
 9. **Report one table:** repo, where it landed (the commit), the verification you reran, and what was not ported and why.

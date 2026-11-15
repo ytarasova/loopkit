@@ -6,14 +6,15 @@ description: Use when setting up loopkit in a repo, or on "adopt loopkit", "set 
 # Adopt loopkit in a repo
 
 loopkit's skills are generic; the repo supplies the facts. This skill reads
-the repo, asks the owner only what the repo cannot say, and writes four
+the repo, asks the owner only what the repo cannot say, and writes five
 things:
 
 | File | Holds | Read by |
 | --- | --- | --- |
 | `CONSTITUTION.md` | How work is done here: the core clauses plus the repo's own. | every session, `write-goal`'s goal text |
 | `.claude/loopkit.json` | The knobs below. | `new-goal.py`, `check-goal.py`, `intent` |
-| `.claude/loopkit/goal.md` | The goal template with this repo's commands written in. | `new-goal.py` |
+| `.claude/loopkit/goal.md` | The goal template with this repo's commands written in; `goal-production.md` beside it when a goal here may be granted shipping. | `new-goal.py` |
+| `.claude/loopkit/lessons.md` | Corrections only this repo needs, kept out of the kit: a heading, filled by each run's retro. | `write-goal`, `intent` |
 | `CLAUDE.md` | A link to the constitution, and where gate baselines are read. | every session |
 
 ## The knobs
@@ -54,7 +55,10 @@ things:
 Changing a model or the subagent count later is an edit to
 `.claude/loopkit.json` alone; the next `new-goal.py` picks it up. Changing
 `ends_at` also means re-copying and refilling `.claude/loopkit/goal.md` (step
-5), because the repo's copy is made from one template or the other.
+5), because the repo's copy is made from one template or the other. A goal
+whose intent grants shipping uses `new-goal.py --ends-at production`, which
+reads `.claude/loopkit/goal-production.md`; fill that one too when the repo
+can ship.
 
 Paths below are relative to this skill's base directory, shown when the skill
 loads; `write-goal` is its sibling, `<base>/../write-goal`. Resolve them to

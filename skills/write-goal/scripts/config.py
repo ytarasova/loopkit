@@ -73,10 +73,14 @@ def goal_base(cfg: dict, slug: str, date: str = "") -> str:
     return f"{plans}/{dates[0]}-{slug}"
 
 
-def template(kind: str, cfg: dict) -> str:
-    """The repo's own copy in .claude/loopkit/ wins over the plugin's."""
-    local = f".claude/loopkit/{kind}.md"
-    if os.path.exists(local):
-        return local
-    name = f"goal-{cfg['ends_at']}" if kind == "goal" else kind
-    return os.path.join(SKILL, "templates", f"{name}.md")
+def template(kind: str, cfg: dict, ends_at: str = "") -> str:
+    """The repo's own copy in .claude/loopkit/ wins over the plugin's.
+
+    A goal's ending may differ from the repo's (`ends_at`), when the intent grants shipping: then the
+    repo's `goal-<ending>.md` is used, and its plain `goal.md` only for the repo's own ending.
+    """
+    ends = ends_at or cfg["ends_at"]
+    name = f"goal-{ends}" if kind == "goal" else kind
+    locals_ = [f".claude/loopkit/{name}.md"] + ([".claude/loopkit/goal.md"] if kind == "goal" and ends == cfg["ends_at"] else [])
+    local = next((p for p in locals_ if os.path.exists(p)), "")
+    return local or os.path.join(SKILL, "templates", f"{name}.md")

@@ -25,18 +25,23 @@ and Python 3.10 or newer (macOS's own `/usr/bin/python3` is 3.9 and fails). Repo
 ## The loop
 
 1. `/loopkit:adopt` once per repo.
-2. `/loopkit:intent <a sentence>`: the interview, then the intent file.
+2. `/loopkit:intent <a sentence>`: the interview, then the intent file. It is
+   the one session you give the work: it walks the data, asks the choices
+   about people and their data, and records your grants (open PRs, merge, or
+   ship in phases).
 3. A spec or plan, when the design is open.
 4. `/loopkit:write-goal`: baselines measured, master plan and progress file
    written, `check-goal.py` prints `ok`.
 5. `/goal <contents of the goal file>`. The run orchestrates on
    `orchestrator`, fans out up to `max_parallel` `implementer` subagents in
    their own worktrees, has each change reviewed by a `reviewer` subagent that
-   did not write it, ships each plan as a PR stacked on the one before,
+   did not write it, ships each plan as a PR stacked on the plan it needs,
+   sends work back to the level that caused a failure,
    records each dispatch before it starts, and writes every state change to the progress file, so it can
    resume after compaction or a restart.
-6. The run ends when the gates hold, or when it hits a step only you can
-   take: then it records it under "Waiting on", pushes and stops. Read
+6. The run ends when the gates hold (merged or shipped, when granted), or
+   when it hits a step only you can take: then it records it under "Waiting
+   on", pushes and stops. Read
    "Waiting on" and "Rulings" in the progress file. No part is done without
    its complete evidence in its PR: tests and their output; screenshots
    (UI), curl request and response (service) or the command's run (CLI);
@@ -44,8 +49,8 @@ and Python 3.10 or newer (macOS's own `/usr/bin/python3` is 3.9 and fails). Repo
    the constitution cross-checked. `check-pr.py <PR>` checks it, and CI runs it on every PR.
 
 Lessons from the owner's corrections across runs are built in: asks tracked
-from the intent to the final message, no code before the owner approves the
-plan, choices about people and their data asked rather than ruled, times
+from the intent to the final message, choices about people and their data
+asked at intake, times
 stamped from the clock (`progress.py`), a time left on every open item, a
 fuller UX walk, and an ending that cleans up and says what shipped.
 
@@ -54,51 +59,9 @@ Security is part of every changeset's proof: `security` is in the default
 needs a `Security review:` line, and `check-pr.py` fails a body or evidence
 file carrying anything shaped like a credential. The loop closes after the PRs too: `land-stack.py` lands a stack in order
 (retarget first, merge up, stop before a fix is lost), each Signal line
-carries a threshold and a window to watch after the deploy, a PR's assurance
-must have run on its head, and every owner correction ends as a kit change
-shipped off main.
-
-Upgrading from 0.10: a new skill, `analysis-synthesis`, the method behind
-dividing any work: pieces that each verify alone, joins verified on the way
-up, leads only where one context is not enough. write-goal points at it and
-dispatches a step once what it needs is merged. `Done means` gains a third
-finish, the owner changing the ending, so a run they redirect can stop.
-Constitution §VI.2 and §VI.7 change wording (a flaky verification is broken,
-a warning is answered with evidence). No checker rule changes.
-
-Upgrading from 0.9: every deliverable (a PR, a body file, a goal's
-`evidence/goal.md`) carries `## Release notes`, a paragraph in its users'
-words or "No user-visible change.", and `## User guide`, the guide it
-updated, by repo path or https URL. A step's evidence file needs neither, so
-an open goal's ticked steps still pass; its open PRs and its `goal.md` add the
-two sections. Adopters add constitution §II.9 and the two sections to their
-PR template.
-
-Upgrading from 0.8: `mutation` joins the default `assurance` list. Every
-changeset with logic shows "N of M killed" in its fenced output, with a
-`Survivor: <mutant>, <why>` line per mutant that lived; a change with none
-writes `mutation: not-applicable, <why>`. A repo on the default list: upgrade
-between goals, or add a mutation result to the evidence file of every step
-already ticked in an open goal, since `check-goal.py` re-checks them all. A
-repo with its own list adds `mutation` to keep the check.
-
-Upgrading from 0.7: optionally, with the owner's yes, copy
-`.github/workflows/check-pr.yml` (set its `KIT` line) and
-`.github/pull_request_template.md` into the repo (adopt, step 8).
-`check-pr.py` no longer reads text inside HTML comments, and `land-stack.py`
-judges the newest run of each check.
-
-Upgrading from 0.6: Signal lines need a threshold and a window, the
-Self-review line names its model, a PR's Assurance names the commit it ran
-on, and progress files need "## Owner corrections".
-
-Upgrading from 0.5: add
-`security` to a repo's own `assurance` list and the line to its PR bodies.
-
-Upgrading from 0.4: master plans need `## Asks`; progress files need a timed
-Now line, "What is left", an `Approved by` line before any ticked step, and
-In flight lines that end with a time left (one ending in a UTC time now
-fails); goals need "§VIII.4", "progress.py" and "after a compaction".
+carries a threshold and a window to watch after the deploy, evidence is
+written once and gathered rather than rebuilt, and every owner correction ends
+as a kit change, or a lesson in the repo, shipped off main.
 
 Rolling a loopkit change out to repos that adopted it: `skills/adopt/rollout.md`.
 
@@ -106,12 +69,7 @@ Models: the intent says which orchestrator the work needs ("This is best
 handled by Fable 5.2, because ..." or Opus 5.5), and the master plan names a
 model per step (haiku, sonnet or opus), from `write-goal/models.md`.
 
-Upgrading from 0.3: master plans need `## Models` and a `Model:` on every
-step; the `implementer` and `reviewer` settings are gone.
-
-Upgrading from 0.2: `check-goal.py` now fails a goal without `check-pr.py`, a
-master plan without `## Use cases`, and a ticked step without its evidence
-file. Add them to goals already written before running it again.
+What changed in each version, and how to upgrade: [`CHANGELOG.md`](CHANGELOG.md).
 
 ## Customizing
 
