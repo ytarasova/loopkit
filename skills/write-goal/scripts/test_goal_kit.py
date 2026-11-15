@@ -238,11 +238,12 @@ def land_stack_test() -> None:
         assert load()["prs"]["6"]["base"] == "main" and gone("b5")
         # --method rebase: a merge-up would leave a merge commit GitHub cannot rebase, so it prints one rebase line per
         # branch; running exactly what it prints lands the stack with no merge commit on main and no commit lost.
-        def run_printed(out):  # the agent runs the printed commands as they are
-            for line in out.splitlines():
-                if line.startswith("  git "):
-                    r = subprocess.run(line.strip(), shell=True, cwd=w, env=env, capture_output=True, text=True)
-                    assert r.returncode == 0, (line, r.stderr)
+        def printed(out):  # the printed block, one command as the agent pastes it
+            return " ".join(line.strip() for line in out.splitlines() if line.startswith("  git "))
+        def run_printed(out, ok=True):
+            r = subprocess.run(printed(out), shell=True, cwd=w, env=env, capture_output=True, text=True)
+            assert (r.returncode == 0) == ok, (printed(out), r.stderr)
+            return r
         holds = lambda lower, upper: not subprocess.run(["git", "merge-base", "--is-ancestor", lower, upper], cwd=bare).returncode
         has = lambda branch, f: f in git("ls-tree", "--name-only", branch, cwd=bare).split()
         commit("b50", "main", "f50.txt", "50\n"); commit("b51", "b50", "f51.txt", "51\n"); commit("b52", "b51", "f52.txt", "52\n")
@@ -255,16 +256,17 @@ def land_stack_test() -> None:
             and "--force-with-lease=refs/heads/b52:" in first.stdout and "--update-refs" not in first.stdout, first.stdout + first.stderr
         git("fetch", "-q", "origin", cwd=w); git("switch", "-qC", "b51", "origin/b51", cwd=w); git(*ident, "commit", "-q", "--allow-empty", "-m", "local, unpushed", cwd=w)
         local = git("rev-parse", "b51", cwd=w).strip()
-        early = rebase()  # the lines not run yet: the advice is a rebase, never a merge-up that would stop GitHub again
-        assert early.returncode and "rebase it onto origin/main" in early.stderr and "merge" not in early.stderr, early.stderr
-        run_printed(first.stdout); refresh("51"); refresh("52")
+        commit("main", "main", "f50.txt", "50, edited on main since\n")  # a plain rebase would replay f50 into this
+        early = rebase()  # the lines not run: the stop carries them again, with the heads, never a merge-up
+        assert early.returncode and printed(early.stderr) == printed(first.stdout) and "merge" not in early.stderr, early.stderr
+        run_printed(early.stderr); refresh("51"); refresh("52")
         assert git("rev-parse", "b51", cwd=w).strip() == local, "a printed step moved a local branch"
         assert holds("main", "b51") and holds("b51", "b52") and has("b52", "fix51.txt"), "the fix made below is lost"
         second = rebase()
         assert second.returncode == 0 and "--force-with-lease=refs/heads/b52:" in second.stdout, second.stdout + second.stderr
         late = head("b52"); commit("b52", "b52", "late52.txt", "a teammate's push\n")  # after the lines were printed
-        teammate = subprocess.run(second.stdout.splitlines()[-2].strip(), shell=True, cwd=w, env=env, capture_output=True, text=True)
-        assert teammate.returncode and "stale info" in teammate.stderr and has("b52", "late52.txt"), teammate.stderr
+        teammate = run_printed(second.stdout, ok=False)
+        assert "stale info" in teammate.stderr and has("b52", "late52.txt"), teammate.stderr
         git("push", "-q", "-f", "origin", f"{late}:refs/heads/b52", cwd=w)
         run_printed(second.stdout); refresh("52")
         third = rebase()
@@ -280,6 +282,10 @@ def land_stack_test() -> None:
             subprocess.run([gh, "pr", "merge", n, "--rebase"], env=env, check=True)
         later = go("60", "61", "62", "63", "64", "--method", "rebase")
         assert later.returncode == 0 and "b60 deleted" in later.stdout and "b63 deleted" in later.stdout, later.stdout + later.stderr
+        b62, b64 = head("b62"), head("b64"); commit("b62", "b62", "t62.txt", "a teammate's push\n")
+        run_printed(later.stdout, ok=False)  # b62's lease refuses, and the block stops there: b64 is not touched
+        assert head("b64") == b64, "a line ran after the one that failed"
+        git("push", "-q", "-f", "origin", f"{b62}:refs/heads/b62", cwd=w)
         run_printed(later.stdout); refresh("62"); refresh("64")
         assert holds("main", "b62") and holds("b62", "b64") and has("b64", "f63.txt") and has("b62", "f61.txt"), later.stdout
         assert git("rev-list", "--count", "main..b64", cwd=bare).strip() == "3", "b64 replays only f62, f63 and f64"

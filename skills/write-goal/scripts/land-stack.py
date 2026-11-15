@@ -93,15 +93,17 @@ def rebase_steps(stack: list[dict]) -> str:
         onto = home(base, merged)
         below = merged.get(base) or open_.get(base)
         replay = f"git rebase --onto origin/{onto} {below['headRefOid']}" if below else "git rebase origin/main"
-        lines.append(f"  git switch --detach {oid} && {replay} && "
-                     f"git push --force-with-lease=refs/heads/{head}:{oid} origin HEAD:refs/heads/{head}")
+        lines.append(f"  git switch --detach {oid} && {replay} &&\n"
+                     f"  git push --force-with-lease=refs/heads/{head}:{oid} origin HEAD:refs/heads/{head}")
         moved.add(head)
     if not lines:
         return ""
     first = next(p for p in open_.values() if p["headRefName"] in moved)
-    return ("rebase each branch below onto where the branch under it now is, bottom first. Each line starts from the "
-            "head read here, so local branches are untouched, and its lease refuses a push made since; on a conflict, "
-            "resolve it, `git rebase --continue`, then run the rest of that line:\n  git fetch origin\n" + "\n".join(lines) +
+    return ("rebase each branch below onto where the branch under it now is, bottom first, as one command that stops at "
+            "the first failure. Each branch starts from the head read here, so local branches are untouched (but stale "
+            "after: check `git log origin/<b>..<b>`, then `git switch -C <b> origin/<b>`), and its lease refuses a push "
+            "made since; then run this again. On a conflict, resolve it, `GIT_EDITOR=true git rebase --continue`, then "
+            "run the rest from that branch's push:\n  git fetch origin &&\n" + " &&\n".join(lines) +
             f"\nthen re-run #{first['number']}'s assurance on its new head, update its PR body, and run this again")
 
 
@@ -135,7 +137,7 @@ def latest(checks: list[dict]) -> list[dict]:
     return list(newest.values())
 
 
-def check(p: dict, nxt: dict | None, allow_no_checks: bool, method: str) -> None:
+def check(p: dict, nxt: dict | None, allow_no_checks: bool, method: str, steps: str = "") -> None:
     n = p["number"]
     if p["isCrossRepository"]:
         sys.exit(f"stopped: #{n} comes from a fork; land it by hand")
@@ -155,9 +157,11 @@ def check(p: dict, nxt: dict | None, allow_no_checks: bool, method: str) -> None
         sys.exit(f"stopped: #{n} has checks still running: {', '.join(map(str, pending))}")
     sh("git", "fetch", "-q", "origin")
     if run("git", "merge-base", "--is-ancestor", "origin/main", p["headRefOid"]).returncode:
-        how = ("rebase it onto origin/main from the head it was stacked on, push it with a lease" if method == "rebase"
-               else "merge main up into it")
-        sys.exit(f"stopped: #{n}'s branch does not hold main: {how}, re-run its assurance, then land it")
+        if method == "rebase":
+            sys.exit(f"stopped: #{n}'s branch does not hold main: "
+                     + (steps or "rebase it onto origin/main from the head it was stacked on, push it with a lease, "
+                                 "re-run its assurance, then land it"))
+        sys.exit(f"stopped: #{n}'s branch does not hold main: merge main up into it, re-run its assurance, then land it")
     r = run(sys.executable, os.path.join(HERE, "check-pr.py"), str(n))
     if r.returncode:
         sys.exit(f"stopped: check-pr.py fails on #{n}:\n{(r.stdout + r.stderr).strip()}")
@@ -228,16 +232,24 @@ def main() -> None:
             held = now["baseRefName"] == "main" and not run("git", "merge-base", "--is-ancestor", "origin/main", now["headRefOid"]).returncode
             steps = rebase_steps([states[n] for n in args]) if method == "rebase" else ""
             print(f"next: {steps}" if steps else "next: run this again to land #%s" % now["number"]
-                  if held or now["baseRefName"] != "main" else f"next: {merge_up_steps(now)}")
+                  if held or now["baseRefName"] != "main" or method == "rebase" else f"next: {merge_up_steps(now)}")
         return
     if not first:
         print("every PR in the stack is merged")
         return
-    check(first, nxt, allow_no_checks, method)
-    merged = run("gh", "pr", "merge", str(first["number"]), f"--{method}", "--match-head-commit", first["headRefOid"])
+    steps = ""
+    if method == "rebase":  # the PR below landed on an earlier run and was retargeted off: rebuild the lines it printed
+        sh("git", "fetch", "-q", "origin")
+        below = next((states[m] for m in reversed(args[:args.index(str(first["number"]))])), None)
+        stack = [states[n] for n in args]
+        if below and below["state"] == "MERGED" and first["baseRefName"] == below["baseRefName"]:
+            stack[args.index(str(first["number"]))] = dict(first, baseRefName=below["headRefName"])
+        steps = rebase_steps(stack)
+    check(first, nxt, allow_no_checks, method, steps)
+    result = run("gh", "pr", "merge", str(first["number"]), f"--{method}", "--match-head-commit", first["headRefOid"])
     after = pr(str(first["number"]))
     if after["state"] != "MERGED":
-        sys.exit(f"stopped: #{first['number']} is not merged ({(merged.stderr or 'queued').strip()[:200]}): nothing else "
+        sys.exit(f"stopped: #{first['number']} is not merged ({(result.stderr or 'queued').strip()[:200]}): nothing else "
                  "changed; rerun once it merges")
     print(f"#{first['number']} landed ({method})")
     finish(after, nxt, after["baseRefName"])

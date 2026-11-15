@@ -265,9 +265,11 @@ there: the PR above goes onto its base, and its branch is deleted under the
 same conditions. `--method rebase` keeps each commit's author. A merge-up
 would leave a merge commit beside the original copies of commits main now
 holds rewritten, which GitHub refuses to rebase, so with it the tool prints one
-line per branch instead: replay that branch's own commits from the head it
-read onto where the branch below now is, and push with a lease on that head.
-No local branch is touched, and a push made since is refused.
+rebase per branch instead, as one command that stops at the first failure:
+replay that branch's own commits from the head it read onto where the branch
+below now is, and push with a lease on that head. No local branch is touched
+(they are stale after), and a push made since is refused. If the run stops
+before the lines ran, the next run prints them again.
 
 **After the merge: watch.** Each PR's Success and Failure lines carry a
 threshold and a window (`check-pr.py` fails them without). Once it deploys,
