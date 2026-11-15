@@ -355,6 +355,16 @@ The spec says what to build. The master plan says in what order, and how the
 run knows each plan worked. Do not copy the design into it. The master plan
 holds no state.
 
+Divide the goal with `analysis-synthesis`. Plans and steps are its tree: split
+a step until one worker can do it in one context and verify it alone (its use
+case tests, a number, a script), and put what the others share first. Steps
+and gates are the verification at each level; the plan branch, its PR and
+`goal.md` are the synthesis, each rerunning what is below it. The run
+dispatches a step once what it needs is merged, not in list order. A goal too
+big for one orchestrator's context gives a plan a lead, written in Models: it
+runs that plan's steps by the sequence and reports; the orchestrator still
+writes the progress file, asks the owner and reruns the lead's verification.
+
 ## 3. The progress file
 
 The only place the run records where it is. The goal text never changes to
@@ -395,10 +405,12 @@ the goal under 3,000 characters so a revision has room.
 
 Two template sentences matter most. The run overrides
 `superpowers:subagent-driven-development`'s one-implementer rule, so the goal
-says so. And `Done means:` accepts two finishes: the gates hold, or a human
-step is recorded under Waiting on and pushed. `/goal` judges that line after
-every turn; with gates alone, a run blocked on the owner is pushed to keep
-going and works around the step.
+says so. And `Done means:` accepts three finishes: the gates hold; a human
+step is recorded under Waiting on and pushed; or the owner changed the ending
+(merge now, stop here), recorded with their words and stated in the last
+message. `/goal` judges that line after every turn; with gates alone, a run
+blocked on the owner is pushed to keep going and works around the step, and a
+run the owner redirected can never stop.
 
 ## 5. Check before handing it over
 
