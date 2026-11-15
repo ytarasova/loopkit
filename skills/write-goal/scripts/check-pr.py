@@ -4,8 +4,9 @@
 
 Fails (exit 1) unless the body has all four sections:
   ## Assurance  each check in the repo's `assurance` list (tests, coverage, mutation, lint, typecheck, violations,
-                security), naming the commit it ran on (on a PR, its head); mutation as "N of M killed" with a
-                "Survivor: <mutant>, <why it stands>" line when any lived, or "mutation: not-applicable, <why>",
+                security), naming the commit it ran on (on a PR, its head); mutation as "N of M killed" in
+                its fenced output, with a "Survivor: <mutant>, <why it stands>" line per mutant that lived,
+                or "mutation: not-applicable, <why>",
                 named in a heading, a bullet or a fenced block, with the output it printed in a fenced block
   ## Evidence   a "### UC<n> <who does what, and what they end up with>" per use case it proves, each with
                 its proof for the use case's surface (a step that only enables one, such as a fake or a
@@ -43,7 +44,11 @@ import config
 FENCE = re.compile(r"^```.*?^```[^\n]*$", re.M | re.S)
 IMAGE = re.compile(r"!\[[^\]\n]{0,512}\]\(\s*([^)\s]+)|<img[^>]{0,1024}\ssrc=[\"']([^\"']+)", re.I)  # bounded: linear scan
 SPAN = re.compile(r"`[^`\n]+`")
-KILLED = re.compile(r"\b(\d+)\s+of\s+(\d+)\s+(?:mutants?\s+)?(?:were\s+)?killed\b", re.I)
+_N = r"(?<![\d,])(\d{1,7}(?:,\d{3}){0,3})"  # bounded: the scan stays linear on long digit runs
+KILLED = re.compile(rf"{_N}\s*(?:/|of|out\s+of)\s*(?:the\s+)?{_N}\s+(?:mutants?\s+)?(?:were\s+)?killed\b"
+                    rf"|\bkilled\s+{_N}\s*(?:/|of|out\s+of)\s*{_N}\b", re.I)
+# "Survivor: <mutant>, <why it stands>", one line per mutant that lived; "none" or a bare name is no reason
+SURVIVOR = re.compile(r"^[^\w\n]*(?:\d+[.)]\s*)?survivors?\b[^\w\n]*(?!(?:none|n/?a|0)\b)\w[^\n]*?[,;:]\s*\w", re.M | re.I)
 REVIEW = {"simplify": r"simplif\w*", "a self-review": r"self-review\w*", "a security review": r"security review\w*",
           "the constitution cross-check": r"constitution\w*"}
 # Shapes of credentials that evidence (a curl exchange, a CLI run, a screenshot's caption) must never carry.
@@ -182,15 +187,19 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
         out += [f"Assurance does not show {c} (in a heading, a bullet or a fenced block)"
                 for c in checks if not re.search(rf"\b{re.escape(c.lower())}\b", named)]
 
-    if "mutation" in (c.lower() for c in checks) and assurance:
-        counts = [(int(k), int(m)) for k, m in KILLED.findall(assurance)]
-        if not counts and not re.search(r"\bmutation\w*\b[^\n]*?\bnot-applicable[^\w\n]+\w+[^\w\n]+\w", assurance, re.I):
-            out.append('Assurance shows no mutation result: "N of M killed" (each new rule or branch disabled in turn, '
-                       'its tests run each time), or "mutation: not-applicable, <why>" for a change with no logic')
-        lived = sum(m - k for k, m in counts if m > k)
-        if lived and not re.search(r"^[^\w\n]*survivors?\b[^\w\n]*\w", masked(assurance), re.M | re.I):
-            out.append(f"{lived} mutant(s) survived: name each on a \"Survivor: <mutant>, <why it stands>\" line "
-                       "(equivalent to the original, or the test that now kills it)")
+    if ("mutation" in (c.lower() for c in checks) and assurance
+            and not any(x.startswith("Assurance does not show mutation") for x in out)):
+        num = lambda x: int((x or "0").replace(",", ""))
+        runs = [(num(a or c), num(b or d)) for a, b, c, d in KILLED.findall("\n".join(FENCE.findall(assurance)))]
+        runs = [(k, m) for k, m in runs if 1 <= m and k <= m]  # 0 of 0 claims nothing ran
+        if not runs and not re.search(r"^[^\w\n]*mutation\w*\b[^\n]*?\bnot-applicable[^\w\n]+\w", assurance, re.M | re.I):
+            out.append('Assurance shows no mutation result: "N of M killed" in the fenced output (each new rule or branch '
+                       'disabled in turn, its tests run each time), or "mutation: not-applicable, <why>" for a change with no logic')
+        lived = max((m - k for k, m in runs), default=0)
+        named = len(SURVIVOR.findall(masked(assurance)))
+        if lived > named:
+            out.append(f"{lived} mutant(s) survived and {named} named: give each its own \"Survivor: <mutant>, <why it stands>\" "
+                       "line (equivalent to the original, or the test that now kills it)")
 
     cases = use_cases(evidence)
     if not evidence:

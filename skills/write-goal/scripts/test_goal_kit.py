@@ -514,20 +514,35 @@ def main() -> None:
         assert pr(good.replace("cross-checked, clean", "cross-checked, clean; `a <!-- b`")).strip() == "ok"  # in code
         assert pr(good.replace("## Review", "<!-->\n\n## Review")).strip() == "ok"  # an empty comment closes itself
         assert __import__("importlib").import_module("check-pr").problems(good.replace("\n", "\r\n"), [], {}, ["tests", "lint"]) == []  # a body edited in the browser, as gh returns it
-        # Mutation: coverage shows a line ran, not that a test checks it. "N of M killed", and every survivor named.
+        # Mutation: coverage shows a line ran, not that a test checks it. "N of M killed" in the output, every survivor named.
         mut = lambda body: __import__("importlib").import_module("check-pr").problems(body, [], {}, ["tests", "mutation"])
-        killed = good.replace("12 passed\n", "12 passed\n```\n\n- mutation\n```\n8 of 8 killed\n")
-        assert mut(killed) == [], mut(killed)
-        assert any("no mutation result" in x for x in mut(good.replace("12 passed\n", "12 passed\n```\n\n- mutation\n```\nran\n")))
-        lived = killed.replace("8 of 8 killed", "6 of 8 killed")
-        assert any("2 mutant(s) survived" in x for x in mut(lived)), mut(lived)
-        assert mut(lived.replace("## Evidence", "- Survivor: start + 4 for start + 2, equivalent\n\n## Evidence")) == []
-        assert any("survived" in x for x in mut(lived.replace("6 of 8 killed", "6 of 8 killed\nSurvivor: in a fence"))), "a fence is output, not a reason"
-        assert any("survived" in x for x in mut(lived.replace("## Evidence", "- Survivor:\n\n## Evidence"))), "a survivor with no reason"
-        assert sum("survived" in x for x in mut(killed.replace("8 of 8 killed", "8 of 8 killed, then 3 of 4 killed"))) == 1  # every run counts
-        exempt = good.replace("12 passed\n", "12 passed\n```\n\n- mutation: not-applicable, a docs change with no branch\n\n```\n")
+        ran = lambda line: good.replace("12 passed\n", f"12 passed\n```\n\n- mutation\n```\n{line}\n")
+        for honest in ("8 of 8 killed", "8/8 killed", "killed 8 of 8", "8 out of 8 mutants killed", "8 of the 8 mutants were killed",
+                       "1,024 of 1,024 killed"):
+            assert mut(ran(honest)) == [], (honest, mut(ran(honest)))
+        for empty in ("ran", "0 of 0 killed", "9 of 8 killed"):
+            assert any("no mutation result" in x for x in mut(ran(empty))), empty  # nothing ran, or a count no run prints
+        prose = good.replace("12 passed\n", "12 passed\n```\n\n- mutation: 8 of 8 killed\n\n```\nn/a\n")
+        assert any("no mutation result" in x for x in mut(prose)), "a count outside the output is a claim"
+        lived = ran("6 of 8 killed")
+        one = "- Survivor: start + 4 for start + 2, equivalent\n"
+        two = one + "1. Survivor: a guard removed, the test after it now kills it\n"
+        assert any("2 mutant(s) survived and 0 named" in x for x in mut(lived)), mut(lived)
+        assert any("and 1 named" in x for x in mut(lived.replace("## Evidence", one + "\n## Evidence")))
+        assert mut(lived.replace("## Evidence", two + "\n## Evidence")) == [], mut(lived.replace("## Evidence", two + "\n## Evidence"))
+        for weak in ("- Survivors: none, all killed\n- Survivor: n/a, nothing lived\n", "- Survivor: x+2\n- Survivor: y\n"):
+            assert any("survived" in x for x in mut(lived.replace("## Evidence", weak + "\n## Evidence"))), weak  # no reason given
+        fenced = lived.replace("6 of 8 killed", "6 of 8 killed\nSurvivor: a, b\nSurvivor: c, d")
+        assert any("survived" in x for x in mut(fenced)), "a fence is output, not a reason"
+        twice = ran("6 of 8 killed\n7 of 8 killed")  # the same mutants across runs: the most that lived in one run
+        assert mut(twice.replace("## Evidence", two + "\n## Evidence")) == [], mut(twice.replace("## Evidence", two + "\n## Evidence"))
+        rerun = ran("7 of 8 killed\n8 of 8 killed")  # a mutant that lived, then a test added: name it once
+        assert any("1 mutant(s) survived" in x for x in mut(rerun)) and mut(rerun.replace("## Evidence", one + "\n## Evidence")) == []
+        exempt = good.replace("12 passed\n", "12 passed\n```\n\n- mutation: not-applicable, docs\n\n```\n")
         assert mut(exempt) == [], mut(exempt)
-        assert any("no mutation result" in x for x in mut(exempt.replace(", a docs change with no branch", "")))
+        assert any("no mutation result" in x for x in mut(exempt.replace(", docs", "")))
+        missing = mut(good)  # not named at all: one failure, not two
+        assert sum("mutation" in x for x in missing) == 1, missing
         assert __import__("importlib").import_module("config").DEFAULTS["assurance"].count("mutation") == 1
         top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, cwd=HERE).stdout.strip()
         if os.path.exists(f"{top}/.github/pull_request_template.md"):  # the repo's own template, wherever its kit lives
@@ -596,6 +611,12 @@ def main() -> None:
         for adversarial in ("x<!--" * 200_000, "<!--\n" * 200_000, "`<!--` " * 140_000, "<!-- x -->" * 100_000):
             began = time.time(); uncommented(adversarial)
             assert time.time() - began < 3, f"the comment scan is slow on {adversarial[:6]}..."
+        problems = __import__("importlib").import_module("check-pr").problems
+        for inside in ("- " + "mutation " * 110_000, "```\n" + "1" * 1_000_000 + "\n```", "```\n" + "1 of " * 200_000 + "\n```",
+                       "```\n1 of 2 killed\n```\n" + "Survivor: " * 100_000, "```\n" + "1,000 " * 160_000 + "\n```"):
+            adversarial = "## Assurance\n\n- mutation\n" + inside + "\n"
+            began = time.time(); problems(adversarial, [], {}, ["mutation"])
+            assert time.time() - began < 3, f"the mutation rule is slow on {adversarial[:8]}..."
         leaked = pr(good.replace("200 a,b", "200 a,b\npassword=" + "hunter2hunter2"))
         assert "hunter2" not in leaked and re.search(r"line \d+ carries", leaked), leaked  # never echo the secret
         for safe in ("Authorization: Bearer <token>", "Authorization: Bearer " + "x" * 30, "Authorization: Bearer ***",
