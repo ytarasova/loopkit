@@ -71,7 +71,10 @@ elif a[:2] == ["pr", "list"]:
     print(json.dumps([{"number": int(k), "isCrossRepository": q.get("fork", False)}
                       for k, q in st["prs"].items() if q["state"] == "OPEN" and q[key] == branch]))
 elif a[:2] == ["pr", "edit"]:
-    st["prs"][a[2]]["base"] = a[a.index("--base") + 1]
+    base = a[a.index("--base") + 1]
+    if not tip(base):  # GitHub will not base a PR on a branch that is gone
+        sys.exit(f"GraphQL: Proposed base branch {base} was not found (updatePullRequest)")
+    st["prs"][a[2]]["base"] = base
 elif a[:2] == ["pr", "merge"]:
     p = st["prs"][a[2]]
     if p.get("blocked"):
@@ -233,37 +236,68 @@ def land_stack_test() -> None:
         resumed = go("5", "6", "7")
         assert resumed.returncode == 0 and "b5 deleted" in resumed.stdout and "merge main up into #6's branch" in resumed.stdout, resumed.stdout + resumed.stderr
         assert load()["prs"]["6"]["base"] == "main" and gone("b5")
-        # --method rebase: a merge-up would leave a merge commit GitHub cannot rebase, so it prints a rebase of the rest of
-        # the stack, and running exactly what it prints lands the whole stack with no merge commit on main.
-        commit("b50", "main", "f50.txt", "50\n"); commit("b51", "b50", "f51.txt", "51\n"); commit("b52", "b51", "f52.txt", "52\n")
-        st = load(); st["prs"].update({"50": add("main", "b50", "f50.txt"), "51": add("b50", "b51", "f51.txt"),
-                                       "52": add("b51", "b52", "f52.txt")}); save(st)
-        rebase = lambda: go("50", "51", "52", "--method", "rebase")
+        # --method rebase: a merge-up would leave a merge commit GitHub cannot rebase, so it prints one rebase line per
+        # branch; running exactly what it prints lands the stack with no merge commit on main and no commit lost.
         def run_printed(out):  # the agent runs the printed commands as they are
             for line in out.splitlines():
                 if line.startswith("  git "):
                     r = subprocess.run(line.strip(), shell=True, cwd=w, env=env, capture_output=True, text=True)
                     assert r.returncode == 0, (line, r.stderr)
+        holds = lambda lower, upper: not subprocess.run(["git", "merge-base", "--is-ancestor", lower, upper], cwd=bare).returncode
+        has = lambda branch, f: f in git("ls-tree", "--name-only", branch, cwd=bare).split()
+        commit("b50", "main", "f50.txt", "50\n"); commit("b51", "b50", "f51.txt", "51\n"); commit("b52", "b51", "f52.txt", "52\n")
+        commit("b51", "b51", "fix51.txt", "a fix made below, never merged up\n")
+        st = load(); st["prs"].update({"50": add("main", "b50", "f50.txt"), "51": add("b50", "b51", "f51.txt"),
+                                       "52": add("b51", "b52", "f52.txt")}); save(st)
+        rebase = lambda *a: go("50", "51", "52", "--method", "rebase", *a)
         first = rebase()
-        assert first.returncode == 0 and "git rebase --update-refs --onto origin/main" in first.stdout and "origin b51 b52" in first.stdout, first.stdout + first.stderr
-        merged_up = git("rev-parse", "b51", cwd=bare).strip()
-        git("fetch", "-q", "origin", cwd=w); git("switch", "-qC", "b51", "origin/b51", cwd=w)
-        git(*ident, "merge", "-q", "--no-edit", "origin/main", cwd=w); git("push", "-q", "origin", "b51", cwd=w); refresh("51")
-        stuck = rebase()  # what the old merge-up steps did
-        assert stuck.returncode and "can't be rebased" in stuck.stderr, stuck.stdout + stuck.stderr
-        git("push", "-q", "-f", "origin", f"{merged_up}:refs/heads/b51", cwd=w)  # undo it; the stale local b51 stays
+        assert first.returncode == 0 and "#50 landed (rebase)" in first.stdout and "--force-with-lease=refs/heads/b51:" in first.stdout \
+            and "--force-with-lease=refs/heads/b52:" in first.stdout and "--update-refs" not in first.stdout, first.stdout + first.stderr
+        git("fetch", "-q", "origin", cwd=w); git("switch", "-qC", "b51", "origin/b51", cwd=w); git(*ident, "commit", "-q", "--allow-empty", "-m", "local, unpushed", cwd=w)
+        local = git("rev-parse", "b51", cwd=w).strip()
+        early = rebase()  # the lines not run yet: the advice is a rebase, never a merge-up that would stop GitHub again
+        assert early.returncode and "rebase it onto origin/main" in early.stderr and "merge" not in early.stderr, early.stderr
         run_printed(first.stdout); refresh("51"); refresh("52")
+        assert git("rev-parse", "b51", cwd=w).strip() == local, "a printed step moved a local branch"
+        assert holds("main", "b51") and holds("b51", "b52") and has("b52", "fix51.txt"), "the fix made below is lost"
         second = rebase()
-        assert second.returncode == 0 and "b52\n" in second.stdout, second.stdout + second.stderr
+        assert second.returncode == 0 and "--force-with-lease=refs/heads/b52:" in second.stdout, second.stdout + second.stderr
+        late = head("b52"); commit("b52", "b52", "late52.txt", "a teammate's push\n")  # after the lines were printed
+        teammate = subprocess.run(second.stdout.splitlines()[-2].strip(), shell=True, cwd=w, env=env, capture_output=True, text=True)
+        assert teammate.returncode and "stale info" in teammate.stderr and has("b52", "late52.txt"), teammate.stderr
+        git("push", "-q", "-f", "origin", f"{late}:refs/heads/b52", cwd=w)
         run_printed(second.stdout); refresh("52")
         third = rebase()
         assert third.returncode == 0 and "stack landed" in third.stdout, third.stdout + third.stderr
         assert not git("rev-list", "--merges", "main", cwd=bare).strip()
-        commit("b60", "main", "f60.txt", "60\n"); commit("b61", "b60", "f61.txt", "61\n")  # rebase-merged earlier, by hand
-        st = load(); st["prs"].update({"60": add("main", "b60", "f60.txt"), "61": add("b60", "b61", "f61.txt")}); save(st)
-        subprocess.run([gh, "pr", "merge", "60", "--rebase"], env=env, check=True)
-        later = go("60", "61", "--method", "rebase")
-        assert later.returncode == 0 and "b60 deleted" in later.stdout and "rebase --update-refs" in later.stdout, later.stdout + later.stderr
+        assert all(has("main", f) for f in ("f50.txt", "f51.txt", "fix51.txt", "f52.txt"))
+        # Merged earlier by hand: #61 into b60 and then #60 onto main, and #63 into b62. Each open branch replays from its
+        # own base: b62 onto main (through two merged branches), b64 onto the rebuilt b62.
+        for n, base in (("60", "main"), ("61", "b60"), ("62", "b61"), ("63", "b62"), ("64", "b63")):
+            commit(f"b{n}", base, f"f{n}.txt", n + "\n")
+            st = load(); st["prs"][n] = add(base, f"b{n}", f"f{n}.txt"); save(st)
+        for n in ("61", "60", "63"):
+            subprocess.run([gh, "pr", "merge", n, "--rebase"], env=env, check=True)
+        later = go("60", "61", "62", "63", "64", "--method", "rebase")
+        assert later.returncode == 0 and "b60 deleted" in later.stdout and "b63 deleted" in later.stdout, later.stdout + later.stderr
+        run_printed(later.stdout); refresh("62"); refresh("64")
+        assert holds("main", "b62") and holds("b62", "b64") and has("b64", "f63.txt") and has("b62", "f61.txt"), later.stdout
+        assert git("rev-list", "--count", "main..b64", cwd=bare).strip() == "3", "b64 replays only f62, f63 and f64"
+        last = go("60", "61", "62", "63", "64", "--method", "rebase")
+        assert last.returncode == 0 and "#62 landed" in last.stdout, last.stdout + last.stderr
+        # #81 merged into b80, which is still open and holds main: b80 needs no line; b82 replays onto b80 from #81's head.
+        for n, base in (("80", "main"), ("81", "b80"), ("82", "b81")):
+            commit(f"b{n}", base, f"f{n}.txt", n + "\n")
+            st = load(); st["prs"][n] = add(base, f"b{n}", f"f{n}.txt"); save(st)
+        subprocess.run([gh, "pr", "merge", "81", "--rebase"], env=env, check=True)
+        mid = go("80", "81", "82", "--method", "rebase")
+        assert mid.returncode == 0 and "refs/heads/b80:" not in mid.stdout and "--onto origin/b80" in mid.stdout, mid.stdout + mid.stderr
+        run_printed(mid.stdout); refresh("82")
+        assert holds("b80", "b82") and git("rev-list", "--count", "b80..b82", cwd=bare).strip() == "1", mid.stdout
+        commit("b90", "main", "f90.txt", "90\n"); commit("b91", "b90", "f91.txt", "91\n"); commit("b90", "b90", "g90.txt", "fix\n")
+        st = load(); st["prs"].update({"90": add("main", "b90", "f90.txt"), "91": add("b90", "b91", "f91.txt")}); save(st)
+        below = go("90", "91", "--method", "rebase")
+        assert below.returncode and "rebase b91 onto b90 first" in below.stderr, below.stderr
         assert {"f50.txt", "f51.txt", "f52.txt"} <= set(git("ls-tree", "--name-only", "main", cwd=bare).split())
         # A PR merged mid-stack (into its own base, by hand): the one above goes onto that base, not main.
         commit("b30", "main", "t30.txt", "30\n"); commit("b31", "b30", "t31.txt", "31\n"); commit("b32", "b31", "t32.txt", "32\n")
