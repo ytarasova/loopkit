@@ -2,7 +2,7 @@
 
     python3 check-pr.py <PR number or URL | evidence file> [--master <master plan>]
 
-Fails (exit 1) unless the body has all four sections:
+Fails (exit 1) unless the body has these four sections, and a deliverable two more (below):
   ## Assurance  each check in the repo's `assurance` list (tests, coverage, mutation, lint, typecheck, violations,
                 security), naming the commit it ran on (on a PR, its head); mutation as "N of M killed" in
                 its fenced output, with a "Survivor: <mutant>, <why it stands>" line per mutant that lived,
@@ -24,6 +24,13 @@ Fails (exit 1) unless the body has all four sections:
                 review and the constitution cross-check, each with its result; a UI changeset also a "UX review:" line: each
                 use case walked as a first-time person from where they land, never a deep link (can they find
                 it, read it, tell what happened, recover from an error; does it match the screens around it)
+A deliverable (a PR, a body file, or a goal's evidence/goal.md; not a step's file inside a *-evidence/ directory) also:
+  ## Release notes  a paragraph in its users' words: what changed, for whom, what they now see or do (twelve
+                    words or more, no PR or issue numbers), or "No user-visible change." alone
+  ## User guide     the guide that walks its users through it, by repo path or https URL (not an image, a PR or
+                    an issue); on a PR, a guide named only by repo path is among its changed files;
+                    "not-applicable, <why>" only beside "No user-visible change."
+Section headings match in any case, with or without a trailing colon.
 Anything shaped like a credential fails, reported by line number only: AWS and Google keys, GitHub, GitLab,
 Anthropic, OpenAI, Stripe, npm and Slack tokens, private keys, JWTs, signed URLs, credentials in a URL or a
 curl -u, bearer and basic headers, and password=, token= or api_key= values that mix letters and digits: evidence is posted where others read it.
@@ -49,8 +56,9 @@ KILLED = re.compile(rf"{_N}\s*(?:/|of|out\s+of)\s*(?:the\s+)?{_N}\s+(?:mutants?\
                     rf"|\bkilled\s+{_N}\s*(?:/|of|out\s+of)\s*{_N}\b", re.I)
 # "Survivor: <mutant>, <why it stands>", one line per mutant that lived; "none" or a bare name is no reason
 SURVIVOR = re.compile(r"^[^\w\n]*(?:\d+[.)]\s*)?survivors?\b[^\w\n]*(?!(?:none|n/?a|0)\b)\w[^\n]*?[,;:]\s*\w", re.M | re.I)
-QUIET = re.compile(r"^[^\w\n]*no user-visible change\b", re.M | re.I)
+QUIET = re.compile(r"[\W_]*no user[- ]visible changes?[\W_]*", re.I)  # the whole section, nothing beside it
 GUIDE = re.compile(r"https://\S+|(?<![\w./-])[\w./-]{0,255}\w\.(?:md|mdx|rst|adoc|txt|html?|pdf)\b", re.I)  # bounded: linear
+PICTURE = re.compile(r"!\[[^\][\n]{0,512}\]\([^)\n]{0,2048}\)")  # an image is not a guide
 REVIEW = {"simplify": r"simplif\w*", "a self-review": r"self-review\w*", "a security review": r"security review\w*",
           "the constitution cross-check": r"constitution\w*"}
 # Shapes of credentials that evidence (a curl exchange, a CLI run, a screenshot's caption) must never carry.
@@ -135,7 +143,7 @@ def uncommented(text: str) -> str:
 
 def section(body: str, name: str) -> str:
     body = uncommented(body.replace("\r\n", "\n"))  # a body edited in the browser comes back with CRLF
-    m = re.search(rf"^## {name}[ \t]*\n(.*?)(?=^## |\Z)", masked(body), re.M | re.S)
+    m = re.search(rf"^## (?i:{name}):?[ \t]*\n(.*?)(?=^## |\Z)", masked(body), re.M | re.S)
     return body[m.start(1):m.end(1)].strip() if m else ""
 
 
@@ -176,26 +184,33 @@ def stale(body: str, head: str) -> list[str]:
     return []
 
 
-def notes_and_guide(body: str) -> list[str]:
+def notes_and_guide(body: str, files: list[str]) -> list[str]:
     """What a deliverable tells its users: the release notes, and the guide they follow."""
     out = []
     notes, guide = section(body, "Release notes"), section(body, "User guide")
-    quiet = QUIET.search(notes)
+    quiet = QUIET.fullmatch(notes)
     if not notes:
         out.append('no "## Release notes": what changed, for whom, and what they now see, in their words; '
                    'or "No user-visible change."')
-    elif not quiet and len(re.findall(r"[A-Za-z]{2,}", masked(notes))) < 12:
-        out.append("Release notes are too short to tell a user what changed: what, for whom, what they now see or do")
-    if re.search(r"(?<![\w&])#\d+\b|/pull/\d+", notes):
+    elif not quiet and len(re.findall(r"[^\W\d_]{2,}", masked(notes))) < 12:  # words in any script
+        out.append("Release notes are too short to tell a user what changed (what, for whom, what they now see or do); "
+                   'a change no user sees writes "No user-visible change." alone')
+    if re.search(r"(?<![\w&])#\d+\b|/(?:pull|issues)/\d+", SPAN.sub("", masked(notes))):
         out.append("Release notes cite a PR or issue number: say what changed in the reader's words; receipts stay in the PR")
+    named = [n for n in GUIDE.findall(PICTURE.sub("", masked(guide))) if not re.search(r"/(?:pull|issues)/\d", n)]  # nor a PR
+    paths = [n for n in named if not n.startswith("https://")]
     if not guide:
         out.append('no "## User guide": the guide that walks users through the change, by repo path or https URL, '
                    'or "not-applicable, <why>" for no user-visible change')
+    elif named:
+        if files and len(paths) == len(named) and not set(paths) & set(files):
+            out.append(f"User guide names {', '.join(paths[:3])}, which this PR does not change: update the guide in the same change")
     elif re.search(r"^[^\w\n]*not-applicable[^\w\n]+\w", guide, re.M | re.I):
         if notes and not quiet:
             out.append("User guide is not-applicable, but the Release notes describe a change: update the guide users follow")
-    elif not GUIDE.search(guide):
-        out.append('User guide names no guide: its repo path or https URL, and what this change added to it')
+    else:
+        out.append('User guide names no guide: its repo path or https URL and what this change added to it; or '
+                   '"not-applicable, <why>" beside "No user-visible change."')
     return out
 
 
@@ -270,7 +285,7 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
         if own and not re.search(r"\b(?:haiku|sonnet|opus|fable)\b", own.group(0), re.I):
             out.append('the Self-review line names no model: say which ran it, in a context that did not write the change ("Self-review, by a fresh opus context: ...")')
     if deliverable:
-        out += notes_and_guide(body)
+        out += notes_and_guide(body, files)
     unclosed = comments(body.replace("\r\n", "\n"))[1]
     if unclosed >= 0:
         out.append(f"an unclosed <!-- at line {body.count(chr(10), 0, unclosed) + 1} hides the rest of the body on GitHub: "
@@ -313,7 +328,8 @@ def main() -> None:
     else:
         sys.exit(f"no such file, and not a PR number or URL: {args[0]}")
     # A step's evidence file is a piece of a deliverable; a PR, a body file and the goal's whole are deliverables.
-    step = os.path.isfile(arg) and os.path.basename(os.path.dirname(arg)).endswith("-evidence") and not arg.endswith("/goal.md")
+    step = (os.path.isfile(arg) and os.path.basename(arg).lower() != "goal.md"
+            and any(d.endswith("-evidence") for d in os.path.dirname(arg).split(os.sep)))
     fails = (problems(body, files, cfg["surfaces"], cfg["assurance"], ucs, deliverable=not step)
              + (stale(body, head) if head else []))
     for f in fails:

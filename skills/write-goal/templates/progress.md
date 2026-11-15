@@ -35,7 +35,7 @@ time left, read again at every state change.
 
 A step is ticked only with its evidence file, `{{PLANS_DIR}}/{{DATE}}-{{SLUG}}-evidence/<plan>.<step>.md`, named on its line in
 parentheses and passing `check-pr.py`: `- [x] Plan 1 step 1: what ({{PLANS_DIR}}/{{DATE}}-{{SLUG}}-evidence/1.1.md)`. Once every
-box is ticked, `{{PLANS_DIR}}/{{DATE}}-{{SLUG}}-evidence/goal.md` proves every use case again on the final code.
+box is ticked, `{{PLANS_DIR}}/{{DATE}}-{{SLUG}}-evidence/goal.md` proves every use case again on the final code, with the goal's release notes and user guide.
 
 - [x] Baselines read (when: the Log)
 - [ ] Plan 1 step 1: {{FILL: what}}
