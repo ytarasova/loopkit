@@ -6,7 +6,10 @@ it is ported into that copy. Run these steps in order. A step starts only when t
 1. **Land it in loopkit first.**
    - Open a PR whose body passes `check-pr.py`.
    - `test_goal_kit.py` must be green.
-   - Mutation: disable each new rule in turn and show the suite fails each time.
+   - Mutation: disable each new rule in turn and show the suite fails each time. Run every suite with
+     `PYTHONDONTWRITEBYTECODE=1` and no `__pycache__` left from before, and restore each file in a `finally`: a mutant the
+     same size as the original, restored within the same second, otherwise keeps its cached bytecode, so the next run
+     tests the mutant and a "killed" can be false. End with the unmutated suite passing.
    - A review by a fresh context, with its findings fixed or answered.
    - Then merge. Every port reads one commit on loopkit `main`, never a branch that is still moving.
 2. **List the adopters and how each lands a change.**
