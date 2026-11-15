@@ -27,7 +27,7 @@ Anthropic, OpenAI, Stripe, npm and Slack tokens, private keys, JWTs, signed URLs
 curl -u, bearer and basic headers, and password=, token= or api_key= values that mix letters and digits: evidence is posted where others read it.
 An image that is not an https URL fails: a local or relative path renders for nobody. "## " and "### " lines
 inside fenced blocks are output, not sections, and HTML comments outside them are not read (GitHub does not
-render them), except by the credential scan. A PR reads its body and changed files with `gh`.
+render them), except by the credential scan; an unclosed one fails. A PR reads its body and changed files with `gh`.
 Settings: .claude/loopkit.json (see the write-goal skill).
 """
 
@@ -102,29 +102,26 @@ def masked(text: str) -> str:
     return FENCE.sub(lambda m: re.sub(r"[^\n]", " ", m.group()), text)
 
 
-def uncommented(text: str) -> str:
+def comments(text: str) -> tuple[str, int]:
     """The text with HTML comments blanked, offsets kept, as GitHub hides them: nothing inside one is evidence. A comment
-    inside a fenced block or an inline code span is output. An unclosed one hides the rest of the body only where it
-    starts a line (indented at most 3 spaces); anywhere else GitHub shows it as text."""
-    plain = masked(text)
-    shown = SPAN.sub(lambda m: " " * len(m.group()), plain)
-    out, i, at, closes = [], 0, 0, True
-    while (start := shown.find("<!--", at)) != -1:
-        at = start + 4
-        end = shown.find("-->", start + 2) if closes else -1
+    inside a fenced block or an inline code span is output. An unclosed one hides the rest of the body (GitHub does so
+    after a line start, a list marker, a quote or an HTML line; failing closed covers them all), and its offset is
+    returned, or -1."""
+    shown = SPAN.sub(lambda m: " " * len(m.group()), masked(text))
+    out, i, unclosed = [], 0, -1
+    while (start := shown.find("<!--", i)) != -1:
+        end = shown.find("-->", start + 2)
         if end < 0:
-            closes = False  # no "-->" after this one, so none after a later one: the scan stays linear
-            k = start
-            while k > 0 and start - k < 4 and plain[k - 1] == " ":  # inline code before it is text, not indent
-                k -= 1
-            if (k and plain[k - 1] != "\n") or start - k > 3:
-                continue
-            end = len(text)
+            unclosed, end = start, len(text)
         else:
             end += 3
         out += [text[i:start], re.sub(r"[^\n]", " ", text[start:end])]
-        i = at = end
-    return "".join(out) + text[i:]
+        i = end
+    return "".join(out) + text[i:], unclosed
+
+
+def uncommented(text: str) -> str:
+    return comments(text)[0]
 
 
 def section(body: str, name: str) -> str:
@@ -226,6 +223,10 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
         own = re.search(r"^[^\w\n]*self-review\w*\b[^\n]*", review, re.M | re.I)
         if own and not re.search(r"\b(?:haiku|sonnet|opus|fable)\b", own.group(0), re.I):
             out.append('the Self-review line names no model: say which ran it, in a context that did not write the change ("Self-review, by a fresh opus context: ...")')
+    unclosed = comments(body.replace("\r\n", "\n"))[1]
+    if unclosed >= 0:
+        out.append(f"an unclosed <!-- at line {body.count(chr(10), 0, unclosed) + 1} hides the rest of the body on GitHub: "
+                   "close it with -->, or put it in `code`")
     out += [f"line {body.count(chr(10), 0, m.start()) + 1} carries what looks like a credential: blank it before it is posted"
             for m in SECRET.finditer(body)][:3]
     return out
