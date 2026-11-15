@@ -57,6 +57,11 @@ carries a threshold and a window to watch after the deploy, a PR's assurance
 must have run on its head, and every owner correction ends as a kit change
 shipped off main.
 
+Upgrading from 0.8: `mutation` joins the default `assurance` list. Every
+changeset with logic shows "N of M killed" for its new rules or branches, with a
+`Survivor:` line per mutant that lived; a change with none writes
+`mutation: not-applicable, <why>`. A repo with its own list adds `mutation`.
+
 Upgrading from 0.7: optionally, with the owner's yes, copy
 `.github/workflows/check-pr.yml` (set its `KIT` line) and
 `.github/pull_request_template.md` into the repo (adopt, step 8).
