@@ -21,3 +21,13 @@ Or not-applicable, and why. -->
 
 <!-- One line each, with its result: Simplify; Self-review, by <model> in a fresh context; Security review; Constitution;
 and for UI, UX review (each use case walked as a first-time person from where they land). -->
+
+## Release notes
+
+<!-- One paragraph in its users' words: what changed, for whom, what they now see or do. No PR numbers. Or "No
+user-visible change." -->
+
+## User guide
+
+<!-- The guide that walks users through it, by repo path or https URL, and what this change added to it. Or
+not-applicable, and why, beside "No user-visible change." -->

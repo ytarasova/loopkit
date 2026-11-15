@@ -148,7 +148,8 @@ def land_stack_test() -> None:
         body = lambda sha: (
             f"## Assurance\n\n- tests\n```\n$ make tests on {sha}\n1 passed\n```\n\n## Evidence\n\n### UC1 A user does x\n\n```\n$ x\nok\n```\n\n"
             "## Signal\n\nnot-applicable: a test fixture with no runtime\n\n## Review\n\n- Simplify: none\n- Self-review, by a fresh opus context: clean\n"
-            "- Security review: clean\n- Constitution: clean\n")
+            "- Security review: clean\n- Constitution: clean\n\n## Release notes\n\nNo user-visible change.\n\n## User guide\n\n"
+            "not-applicable, a test fixture\n")
         head = lambda b: git("rev-parse", b, cwd=bare).strip()
         state_file = os.path.join(tmp, "state.json")
         save = lambda st: json.dump(st, open(state_file, "w"))
@@ -485,8 +486,37 @@ def main() -> None:
             "## Evidence\n\n### UC1 An admin exports a report and gets a CSV\n\n```\n$ curl -s /export\n200 a,b\n```\n\n"
             "## Signal\n\n- Success: exports.ok above 99% for 1 h\n- Failure: exports.error above 1% in 10 min\n\n"
             "## Review\n\n- Simplify: 2 lines removed\n- Self-review, by a fresh opus context: clean\n- Security review: no input, auth or data exposure change; clean\n- Constitution: cross-checked, clean\n"
+            "\n## Release notes\n\nAdmins can export any report as a CSV from the Reports page and open it in a spreadsheet.\n"
+            "\n## User guide\n\n`docs/guide/reports.md`, new section \"Export a report\".\n"
         )
         assert pr(good).strip() == "ok", pr(good)
+        # A deliverable tells its users what changed and where the guide is; a step's evidence file is a piece of one.
+        notes = "Admins can export any report as a CSV from the Reports page and open it in a spreadsheet."
+        guide = '`docs/guide/reports.md`, new section "Export a report".'
+        quiet, na = "No user-visible change.", "not-applicable, an internal refactor"
+        assert 'no "## Release notes"' in pr(good.replace("## Release notes", "## Notes"))
+        assert 'no "## User guide"' in pr(good.replace("## User guide", "## Guide"))
+        assert "too short" in pr(good.replace(notes, "Exports work."))
+        assert "too short" in pr(good.replace(notes, "```\n" + notes + "\n```"))  # output is not the users' words
+        for cite in ("Fixed in #42, " + notes, notes + " See https://github.com/o/r/pull/42 for more."):
+            assert "PR or issue number" in pr(good.replace(notes, cite)), cite
+        assert "PR or issue number" not in pr(good.replace(notes, notes + " Its columns match the page&#39;s, in C#2 too."))
+        assert "describe a change" not in pr(good.replace("## Release notes", "## Notes").replace(guide, na))  # one failure
+        assert "describe a change" in pr(good.replace(notes, notes + " Imports show no user-visible change.").replace(guide, na))
+        assert pr(good.replace(notes, quiet).replace(guide, na)).strip() == "ok"
+        assert pr(good.replace(notes, quiet)).strip() == "ok"  # a guide named anyway is fine
+        assert "describe a change" in pr(good.replace(guide, na))
+        assert "names no guide" in pr(good.replace(guide, "Updated the guide."))
+        assert "names no guide" in pr(good.replace(notes, quiet).replace(guide, "not-applicable"))  # a reason is required
+        for named in ("[Reports](https://docs.example.com/reports#export)", "README.md, the Export section", "docs/guide.mdx"):
+            assert pr(good.replace(guide, named)).strip() == "ok", named
+        os.makedirs(f"{repo}/docs/x-evidence", exist_ok=True)
+        piece = good.split("\n## Release notes")[0]
+        for name, want in (("1.1.md", "ok"), ("fix-a.md", "ok"), ("goal.md", 'no "## Release notes"')):
+            with open(f"{repo}/docs/x-evidence/{name}", "w") as f:
+                f.write(piece)
+            assert want in run("check-pr.py", f"docs/x-evidence/{name}", cwd=repo).stdout, name
+        assert 'no "## Release notes"' in pr(piece)  # a body file is a PR's body
         for name, cut in (("Assurance", "## Assurance"), ("Evidence", "## Evidence"), ("Signal", "## Signal"), ("Review", "## Review")):
             assert f'no "## {name}"' in pr(good.replace(cut, "## Other")), name
         assert "does not show lint" in pr(good.replace("make lint\n0 errors", "x"))
@@ -548,7 +578,7 @@ def main() -> None:
         if os.path.exists(f"{top}/.github/pull_request_template.md"):  # the repo's own template, wherever its kit lives
             with open(f"{top}/.github/pull_request_template.md") as f:
                 template = pr(f.read())
-            for name in ("Assurance", "Evidence", "Signal", "Review"):
+            for name in ("Assurance", "Evidence", "Signal", "Review", "Release notes", "User guide"):
                 assert name in template, template  # the unfilled template fails every section
         assert "line for simplify" in pr(good.replace("- Simplify: 2 lines removed\n", ""))
         assert "line for simplify" in pr(good.replace("- Simplify: 2 lines removed", "- Simplify"))
@@ -617,6 +647,10 @@ def main() -> None:
             adversarial = "## Assurance\n\n- mutation\n" + inside + "\n"
             began = time.time(); problems(adversarial, [], {}, ["mutation"])
             assert time.time() - began < 3, f"the mutation rule is slow on {adversarial[:8]}..."
+        for inside in ("a" * 1_000_000, "a." * 500_000, "#1" * 500_000, "no user-visible change " * 43_000):
+            adversarial = f"## Release notes\n\n{inside}\n\n## User guide\n\n{inside}\n"
+            began = time.time(); problems(adversarial, [], {}, [], deliverable=True)
+            assert time.time() - began < 3, f"the release notes rule is slow on {inside[:6]}..."
         leaked = pr(good.replace("200 a,b", "200 a,b\npassword=" + "hunter2hunter2"))
         assert "hunter2" not in leaked and re.search(r"line \d+ carries", leaked), leaked  # never echo the secret
         for safe in ("Authorization: Bearer <token>", "Authorization: Bearer " + "x" * 30, "Authorization: Bearer ***",
@@ -657,7 +691,7 @@ def main() -> None:
         flow = good.replace("```\n$ curl", shot1.replace("\n\n```", "\n![done](https://x.y/2.png)\n\n```"))
         assert any("needs the flow" in x for x in problems(good.replace("```\n$ curl", shot1), [], {}, ["tests"], {"UC1": "ui"}))
         assert ["a UI" in x for x in problems(flow, [], {}, ["tests"], {"UC1": "ui"})] == [True], problems(flow, [], {}, ["tests"], {"UC1": "ui"})
-        assert problems(flow + "- UX review, walked from the home page: clean\n", [], {}, ["tests"], {"UC1": "ui"}) == []
+        assert problems(flow.replace("\n\n## Release notes", "\n- UX review, walked from the home page: clean\n\n## Release notes"), [], {}, ["tests"], {"UC1": "ui"}) == []
         assert any("UX review" in x for x in problems(flow, ["web/a.tsx"], kinds, ["tests"]))
         assert problems(good, [], {}, ["tests"], {"UC1": "service"}) == []
         assert any("UC1 (cli)" in x for x in problems(good.replace("$ curl", "curl"), [], {}, ["tests"], {"UC1": "cli"}))
@@ -673,10 +707,10 @@ def main() -> None:
         ticked = p.replace("- [ ] Plan 1 step 1: filled", "- [X] Plan 1 step 1: filled (docs/plans/2026-01-01-t-evidence/1.1.md)")
         assert "evidence file does not exist" in check(progress=ticked)
         with open(f"{ev}/1.1.md", "w") as f:
-            f.write(good.replace("## Review", "## Other"))
+            f.write(good.split("\n## Release notes")[0].replace("## Review", "## Other"))
         assert '1.1.md: no "## Review"' in check(progress=ticked)
         with open(f"{ev}/1.1.md", "w") as f:
-            f.write(good)
+            f.write(good.split("\n## Release notes")[0])  # a step's evidence needs no release notes
         assert check(progress=ticked).strip().endswith("ok"), check(progress=ticked)
         assert "does not name its evidence file" in check(progress=p.replace("- [ ] Plan 1 step 1", "- [x] Plan 1 step 1"))
         assert "does not name its evidence file" in check(progress=ticked.replace("evidence/1.1.md", "evidence/2.1.md"))
@@ -728,6 +762,9 @@ def main() -> None:
         with open(f"{ev}/goal.md", "w") as f:
             f.write(good.replace("## Signal", "## Other"))
         assert 'goal.md: no "## Signal"' in check(progress=done)
+        with open(f"{ev}/goal.md", "w") as f:
+            f.write(good.split("\n## Release notes")[0])
+        assert 'goal.md: no "## Release notes"' in check(progress=done)  # the goal's whole is a deliverable
         assert '"## Use cases"' in check(master=m.replace("## Use cases", "## Cases"))
         # A kit fix made on a feature branch is caught, so it ships off main instead.
         git = lambda *a: subprocess.run(["git", *a], cwd=repo, capture_output=True, text=True)

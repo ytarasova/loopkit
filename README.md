@@ -57,6 +57,14 @@ carries a threshold and a window to watch after the deploy, a PR's assurance
 must have run on its head, and every owner correction ends as a kit change
 shipped off main.
 
+Upgrading from 0.9: every deliverable (a PR, a body file, a goal's
+`evidence/goal.md`) carries `## Release notes`, a paragraph in its users'
+words or "No user-visible change.", and `## User guide`, the guide it
+updated, by repo path or https URL. A step's evidence file needs neither, so
+an open goal's ticked steps still pass; its open PRs and its `goal.md` add the
+two sections. Adopters add constitution §II.9 and the two sections to their
+PR template.
+
 Upgrading from 0.8: `mutation` joins the default `assurance` list. Every
 changeset with logic shows "N of M killed" in its fenced output, with a
 `Survivor: <mutant>, <why>` line per mutant that lived; a change with none

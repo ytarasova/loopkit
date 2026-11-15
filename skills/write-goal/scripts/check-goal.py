@@ -27,8 +27,8 @@ Fails (exit 1) on what would break or mislead the run; warns on what a person sh
   evidence    every ticked step is "Plan N step M" and names its own evidence file,
               "(<plans_dir>/<date>-<slug>-evidence/<N>.<M>.md)", which exists, passes check-pr.py with each
               use case proven for its surface, and has a "### UC<n>" for each use case its step proves;
-              once every step is ticked, "<date>-<slug>-evidence/goal.md" passes check-pr.py and has a
-              "### UC<n>" for every use case in the master plan
+              once every step is ticked, "<date>-<slug>-evidence/goal.md" passes check-pr.py as a deliverable
+              (release notes and the user guide too) and has a "### UC<n>" for every use case in the master plan
   progress    "## Owner corrections": every correction the owner gave, each row ending with the kit change that
               encodes it (a commit, a PR or a ticket)
   repo        .superpowers/ is git-ignored when it exists; on a branch other than main, no kit file
@@ -300,13 +300,13 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
         if evidence:
             ucs = check_pr.master_surfaces(master)
 
-            def proven(path: str) -> str:
+            def proven(path: str, deliverable: bool = False) -> str:
                 """The evidence file's text, after recording each way it falls short."""
                 if not os.path.isfile(path):
                     return ""
                 with open(path) as f:
                     body = f.read()
-                fails.extend(f"{path}: {p}" for p in check_pr.problems(body, [], cfg["surfaces"], cfg["assurance"], ucs))
+                fails.extend(f"{path}: {p}" for p in check_pr.problems(body, [], cfg["surfaces"], cfg["assurance"], ucs, deliverable))
                 return body
 
             ticked = re.findall(r"^- \[[xX]\] ([^\n]*)", steps, re.M)
@@ -333,7 +333,7 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
                 if not os.path.isfile(whole):
                     fails.append(f"every step is ticked but the whole has no evidence: {whole} (every use case, on the final code)")
                 else:
-                    shown = check_pr.use_cases(check_pr.section(proven(whole), "Evidence"))
+                    shown = check_pr.use_cases(check_pr.section(proven(whole, deliverable=True), "Evidence"))
                     fails.extend(f"{whole} does not prove {uc}" for uc in cases if uc not in shown)
         if not re.search(r"^- \S", psecs.get("Log", ""), re.M):
             fails.append('progress file has no "## Log" line')
