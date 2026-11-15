@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.11.1
+
+- Rollout: a port lands with the repo's own `land-stack.py`, which judges the PR with the repo's checker and
+  settings; loopkit's copy judges a repo with no `.claude/loopkit.json` by loopkit's defaults.
+
 ## 0.11
 
 The loop runs end to end on its own, with evidence kept as it is made.

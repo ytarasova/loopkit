@@ -40,7 +40,9 @@ it is ported into that copy. Run these steps in order. A step starts only when t
      only in the `KIT` line, and it ran green on the port's own PR.
    - Read its mutation list and its character counts.
    - Check for files clobbered by another port.
-7. **Land each port by its repo's rule:** merge the PR, push to main, or fast-forward local main.
+7. **Land each port by its repo's rule:** merge the PR, push to main, or fast-forward local main. Where that is
+   `land-stack.py`, run the repo's own copy: it judges the PR with the repo's checker and settings, and loopkit's copy
+   would judge a repo with no `.claude/loopkit.json` by loopkit's defaults.
 8. **Leave live runs on their kit.** A goal already running finishes on the kit it started with: its goal text,
    its copy of the skill and its evidence rules do not change under it. Migrating a run mid-flight makes it redo
    finished work. Tell its orchestrator only the new commit range and one line on what changed, for its next goal.
