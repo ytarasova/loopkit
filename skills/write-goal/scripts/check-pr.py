@@ -49,6 +49,8 @@ KILLED = re.compile(rf"{_N}\s*(?:/|of|out\s+of)\s*(?:the\s+)?{_N}\s+(?:mutants?\
                     rf"|\bkilled\s+{_N}\s*(?:/|of|out\s+of)\s*{_N}\b", re.I)
 # "Survivor: <mutant>, <why it stands>", one line per mutant that lived; "none" or a bare name is no reason
 SURVIVOR = re.compile(r"^[^\w\n]*(?:\d+[.)]\s*)?survivors?\b[^\w\n]*(?!(?:none|n/?a|0)\b)\w[^\n]*?[,;:]\s*\w", re.M | re.I)
+QUIET = re.compile(r"^[^\w\n]*no user-visible change\b", re.M | re.I)
+GUIDE = re.compile(r"https://\S+|(?<![\w./-])[\w./-]{0,255}\w\.(?:md|mdx|rst|adoc|txt|html?|pdf)\b", re.I)  # bounded: linear
 REVIEW = {"simplify": r"simplif\w*", "a self-review": r"self-review\w*", "a security review": r"security review\w*",
           "the constitution cross-check": r"constitution\w*"}
 # Shapes of credentials that evidence (a curl exchange, a CLI run, a screenshot's caption) must never carry.
@@ -174,8 +176,31 @@ def stale(body: str, head: str) -> list[str]:
     return []
 
 
+def notes_and_guide(body: str) -> list[str]:
+    """What a deliverable tells its users: the release notes, and the guide they follow."""
+    out = []
+    notes, guide = section(body, "Release notes"), section(body, "User guide")
+    quiet = QUIET.search(notes)
+    if not notes:
+        out.append('no "## Release notes": what changed, for whom, and what they now see, in their words; '
+                   'or "No user-visible change."')
+    elif not quiet and len(re.findall(r"[A-Za-z]{2,}", masked(notes))) < 12:
+        out.append("Release notes are too short to tell a user what changed: what, for whom, what they now see or do")
+    if re.search(r"(?<![\w&])#\d+\b|/pull/\d+", notes):
+        out.append("Release notes cite a PR or issue number: say what changed in the reader's words; receipts stay in the PR")
+    if not guide:
+        out.append('no "## User guide": the guide that walks users through the change, by repo path or https URL, '
+                   'or "not-applicable, <why>" for no user-visible change')
+    elif re.search(r"^[^\w\n]*not-applicable[^\w\n]+\w", guide, re.M | re.I):
+        if notes and not quiet:
+            out.append("User guide is not-applicable, but the Release notes describe a change: update the guide users follow")
+    elif not GUIDE.search(guide):
+        out.append('User guide names no guide: its repo path or https URL, and what this change added to it')
+    return out
+
+
 def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks: list[str],
-             ucs: dict[str, str] | None = None) -> list[str]:
+             ucs: dict[str, str] | None = None, deliverable: bool = False) -> list[str]:
     out = []
     assurance, evidence, signal, review = (section(body, s) for s in ("Assurance", "Evidence", "Signal", "Review"))
 
@@ -244,6 +269,8 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
         own = re.search(r"^[^\w\n]*self-review\w*\b[^\n]*", review, re.M | re.I)
         if own and not re.search(r"\b(?:haiku|sonnet|opus|fable)\b", own.group(0), re.I):
             out.append('the Self-review line names no model: say which ran it, in a context that did not write the change ("Self-review, by a fresh opus context: ...")')
+    if deliverable:
+        out += notes_and_guide(body)
     unclosed = comments(body.replace("\r\n", "\n"))[1]
     if unclosed >= 0:
         out.append(f"an unclosed <!-- at line {body.count(chr(10), 0, unclosed) + 1} hides the rest of the body on GitHub: "
@@ -285,7 +312,10 @@ def main() -> None:
             print("warning: gh lists at most 100 changed files; the surface check may miss some")
     else:
         sys.exit(f"no such file, and not a PR number or URL: {args[0]}")
-    fails = problems(body, files, cfg["surfaces"], cfg["assurance"], ucs) + (stale(body, head) if head else [])
+    # A step's evidence file is a piece of a deliverable; a PR, a body file and the goal's whole are deliverables.
+    step = os.path.isfile(arg) and os.path.basename(os.path.dirname(arg)).endswith("-evidence") and not arg.endswith("/goal.md")
+    fails = (problems(body, files, cfg["surfaces"], cfg["assurance"], ucs, deliverable=not step)
+             + (stale(body, head) if head else []))
     for f in fails:
         print(f"FAIL {f}")
     print("ok" if not fails else f"{len(fails)} failure(s)")

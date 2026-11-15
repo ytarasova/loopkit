@@ -104,9 +104,10 @@ two steps, and never takes a subagent's word for a step it can rerun.
 
 At a plan's end, the same shape over the plan: the assurance on the plan
 branch with its base merged in, a whole-branch review by a fresh context,
-the PR opened with its plan's evidence, `check-pr.py <PR>` ok. At the goal's
-end, the whole: `evidence/goal.md` on the top of the stack after the last
-code commit, every use case again, then `check-goal.py <slug>` ok.
+the PR opened with its plan's evidence, its release notes and its user guide,
+`check-pr.py <PR>` ok. At the goal's end, the whole: `evidence/goal.md` on the
+top of the stack after the last code commit, every use case again, the goal's
+release notes and the guide, then `check-goal.py <slug>` ok.
 
 **What every subagent prompt carries**, because a subagent knows only its
 prompt: the step numbers it owns and the sequence above; the task and the use
@@ -146,6 +147,30 @@ check that `land-stack.py` will not land:
 - `## Review`: a line each, `Simplify: <result>`, `Self-review, by <model> in
   a fresh context: <result>`, `Security review: <result>`, `Constitution:
   <result>`; the self-review by a context that did not write the change.
+
+**Release notes and the user guide, on every deliverable** (constitution
+§II.9). A deliverable is what a person receives: each PR, and the goal's whole
+in `evidence/goal.md`; a step's evidence file is a piece of one and needs
+neither. Two more sections, which `check-pr.py` checks on a PR, a body file
+and `goal.md`:
+
+- `## Release notes`: one paragraph in its users' words: what changed, for
+  whom, and what they now see or do. Benefit first, present tense, no PR or
+  issue numbers (receipts stay in the PR). A change no user sees writes
+  `No user-visible change.`
+- `## User guide`: the guide that walks those users through the change, by
+  repo path or https URL, and what this change added to it. The guide is a
+  how-to: for each use case, what the person does and what they get, from
+  where they start; it is updated in the same change, so it never trails the
+  code. `not-applicable, <why>` only beside `No user-visible change.`
+
+Where the repo has its own release-notes or user-guide skill, write them with
+it.
+
+At the goal's end, `goal.md`'s release notes cover the whole goal, and its
+guide walks every use case. The reviewer reads both as a first-time user: do
+the notes say what changed for them, and do the guide's steps work on the
+final code.
 
 **Mutation, on every changeset with logic.** Coverage shows a line ran, not
 that a test checks it. Disable each rule or branch the changeset adds, one at a
