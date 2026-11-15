@@ -84,7 +84,16 @@ elif a[:2] == ["pr", "merge"]:
     head = tip(p["head"])[0]
     if "--match-head-commit" in a and a[a.index("--match-head-commit") + 1] != head:
         sys.exit("X Head branch was modified. Review and try the merge again.")
-    if not p.get("queue"):
+    if not p.get("queue") and "--rebase" in a:  # as GitHub does: replay the PR's commits onto its base, or refuse
+        git("fetch", "-q", "origin"); git("switch", "-q", "-C", "replay", "origin/" + p["head"])
+        github = {**os.environ, "GIT_COMMITTER_NAME": "GitHub", "GIT_COMMITTER_EMAIL": "noreply@github.com"}  # new commits, always
+        if subprocess.run(["git", "rebase", "-q", "--force-rebase", "--no-rebase-merges", "origin/" + p["base"]],
+                          cwd=st["clone"], env=github, capture_output=True).returncode or git("rev-list", "--merges", "origin/" + p["base"] + "..origin/" + p["head"]):
+            subprocess.run(["git", "rebase", "--abort"], cwd=st["clone"], capture_output=True)
+            sys.exit("GraphQL: This branch can't be rebased (mergePullRequest)")
+        git("push", "-q", "origin", "replay:" + p["base"])
+        p["state"], p["merged_oid"] = "MERGED", head
+    elif not p.get("queue"):
         git("fetch", "-q", "origin"); git("switch", "-q", "-C", p["base"], "origin/" + p["base"])  # into its own base, as GitHub does
         git("merge", "-q", "--squash", "origin/" + p["head"])
         git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "squash " + a[2]); git("push", "-q", "origin", p["base"])
@@ -224,6 +233,38 @@ def land_stack_test() -> None:
         resumed = go("5", "6", "7")
         assert resumed.returncode == 0 and "b5 deleted" in resumed.stdout and "merge main up into #6's branch" in resumed.stdout, resumed.stdout + resumed.stderr
         assert load()["prs"]["6"]["base"] == "main" and gone("b5")
+        # --method rebase: a merge-up would leave a merge commit GitHub cannot rebase, so it prints a rebase of the rest of
+        # the stack, and running exactly what it prints lands the whole stack with no merge commit on main.
+        commit("b50", "main", "f50.txt", "50\n"); commit("b51", "b50", "f51.txt", "51\n"); commit("b52", "b51", "f52.txt", "52\n")
+        st = load(); st["prs"].update({"50": add("main", "b50", "f50.txt"), "51": add("b50", "b51", "f51.txt"),
+                                       "52": add("b51", "b52", "f52.txt")}); save(st)
+        rebase = lambda: go("50", "51", "52", "--method", "rebase")
+        def run_printed(out):  # the agent runs the printed commands as they are
+            for line in out.splitlines():
+                if line.startswith("  git "):
+                    r = subprocess.run(line.strip(), shell=True, cwd=w, env=env, capture_output=True, text=True)
+                    assert r.returncode == 0, (line, r.stderr)
+        first = rebase()
+        assert first.returncode == 0 and "git rebase --update-refs --onto origin/main" in first.stdout and "origin b51 b52" in first.stdout, first.stdout + first.stderr
+        merged_up = git("rev-parse", "b51", cwd=bare).strip()
+        git("fetch", "-q", "origin", cwd=w); git("switch", "-qC", "b51", "origin/b51", cwd=w)
+        git(*ident, "merge", "-q", "--no-edit", "origin/main", cwd=w); git("push", "-q", "origin", "b51", cwd=w); refresh("51")
+        stuck = rebase()  # what the old merge-up steps did
+        assert stuck.returncode and "can't be rebased" in stuck.stderr, stuck.stdout + stuck.stderr
+        git("push", "-q", "-f", "origin", f"{merged_up}:refs/heads/b51", cwd=w)  # undo it; the stale local b51 stays
+        run_printed(first.stdout); refresh("51"); refresh("52")
+        second = rebase()
+        assert second.returncode == 0 and "b52\n" in second.stdout, second.stdout + second.stderr
+        run_printed(second.stdout); refresh("52")
+        third = rebase()
+        assert third.returncode == 0 and "stack landed" in third.stdout, third.stdout + third.stderr
+        assert not git("rev-list", "--merges", "main", cwd=bare).strip()
+        commit("b60", "main", "f60.txt", "60\n"); commit("b61", "b60", "f61.txt", "61\n")  # rebase-merged earlier, by hand
+        st = load(); st["prs"].update({"60": add("main", "b60", "f60.txt"), "61": add("b60", "b61", "f61.txt")}); save(st)
+        subprocess.run([gh, "pr", "merge", "60", "--rebase"], env=env, check=True)
+        later = go("60", "61", "--method", "rebase")
+        assert later.returncode == 0 and "b60 deleted" in later.stdout and "rebase --update-refs" in later.stdout, later.stdout + later.stderr
+        assert {"f50.txt", "f51.txt", "f52.txt"} <= set(git("ls-tree", "--name-only", "main", cwd=bare).split())
         # A PR merged mid-stack (into its own base, by hand): the one above goes onto that base, not main.
         commit("b30", "main", "t30.txt", "30\n"); commit("b31", "b30", "t31.txt", "31\n"); commit("b32", "b31", "t32.txt", "32\n")
         st = load(); st["prs"].update({"30": add("main", "b30", "t30.txt"), "31": add("b30", "b31", "t31.txt"),

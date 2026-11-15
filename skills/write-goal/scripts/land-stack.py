@@ -5,6 +5,8 @@
 PRs are given bottom first, each based on the one before. Without --run it prints what it would do. With --run it lands
 the lowest open PR and stops; it never merges main up into the next branch, because a conflict there needs judgment:
 it prints the commands, and the agent runs them, re-runs that PR's assurance on its new head, then runs this again.
+With --method rebase it prints a rebase of the rest of the stack instead (--update-refs, pushed with a lease): GitHub
+cannot rebase-merge a branch that holds a merge commit, and main holds only copies of the commits that landed.
 
 A PR of the stack that merged earlier (by this tool, a merge queue or by hand) is finished first, and the run stops
 there: the PR above it is retargeted onto the merged PR's own base, then its branch is deleted, only while its tip is
@@ -60,8 +62,19 @@ def same_repo() -> None:
         sys.exit(f"stopped: gh talks to {gh_repo} but git's origin is {shown}: point them at the same repository")
 
 
-def merge_up_steps(nxt: dict) -> str:
-    b, n = nxt["headRefName"], nxt["number"]
+def merge_up_steps(above: list[dict], method: str, landed: str) -> str:
+    """What the agent runs before the next PR can land. `above` is the open stack over the PR that landed, bottom first."""
+    nxt, n = above[0], above[0]["number"]
+    if method == "rebase":  # a merge commit stops GitHub's rebase merge, and main holds copies of the landed commits
+        names = [p["headRefName"] for p in above]
+        lower = "".join(f" && git branch -f {b} origin/{b}" for b in names[:-1])
+        return (f"rebase #{n}'s branch, and every branch above it, onto main without the landed commits; the branches are "
+                f"rebuilt from origin, so push anything local first; resolve any conflict by hand, push each with a lease:\n"
+                f"  git fetch origin && git switch -C {names[-1]} origin/{names[-1]}{lower}\n"
+                f"  git rebase --update-refs --onto origin/main {landed}\n"
+                f"  git push --force-with-lease origin {' '.join(names)}\n"
+                f"then re-run #{n}'s assurance on the new head, update its PR body, and run this again")
+    b = nxt["headRefName"]
     return (f"merge main up into #{n}'s branch, resolve any conflict by hand, push plainly:\n"
             f"  git fetch origin && git switch {b} && git merge origin/main && git push origin {b}\n"
             f"then re-run #{n}'s assurance on the new head, update its PR body, and run this again")
@@ -158,7 +171,8 @@ def main() -> None:
             sys.exit(f"stopped: cannot read origin's branches:\n{r.stderr.strip()}")
         return r.returncode == 0
     leftover = [states[n] for n in args if states[n]["state"] == "MERGED" and present(states[n]["headRefName"])]
-    above = lambda d: next((states[m] for m in args[args.index(str(d["number"])) + 1:] if states[m]["state"] == "OPEN"), None)
+    open_above = lambda d: [states[m] for m in args[args.index(str(d["number"])) + 1:] if states[m]["state"] == "OPEN"]
+    above = lambda d: next(iter(open_above(d)), None)
     if not go:
         for d in leftover:
             print(f"- finish #{d['number']}, merged earlier: retarget the PR above it, delete {d['headRefName']} if unmoved and unused")
@@ -170,7 +184,7 @@ def main() -> None:
                   f"check-pr ok, nothing else stacked on it{holds}")
             print(f"- merge #{first['number']} (--{method}, matching its head), confirm MERGED, retarget the next PR, delete its branch")
             if nxt:
-                print(f"- then {merge_up_steps(nxt)}")
+                print(f"- then {merge_up_steps(open_above(first), method, first['headRefOid'])}")
         print("plan only; add --run to do it")
         return
     same_repo()
@@ -181,7 +195,8 @@ def main() -> None:
             now = pr(str(first["number"]))
             sh("git", "fetch", "-q", "origin")
             held = now["baseRefName"] == "main" and not run("git", "merge-base", "--is-ancestor", "origin/main", now["headRefOid"]).returncode
-            print("next: run this again to land #%s" % now["number"] if held or now["baseRefName"] != "main" else f"next: {merge_up_steps(now)}")
+            print("next: run this again to land #%s" % now["number"] if held or now["baseRefName"] != "main"
+                  else f"next: {merge_up_steps([now] + open_above(now), method, leftover[-1]['headRefOid'])}")
         return
     if not first:
         print("every PR in the stack is merged")
@@ -194,7 +209,7 @@ def main() -> None:
                  "changed; rerun once it merges")
     print(f"#{first['number']} landed ({method})")
     finish(after, nxt)
-    print(f"next: {merge_up_steps(nxt)}" if nxt else "stack landed")
+    print(f"next: {merge_up_steps(open_above(first), method, first['headRefOid'])}" if nxt else "stack landed")
 
 
 if __name__ == "__main__":

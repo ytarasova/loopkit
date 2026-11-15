@@ -262,7 +262,10 @@ prints the commands, and you run them, resolve any conflict, re-run that PR's
 assurance on its new head, update its body, and run it again. A PR of the
 stack merged earlier (a queue, by hand) is finished first, and that run stops
 there: the PR above goes onto its base, and its branch is deleted under the
-same conditions. `--method rebase` keeps each commit's author.
+same conditions. `--method rebase` keeps each commit's author; GitHub cannot
+rebase-merge a branch holding a merge commit, so with it the tool prints a
+rebase of the rest of the stack (`git rebase --update-refs`, pushed with a
+lease) instead of a merge-up.
 
 **After the merge: watch.** Each PR's Success and Failure lines carry a
 threshold and a window (`check-pr.py` fails them without). Once it deploys,
