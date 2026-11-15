@@ -106,7 +106,8 @@ def uncommented(text: str) -> str:
     """The text with HTML comments blanked, offsets kept, as GitHub hides them: nothing inside one is evidence. A comment
     inside a fenced block or an inline code span is output. An unclosed one hides the rest of the body only where it
     starts a line (indented at most 3 spaces); anywhere else GitHub shows it as text."""
-    shown = SPAN.sub(lambda m: " " * len(m.group()), masked(text))
+    plain = masked(text)
+    shown = SPAN.sub(lambda m: " " * len(m.group()), plain)
     out, i, at, closes = [], 0, 0, True
     while (start := shown.find("<!--", at)) != -1:
         at = start + 4
@@ -114,9 +115,9 @@ def uncommented(text: str) -> str:
         if end < 0:
             closes = False  # no "-->" after this one, so none after a later one: the scan stays linear
             k = start
-            while k > 0 and start - k < 4 and shown[k - 1] == " ":
+            while k > 0 and start - k < 4 and plain[k - 1] == " ":  # inline code before it is text, not indent
                 k -= 1
-            if (k and shown[k - 1] != "\n") or start - k > 3:
+            if (k and plain[k - 1] != "\n") or start - k > 3:
                 continue
             end = len(text)
         else:

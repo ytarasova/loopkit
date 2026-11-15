@@ -68,6 +68,14 @@ elif a[:2] == ["pr", "view"]:
 elif a[:2] == ["pr", "list"]:
     key = "base" if "--base" in a else "head"
     branch = a[a.index("--" + key) + 1]
+    if st.get("delete_on_list") == branch and any(q["head"] == branch and q["state"] == "MERGED" for q in st["prs"].values()):
+        # GitHub deletes a merged branch on its own, while land-stack checks it
+        git("push", "-q", "origin", "--delete", branch); st.pop("delete_on_list")
+    if st.get("push_on_list") == branch and any(q["head"] == branch and q["state"] == "MERGED" for q in st["prs"].values()):
+        git("fetch", "-q", "origin"); git("switch", "-q", "-C", "late", "origin/" + branch)  # a push while it checks
+        open(os.path.join(st["clone"], "later.txt"), "w").write("later\n"); git("add", "later.txt")
+        git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "later"); git("push", "-q", "origin", "late:" + branch)
+        st.pop("push_on_list")
     print(json.dumps([{"number": int(k), "isCrossRepository": q.get("fork", False)}
                       for k, q in st["prs"].items() if q["state"] == "OPEN" and q[key] == branch]))
 elif a[:2] == ["pr", "edit"]:
@@ -314,6 +322,15 @@ def land_stack_test() -> None:
         assert middle.returncode == 0 and "b31 deleted" in middle.stdout and "run this again to land #30" in middle.stdout, middle.stdout + middle.stderr
         st = load()
         assert st["prs"]["32"]["base"] == "b30" and st["prs"]["30"]["base"] == "main", st["prs"]
+        # The repo deletes a merged branch itself, between land-stack's read of it and its own delete: that is done, not a stop.
+        commit("b45", "main", "f45.txt", "45\n")
+        st = load(); st["prs"]["45"] = add("main", "b45", "f45.txt"); st["delete_on_list"] = "b45"; save(st)
+        auto = go("45")
+        assert auto.returncode == 0 and "b45 is already gone" in auto.stdout and "stack landed" in auto.stdout, auto.stdout + auto.stderr
+        commit("b46", "main", "f46.txt", "46\n")  # a push between the read and the delete: the lease refuses, and it stops
+        st = load(); st["prs"]["46"] = add("main", "b46", "f46.txt"); st["push_on_list"] = "b46"; save(st)
+        racing = go("46")
+        assert racing.returncode and "git push --delete b46" in racing.stderr and not gone("b46"), racing.stdout + racing.stderr
         # A branch named like the tail of another (a/b40 beside b40) is told apart.
         commit("b40", "main", "f40.txt", "40\n"); commit("a/b40", "main", "g40.txt", "g\n")
         st = load(); st["prs"]["40"] = add("main", "b40", "f40.txt"); save(st)
@@ -486,6 +503,7 @@ def main() -> None:
         spans = good.replace("## Signal", "Strips `<!--`.\n\n## Signal").replace("cross-checked, clean", "cross-checked, clean; to `-->`")
         assert pr(spans).strip() == "ok"  # inline code is output, never a comment's ends
         assert pr(good.replace("cross-checked, clean", "cross-checked, clean; a <!-- b")).strip() == "ok"  # mid-line: shown as text
+        assert pr(good.replace("## Review", "`a`<!-- after inline code\n## Review")).strip() == "ok"  # still mid-line
         assert pr(good.replace("## Review", "    <!-- indented code\n## Review")).strip() == "ok"
         assert 'no "## Review"' in pr(good.replace("## Review", "   <!-- unclosed\n## Review"))
         assert 'no "## Review"' in pr(good.replace("## Review", "x <!-- a\n<!-- b\n## Review"))  # a later one at a line start

@@ -104,7 +104,8 @@ def rebase_steps(stack: list[dict]) -> str:
             "after: check `git log origin/<b>..<b>`, then `git switch -C <b> origin/<b>`), and its lease refuses a push "
             "made since; then run this again. On a conflict, resolve it, `GIT_EDITOR=true git rebase --continue`, then "
             "run the rest from that branch's push:\n  git fetch origin &&\n" + " &&\n".join(lines) +
-            f"\nthen re-run #{first['number']}'s assurance on its new head, update its PR body, and run this again")
+            f"\nthen re-run the assurance of every PR moved here on its new head (#{first['number']} first), update each "
+            "PR body, and run this again")
 
 
 def finish(merged: dict, nxt: dict | None, onto: str) -> None:
@@ -123,7 +124,12 @@ def finish(merged: dict, nxt: dict | None, onto: str) -> None:
     if users:
         sys.exit(f"stopped: open PR #{', #'.join(users)} still use{'s' if len(users) == 1 else ''} {branch}: retarget or close them first")
     # The lease closes the race between the tip check above and this delete: a push in between makes it fail.
-    sh("git", "push", "-q", f"--force-with-lease=refs/heads/{branch}:{oid}", "origin", "--delete", branch)
+    r = run("git", "push", "-q", f"--force-with-lease=refs/heads/{branch}:{oid}", "origin", "--delete", branch)
+    if r.returncode and not sh("git", "ls-remote", "origin", f"refs/heads/{branch}").strip():
+        print(f"{branch} is already gone")  # the repo deletes a branch on merge, and did so while this checked it
+        return
+    if r.returncode:
+        sys.exit(f"stopped: git push --delete {branch}:\n{(r.stderr or r.stdout).strip()}")
     print(f"{branch} deleted")
 
 
