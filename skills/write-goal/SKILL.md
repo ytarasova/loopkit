@@ -71,8 +71,10 @@ first three:
 - An ask stated in chat goes into the master plan's Asks the same turn.
 - After a compaction, re-read the goal and progress files and this lifecycle.
 - Choices about people or their data are asked at intake (§VIII.4). One
-  found later takes the default that keeps data and can be undone, as a
-  ruling under Waiting on for the owner to see; work does not stop for it.
+  found later takes the option that changes least for people (their data
+  goes nowhere new, nothing is deleted, nothing new is shown), as a ruling
+  under Waiting on for the owner to see; work does not stop for it, but a
+  shipping run does not deploy that path until the owner has seen it.
 - Look before you ask (§VI.8); never stop to ask whether to continue.
 - An agent with no new output for twice its time left is checked, then
   restarted or stopped. Keep the machine under about 80% load; when CI runners
@@ -345,7 +347,7 @@ Time each gate as well. A gate that takes more than a few minutes names the
 quick check that predicts it, which workers run after every change; the slow
 gate then runs once per join (a plan's head, the top of the stack), not per
 step. A check that flips on the same code is broken: fix it, or file it and
-list it under Waiting on (§VI.7); it is never counted green.
+link the ticket in the evidence (§VI.7); it is never counted green.
 
 A gate with no baseline cannot fail, so the run can declare it met without
 doing anything. If a baseline cannot be read yet, the plan's first step reads

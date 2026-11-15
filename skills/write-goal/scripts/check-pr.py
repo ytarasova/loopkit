@@ -5,7 +5,7 @@
 Fails (exit 1) unless the body has these four sections, and a deliverable two more (below):
   ## Assurance  each check in the repo's `assurance` list (tests, coverage, mutation, lint, typecheck, violations,
                 security), naming the commit it ran on (on a PR, its head, or an earlier commit when every
-                file changed since is Markdown or under plans_dir); mutation as "N of M killed" in
+                file changed since matches not_code or is under plans_dir); mutation as "N of M killed" in
                 its fenced output, with a "Survivor: <mutant>, <why it stands>" line per mutant that lived,
                 or "mutation: not-applicable, <why>",
                 named in a heading, a bullet or a fenced block, with the output it printed in a fenced block
@@ -175,12 +175,15 @@ def master_surfaces(master: str) -> dict[str, str]:
     return dict(rows)
 
 
-def stale(body: str, head: str, changed=lambda a, b: None, plans_dir: str = "docs/plans") -> list[str]:
+def stale(body: str, head: str, changed=lambda a, b: None, plans_dir: str = "docs/plans",
+          not_code: tuple[str, ...] = (r"\.md$",)) -> list[str]:
     """The Assurance must name the commit it ran on: the PR's head, or one since which no code changed.
 
     `changed(a, b)` lists the files changed between two commits, or None when it cannot tell. Evidence is
-    written once: a commit that touches only Markdown or the goal's own files never makes it be taken again.
+    written once: a commit that touches only the goal's own files or `not_code` (Markdown, by default) never
+    makes it be taken again.
     """
+    plans = os.path.normpath(plans_dir) + "/"  # "./docs/plans/" and "docs/plans" alike
     shas = re.findall(r"\b[0-9a-f]{7,40}\b", section(body, "Assurance"))
     if not shas:
         return [f'Assurance names no commit: say what it ran on ("on {head[:9]}"), so a reader can tell it is current']
@@ -188,15 +191,16 @@ def stale(body: str, head: str, changed=lambda a, b: None, plans_dir: str = "doc
         return []
     for s in shas:
         files = changed(s, head)
-        if files is not None and all(f.endswith(".md") or f.startswith(plans_dir.rstrip("/") + "/") for f in files):
+        if files is not None and all(f.startswith(plans) or any(re.search(r, f) for r in not_code) for f in files):
             return []
     return [f"Assurance ran on {', '.join(sorted(set(s[:9] for s in shas)))}, not the PR head {head[:9]}, and code changed "
             "since (or the commits are not fetched): run it again on the head"]
 
 
 def git_changed(a: str, b: str) -> list[str] | None:
-    r = subprocess.run(["git", "diff", "--name-only", a, b], capture_output=True, text=True)
-    return None if r.returncode else r.stdout.split()
+    """Every path changed between two commits; a rename lists both names. None when either is not fetched."""
+    r = subprocess.run(["git", "diff", "--name-only", "--no-renames", "-z", a, b], capture_output=True, text=True)
+    return None if r.returncode else [f for f in r.stdout.split("\0") if f]
 
 
 def notes_and_guide(body: str, files: list[str]) -> list[str]:
@@ -346,7 +350,7 @@ def main() -> None:
     step = (os.path.isfile(arg) and os.path.basename(arg).lower() != "goal.md"
             and any(d.endswith("-evidence") for d in os.path.dirname(arg).split(os.sep)))
     fails = (problems(body, files, cfg["surfaces"], cfg["assurance"], ucs, deliverable=not step)
-             + (stale(body, head, git_changed, cfg["plans_dir"]) if head else []))
+             + (stale(body, head, git_changed, cfg["plans_dir"], tuple(cfg["not_code"])) if head else []))
     for f in fails:
         print(f"FAIL {f}")
     print("ok" if not fails else f"{len(fails)} failure(s)")

@@ -6,7 +6,7 @@ every state change, then committed and pushed.
 **Now ({{NOW}} UTC):** the master plan, this file and the goal are written; no step has started.
 
 Times in this file come from the clock, never typed: `python3 <write-goal>/scripts/progress.py {{SLUG}} now "<text>"` rewrites
-this line, `log "<text>"` adds a Log line, `approve "<their words>"` records the owner's approval of the master plan (no code before it), and
+this line, `log "<text>"` adds a Log line, `approve "<their words>"` records the owner's words on the master plan when they give them (the run does not wait for them), and
 `view` stamps the live view's update (when the repo has one).
 
 ## Waiting on {{OWNER}}
@@ -35,7 +35,7 @@ time left, read again at every state change.
 
 A step is ticked only with its evidence file, `{{PLANS_DIR}}/{{DATE}}-{{SLUG}}-evidence/<plan>.<step>.md`, named on its line in
 parentheses and passing `check-pr.py`: `- [x] Plan 1 step 1: what ({{PLANS_DIR}}/{{DATE}}-{{SLUG}}-evidence/1.1.md)`. Once every
-box is ticked, `{{PLANS_DIR}}/{{DATE}}-{{SLUG}}-evidence/goal.md` proves every use case again on the final code, with the goal's release notes and user guide.
+box is ticked, `{{PLANS_DIR}}/{{DATE}}-{{SLUG}}-evidence/goal.md` gathers every use case's proof, carried forward where its code is unchanged and taken again where it changed, with the goal's release notes and user guide.
 
 - [x] Baselines read (when: the Log)
 - [ ] Plan 1 step 1: {{FILL: what}}
