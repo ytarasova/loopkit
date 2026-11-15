@@ -58,9 +58,12 @@ must have run on its head, and every owner correction ends as a kit change
 shipped off main.
 
 Upgrading from 0.8: `mutation` joins the default `assurance` list. Every
-changeset with logic shows "N of M killed" for its new rules or branches, with a
-`Survivor:` line per mutant that lived; a change with none writes
-`mutation: not-applicable, <why>`. A repo with its own list adds `mutation`.
+changeset with logic shows "N of M killed" in its fenced output, with a
+`Survivor: <mutant>, <why>` line per mutant that lived; a change with none
+writes `mutation: not-applicable, <why>`. A repo on the default list: upgrade
+between goals, or add a mutation result to the evidence file of every step
+already ticked in an open goal, since `check-goal.py` re-checks them all. A
+repo with its own list adds `mutation` to keep the check.
 
 Upgrading from 0.7: optionally, with the owner's yes, copy
 `.github/workflows/check-pr.yml` (set its `KIT` line) and

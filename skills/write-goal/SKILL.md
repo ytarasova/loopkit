@@ -149,10 +149,11 @@ check that `land-stack.py` will not land:
 
 **Mutation, on every changeset with logic.** Coverage shows a line ran, not
 that a test checks it. Disable each rule or branch the changeset adds, one at a
-time, run the tests that cover it, and write `mutation: N of M killed`. Scope
-it to the diff: the repo's tool where there is one (Stryker `--incremental`
-for JS and TS, mutant `--since origin/main` for Ruby, mutmut on the changed
-files for Python), hand mutants otherwise. Each survivor gets a line
+time, run the tests that cover it, and end its fenced output with
+`N of M killed`. Scope it to the diff: the repo's tool where there is one
+(Stryker `--incremental` for JS and TS, mutant `--since origin/main` for Ruby,
+mutmut on the changed files for Python; none prints that line, so take it
+from the tool's summary), hand mutants otherwise. Each survivor gets a line
 `Survivor: <mutant>, <why it stands>`: equivalent to the original, or the test
 that now kills it; "no time" is not a reason. A change with no logic (docs,
 config, plumbing with no branch) writes `mutation: not-applicable, <why>`. Run
