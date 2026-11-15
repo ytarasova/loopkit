@@ -35,6 +35,19 @@ What must not change, and who set that. Deadlines with their reason. Limits
 that exist in the code today (rate limits, quotas, policies) that the outcome
 has to live within.
 
+## People and their data
+
+Each outcome's data walked through change, sharing, removal and failure. Every
+choice that falls out, with the originator's answer.
+
+## Grants
+
+How far the run may go: open PRs | merge them when their checks hold | ship
+(merge, deploy and watch each phase's signals, rolling back and retrying until
+done). Every other permission it may use without asking (schema changes, paid
+calls, environments, data), each named exactly. Anything not named here that
+cannot be undone waits for the originator.
+
 ## Proof
 
 What would show it is done: items, each with its

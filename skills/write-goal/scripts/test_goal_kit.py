@@ -375,6 +375,45 @@ def land_stack_test() -> None:
         assert behind.returncode and "does not hold main" in behind.stderr, behind.stderr
 
 
+def assurance_carry_test() -> None:
+    """A PR's assurance stands on an earlier commit while only Markdown or the goal's own files changed since."""
+    with tempfile.TemporaryDirectory() as tmp:
+        repo, bin_ = f"{tmp}/r", f"{tmp}/bin"
+        os.makedirs(f"{repo}/.claude")
+        os.makedirs(bin_)
+
+        def g(*c: str) -> str:
+            return subprocess.run(["git", "-c", "user.email=t@t", "-c", "user.name=t", *c], cwd=repo, check=True,
+                                  capture_output=True, text=True).stdout.strip()
+
+        g("init", "-q")
+        with open(f"{repo}/.claude/loopkit.json", "w") as f:
+            f.write("{}")
+        heads = []
+        for name, text in (("app.py", "x = 1\n"), ("README.md", "docs\n"), ("app.py", "x = 2\n")):
+            with open(f"{repo}/{name}", "w") as f:
+                f.write(text)
+            g("add", "-A")
+            g("commit", "-qm", name)
+            heads.append(g("rev-parse", "HEAD"))
+        first, docs, code = heads
+
+        def pr(head: str) -> str:
+            payload = json.dumps({"body": f"## Assurance\n\nOn {first[:9]}.\n", "files": [], "headRefOid": head})
+            with open(f"{bin_}/pr.json", "w") as f:
+                f.write(payload)
+            with open(f"{bin_}/gh", "w") as f:
+                f.write(f"#!/bin/sh\ncat '{bin_}/pr.json'\n")
+            os.chmod(f"{bin_}/gh", 0o755)
+            env = dict(os.environ, PATH=bin_ + os.pathsep + os.environ["PATH"])
+            return subprocess.run([sys.executable, os.path.join(HERE, "check-pr.py"), "7"], cwd=repo, env=env,
+                                  capture_output=True, text=True).stdout
+
+        assert "Assurance ran on" not in pr(docs), pr(docs)  # only Markdown changed since: the evidence stands
+        assert "code changed since" in pr(code), pr(code)
+        assert "code changed since" in pr("f" * 40)  # a head that is not fetched cannot be compared
+
+
 def main() -> None:
     with tempfile.TemporaryDirectory() as repo:
         subprocess.run(["git", "init", "-q", repo], check=True)
@@ -472,6 +511,18 @@ def main() -> None:
             f.write('{"ends_at": "prod"}')
         assert "ends_at" in run("check-goal.py", "t", cwd=repo).stderr
         assert "slug" in run("new-goal.py", "--slug", "a/b", "--title", "T", cwd=repo).stderr
+        with open(f"{repo}/.claude/loopkit.json", "w") as f:
+            json.dump({"owner": "Sam", "runner": "make"}, f)
+        ship = ("new-goal.py", "--slug", "s", "--title", "S", "--date", "2026-01-02", "--ends-at", "production")
+        assert "run the loopkit adopt skill first" in run(*ship, cwd=repo).stderr  # goal.md is the repo's pr ending, not this one
+        with open(f"{TEMPLATES}/goal-production.md") as f:
+            prod_tpl = re.sub(r"\{\{PROJECT:[^}]*\}\}", "`make test`", f.read())
+        with open(f"{repo}/.claude/loopkit/goal-production.md", "w") as f:
+            f.write(prod_tpl)
+        assert run(*ship, cwd=repo).returncode == 0
+        with open(f"{repo}/docs/plans/2026-01-02-s-goal.md") as f:
+            assert "phase by phase" in f.read()
+        assert run("new-goal.py", "--slug", "x", "--title", "X", "--ends-at", "staging", cwd=repo).returncode != 0
 
         with open(f"{repo}/.claude/loopkit.json", "w") as f:
             json.dump({"assurance": ["tests", "lint"], "surfaces": {"ui": ["^web/"]}}, f)
@@ -627,6 +678,13 @@ def main() -> None:
         assert "names no commit" in stale(good, head)[0]
         assert stale(good.replace("12 passed", "12 passed on 0123456789"), head) == []
         assert "not the PR head 012345678" in stale(good.replace("12 passed", "12 passed on fedcba987"), head)[0]
+        earlier = good.replace("12 passed", "12 passed on fedcba987")
+        docs_only = lambda a, b: ["docs/plans/2026-01-01-t-progress.md", "docs/plans/2026-01-01-t-evidence/1.png", "README.md"]
+        assert stale(earlier, head, docs_only) == []  # evidence is written once; a docs commit does not stale it
+        assert stale(earlier, head, docs_only, "plans") != []  # outside plans_dir, a non-Markdown file is code
+        assert "code changed since" in stale(earlier, head, lambda a, b: ["README.md", "src/app.py"])[0]
+        assert "not fetched" in stale(earlier, head, lambda a, b: None)[0]
+        assert stale(earlier, head, lambda a, b: [] if a == "fedcba987" else None) == []
         assert "a security review" in pr(good.replace("- Security review: no input, auth or data exposure change; clean\n", ""))
         for leak in ("AKIA" + "ABCDEFGHIJKLMNOP", "ghp_" + "a" * 36, "sk-ant-" + "api03-" + "b" * 30, "xoxb-" + "1234567890-abc",
                      "-----BEGIN " + "RSA PRIVATE KEY-----", "eyJ" + "a" * 12 + ".eyJ" + "b" * 12 + "." + "c" * 12,
@@ -723,7 +781,7 @@ def main() -> None:
             json.dump({"owner": "Sam", "runner": "make", "bypass": ["npx"], "assurance": ["tests", "lint"]}, f)
         unapproved = texts["progress"]
         assert check().strip().endswith("ok"), check()
-        assert "never approved" in check(progress=unapproved.replace("- [ ] Plan 1 step 1", "- [x] Plan 1 step 1"))
+        assert "never approved" not in check(progress=unapproved.replace("- [ ] Plan 1 step 1", "- [x] Plan 1 step 1"))  # the run does not wait
         p = unapproved.replace("## Waiting on", 'Approved by Sam 2026-01-01 08:00 UTC: "yes, run it"\n\n## Waiting on', 1)
         ticked = p.replace("- [ ] Plan 1 step 1: filled", "- [X] Plan 1 step 1: filled (docs/plans/2026-01-01-t-evidence/1.1.md)")
         assert "evidence file does not exist" in check(progress=ticked)
@@ -861,6 +919,7 @@ def main() -> None:
                     text = f.read()
                 for word in (w for w in me if len(w) > 2):
                     assert not re.search(rf"\b{re.escape(word)}\b", text, re.I), f"{name} names the kit's user ({word})"
+    assurance_carry_test()
     land_stack_test()
     print("goal kit ok")
 

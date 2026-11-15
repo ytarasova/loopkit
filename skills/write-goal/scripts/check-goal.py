@@ -23,7 +23,7 @@ Fails (exit 1) on what would break or mislead the run; warns on what a person sh
               "Waiting on", "In flight" and "What is left"; each In flight item ends with its time left,
               and each "What is left" row has one in its last column;
               the live view (`view`) stamped no earlier than Now; Steps with a checkbox per gate; a Log;
-              no ticked "Plan" step before "Approved by"; warns over 80 KB
+              warns over 80 KB
   evidence    every ticked step is "Plan N step M" and names its own evidence file,
               "(<plans_dir>/<date>-<slug>-evidence/<N>.<M>.md)", which exists, passes check-pr.py with each
               use case proven for its surface, and has a "### UC<n>" for each use case its step proves;
@@ -290,8 +290,6 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
             if not any(h.startswith(s) for h in psecs):
                 fails.append(f'progress file has no "## {s}" section')
         steps = psecs.get("Steps", "")
-        if re.search(r"^- \[[xX]\] Plan", steps, re.M) and not approved:
-            fails.append('a step is ticked but the master plan was never approved: progress.py approve "<their words>" comes before any code')
         if not re.search(r"^- \[[ xX]\] ", steps, re.M):
             fails.append('progress file has no "## Steps" checklist')
         for g in sorted(defined):

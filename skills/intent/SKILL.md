@@ -25,6 +25,14 @@ plain words with your recommended answer, then wait. Recompute the frontier
 from the answer.
 The interview ends when the frontier is empty, not when the template is full.
 
+It is the one session the owner gives the work. The run after it is
+autonomous, so everything it would otherwise stop to ask is asked here: walk
+each outcome's data through change, sharing, removal and failure, and ask
+each choice about people or their data that falls out (constitution §VIII.4);
+then ask the grants: how far the run may go (open PRs; merge them when their
+checks hold; or ship, deploying and watching phase by phase) and every other
+permission it may use without asking, each named exactly.
+
 Facts are your job. Before asking, look up what the repo, the ticket and the
 last few related PRs already say, and state what you found instead of asking.
 A question the originator cannot answer better than a grep is a defect.
@@ -53,6 +61,8 @@ answered; confirm it in one line instead.
 - A constraint with no owner is a wish. Ask who set it.
 - An open question stays open. Write it under Open questions with who can
   answer it; do not resolve it by assumption.
+- "Use your judgment" is a grant. Write what it covers, and the default the
+  run takes, under Grants.
 
 ## Writing it
 
@@ -75,8 +85,9 @@ Offer, do not assume:
 - `superpowers:writing-plans`, when the intent is small enough to plan
   directly.
 - `write-goal`, when the work should run unattended: the Proof items become
-  the master plan's gates, and the Open questions become its "Decisions,
-  answered" rows or human steps.
+  the master plan's gates, the Open questions its "Decisions, answered" rows,
+  and the Grants the goal's `Granted:` line (shipping: `new-goal.py --ends-at
+  production`).
 
 ## Common mistakes
 

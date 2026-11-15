@@ -1,6 +1,6 @@
 """Scaffold a goal's three files from the templates.
 
-    python3 new-goal.py --slug S --title T [--date D]
+    python3 new-goal.py --slug S --title T [--date D] [--ends-at pr|production]
 
 Writes <plans_dir>/<date>-<slug>-goal.md, -master.md and -progress.md, refusing to overwrite any file
 that exists. Settings come from .claude/loopkit.json; templates from .claude/loopkit/ when the repo
@@ -25,6 +25,8 @@ def main() -> None:
     p.add_argument("--title", required=True)
     now = datetime.datetime.now(datetime.timezone.utc)
     p.add_argument("--date", default=now.date().isoformat(), help="the goal's date (default: today in UTC)")
+    p.add_argument("--ends-at", choices=("pr", "production"),
+                   help="where this goal ends, from the intent's Grants (default: the repo's ends_at)")
     p.add_argument("--orchestrator", help='the model the intent recommended, e.g. "Fable 5.2" (default: the repo\'s orchestrator)')
     a = p.parse_args()
     if not re.fullmatch(r"[a-z0-9][a-z0-9-]*", a.slug):
@@ -56,7 +58,7 @@ def main() -> None:
 
     bodies = {}
     for dest, kind in targets.items():
-        src = config.template(kind, cfg)
+        src = config.template(kind, cfg, a.ends_at or "")
         with open(src) as f:
             body = f.read()
         if "{{PROJECT:" in body:

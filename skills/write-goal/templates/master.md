@@ -34,7 +34,7 @@ subagent's model (haiku, sonnet or opus) and why; reviewers run on at least that
 | --- | --- | --- | --- | --- |
 | 1 | {{FILL: name; a long plan may live in its own file, linked from its Plan N section}} | {{FILL: what ships}} | {{FILL: what goes, or "nothing"}} | {{FILL: apps, packages or services}} |
 
-Each plan is one PR, stacked on the plan before it. {{FILL: "Plans run in this order." or which two may run beside each other, on the same base}}
+Each plan is one PR, stacked on the plan it needs (plan 1 on main); plans that need nothing from each other share a base and run side by side. {{FILL: which plan each one needs, or "Each needs the one before."}}
 
 ## Decisions, answered
 
@@ -42,7 +42,7 @@ An unanswered decision stops the run. An answer longer than a row is a decision 
 
 | Decision | Answer the run uses |
 | --- | --- |
-| {{FILL: decision}} | {{FILL: answer, and whose it is}} |
+| {{FILL: decision, including each choice found by walking each use case's data through change, sharing, removal and failure}} | {{FILL: answer, and whose it is}} |
 
 ## Plan 1: {{FILL: name}}
 

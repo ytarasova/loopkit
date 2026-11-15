@@ -57,7 +57,8 @@ say what the others scored.
 
 Bottom up, every join gets checked:
 
-1. **Rerun each child's verification.** A child's PASS is a claim, never the result.
+1. **Rerun each child's verification,** or carry its output forward when nothing
+   it covers changed since. A child's PASS is a claim, never the result.
 2. **Compose**, then read the whole for what no piece could see: two parts
    that contradict, a gap between them, the same thing done twice, names that
    drift.
@@ -71,6 +72,25 @@ Otherwise the same miss comes back.
 
 Synthesis ends at the root: the whole answers the ask, in the owner's words,
 with each claim traceable to the piece and the check behind it.
+
+## Sending work back
+
+The work is not only forward. Verification sends a piece back to the work,
+the work sends a split back to analysis, analysis sends an ask back to its
+author's words. Work goes back to the level that caused the failure, no
+further. The level above decides, and records one line: what failed, where it
+went, what it invalidated, what changed. Each return changes something: the
+check, the split, the worker, or the reading of the ask. A second return for
+the same cause goes one level higher. At the top the piece is parked: the
+rest is delivered, and the piece is listed as not done, with its evidence.
+
+## Evidence, kept as it is made
+
+Every piece leaves its evidence when it is done: what was checked, on what,
+and what it printed, written by whoever did it. Analysis leaves the split and
+why; a send-back leaves its line. A join gathers its children's evidence and
+adds only its own. Rebuilding evidence after the fact costs more than the
+work did, and proves less.
 
 ## Hierarchy: a lead per subtree
 
@@ -92,7 +112,7 @@ it. Rules that keep a hierarchy honest:
 
 | Work | Pieces | Verification | The join |
 | --- | --- | --- | --- |
-| A goal (`write-goal`) | plans, then steps | each step's tests, assurance, `check-pr.py` | the plan branch's gates, the PR, `goal.md` |
+| A goal (`write-goal`) | plans, then steps | each step's tests, assurance, `check-pr.py` | the plan branch's gates, the PR, `goal.md`; when shipping, each phase's signals after its deploy |
 | A research question | sub-questions, then sources | each claim quoted against its source | the answer read against the question, contradictions named |
 | A review | dimensions, then files | each finding reproduced at its `file:line` | findings deduplicated, ranked, verified |
 | A document | sections | each section answers its question; facts checked | read whole as its reader, against its purpose |
@@ -109,3 +129,5 @@ it. Rules that keep a hierarchy honest:
 | Synthesis by concatenation | Contradictions and gaps between pieces ship. |
 | Trusting a lead's PASS | One level's blind spot becomes everyone's. |
 | A deeper tree than the work needs | Each level adds hand-offs and loses detail. |
+| Evidence rebuilt at the end | The proof is reconstructed, not observed, and costs more than the work. |
+| The same send-back retried | Nothing changed, so the same failure comes back. |
