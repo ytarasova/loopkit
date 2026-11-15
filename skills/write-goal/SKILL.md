@@ -123,8 +123,8 @@ merged up or opened without it. Four sections, checked by
 also runs on every PR with the base branch's checker (adopt, step 8), so a body missing its evidence is a red
 check that `land-stack.py` will not land:
 
-- `## Assurance`: every check in `assurance` (tests, coverage, lint,
-  typecheck, violations, security, by default), each with its command and the output it
+- `## Assurance`: every check in `assurance` (tests, coverage, mutation,
+  lint, typecheck, violations, security, by default), each with its command and the output it
   printed in a fenced block, naming the commit it ran on; on a PR,
   `check-pr.py <PR>` fails assurance that ran on anything but the PR's head.
   Counts are what ran, on the changeset's own commit
@@ -146,6 +146,21 @@ check that `land-stack.py` will not land:
 - `## Review`: a line each, `Simplify: <result>`, `Self-review, by <model> in
   a fresh context: <result>`, `Security review: <result>`, `Constitution:
   <result>`; the self-review by a context that did not write the change.
+
+**Mutation, on every changeset with logic.** Coverage shows a line ran, not
+that a test checks it. Disable each rule or branch the changeset adds, one at a
+time, run the tests that cover it, and write `mutation: N of M killed`. Scope
+it to the diff: the repo's tool where there is one (Stryker `--incremental`
+for JS and TS, mutant `--since origin/main` for Ruby, mutmut on the changed
+files for Python), hand mutants otherwise. Each survivor gets a line
+`Survivor: <mutant>, <why it stands>`: equivalent to the original, or the test
+that now kills it; "no time" is not a reason. A change with no logic (docs,
+config, plumbing with no branch) writes `mutation: not-applicable, <why>`. Run
+without cached bytecode (delete `__pycache__`, set `PYTHONDONTWRITEBYTECODE=1`),
+restore each file in a `finally`, rerun a kill that a flaky suite may have
+made, and end on the unmutated suite passing. `check-pr.py` checks the count
+and the survivor lines; the reviewer checks that every new branch had a
+mutant.
 
 **Security, on every changeset.** Assurance includes `security`: a secret scan
 of the diff (gitleaks or trufflehog), a dependency audit (the package

@@ -514,6 +514,21 @@ def main() -> None:
         assert pr(good.replace("cross-checked, clean", "cross-checked, clean; `a <!-- b`")).strip() == "ok"  # in code
         assert pr(good.replace("## Review", "<!-->\n\n## Review")).strip() == "ok"  # an empty comment closes itself
         assert __import__("importlib").import_module("check-pr").problems(good.replace("\n", "\r\n"), [], {}, ["tests", "lint"]) == []  # a body edited in the browser, as gh returns it
+        # Mutation: coverage shows a line ran, not that a test checks it. "N of M killed", and every survivor named.
+        mut = lambda body: __import__("importlib").import_module("check-pr").problems(body, [], {}, ["tests", "mutation"])
+        killed = good.replace("12 passed\n", "12 passed\n```\n\n- mutation\n```\n8 of 8 killed\n")
+        assert mut(killed) == [], mut(killed)
+        assert any("no mutation result" in x for x in mut(good.replace("12 passed\n", "12 passed\n```\n\n- mutation\n```\nran\n")))
+        lived = killed.replace("8 of 8 killed", "6 of 8 killed")
+        assert any("2 mutant(s) survived" in x for x in mut(lived)), mut(lived)
+        assert mut(lived.replace("## Evidence", "- Survivor: start + 4 for start + 2, equivalent\n\n## Evidence")) == []
+        assert any("survived" in x for x in mut(lived.replace("6 of 8 killed", "6 of 8 killed\nSurvivor: in a fence"))), "a fence is output, not a reason"
+        assert any("survived" in x for x in mut(lived.replace("## Evidence", "- Survivor:\n\n## Evidence"))), "a survivor with no reason"
+        assert sum("survived" in x for x in mut(killed.replace("8 of 8 killed", "8 of 8 killed, then 3 of 4 killed"))) == 1  # every run counts
+        exempt = good.replace("12 passed\n", "12 passed\n```\n\n- mutation: not-applicable, a docs change with no branch\n\n```\n")
+        assert mut(exempt) == [], mut(exempt)
+        assert any("no mutation result" in x for x in mut(exempt.replace(", a docs change with no branch", "")))
+        assert __import__("importlib").import_module("config").DEFAULTS["assurance"].count("mutation") == 1
         top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, cwd=HERE).stdout.strip()
         if os.path.exists(f"{top}/.github/pull_request_template.md"):  # the repo's own template, wherever its kit lives
             with open(f"{top}/.github/pull_request_template.md") as f:
