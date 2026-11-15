@@ -53,12 +53,12 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 ## VI. How work runs
 
 1. **Plan first, then execute fast.** Non-trivial work goes intent, spec, plan, execute. A plan names exact files and exact commands.
-2. **Size subagents to the work.** Fan out only for independent units with files that do not overlap. Give each one unit, check its evidence (command output, `file:line`) before accepting it, and end with one table: unit, result, evidence.
+2. **Divide the work so each piece verifies alone, and verify every join.** Split until a unit fits one context and has its own verification; fan out only for independent units with files that do not overlap. Give each one unit, rerun its verification before accepting it, check the whole once the pieces are joined, and end with one table: unit, result, evidence (`analysis-synthesis`).
 3. **Two review stages per task: correctness, then quality.** Each stage runs in a context that did not write the change and reads the diff and the spec, never the author's account of them. An implementer's PASS is a claim: rerun its test and read the diff.
 4. **Do the obvious next step without asking.** When something fails, change the model, the context or the scope before retrying. The same input to the same model gives the same failure.
 5. **Report BLOCKED instead of retrying blindly.** Bad work is worse than no work.
 6. **Big cross-cutting changes land in revertable steps,** each one verified.
-7. **Verification passes or fails.** A test, a build, a screenshot, a metric, with the output it printed. "Looks right" is not a verification.
+7. **Verification passes or fails.** A test, a build, a screenshot, a metric, with the output it printed. "Looks right" is not a verification. One that flips on the same code is broken: fix it, or record why with its runs; never count it green. A warning is answered with evidence, never dismissed.
 8. **Look before you ask.** The knowledge base, the CLI, the MCP servers and the CI runners come first. Never hand the owner a step you can take; a human step is one nothing you have can do.
 9. **Ask in plain words, one question at a time, with your recommendation.** Do the literal ask; when a verb has two readings, ask once. A question naming a file or an option number the owner has not seen is not a question.
 10. **A correction from the owner goes into the skill the same turn,** not into memory or a note, so it is never given twice; one that changes this file is proposed to the owner the same turn (§VIII.3).

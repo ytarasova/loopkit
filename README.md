@@ -9,6 +9,7 @@ skills are generic; `adopt` fits them to each repo.
 | `loopkit:adopt` | Reads the repo, asks what it cannot read, writes `CONSTITUTION.md`, `.claude/loopkit.json` and `.claude/loopkit/goal.md`. |
 | `loopkit:intent` | Interviews you about a problem and writes the intent: problem, outcome, constraints, proof, open questions. |
 | `loopkit:write-goal` | Turns an intent or spec into three files (goal, master plan, progress) and checks them before you run `/goal`. |
+| `loopkit:analysis-synthesis` | Takes any big piece of work apart into pieces that each verify alone, and puts it back together verifying every join, with a lead per subtree when one context is not enough. |
 
 ## Install
 
@@ -56,6 +57,14 @@ file carrying anything shaped like a credential. The loop closes after the PRs t
 carries a threshold and a window to watch after the deploy, a PR's assurance
 must have run on its head, and every owner correction ends as a kit change
 shipped off main.
+
+Upgrading from 0.10: a new skill, `analysis-synthesis`, the method behind
+dividing any work: pieces that each verify alone, joins verified on the way
+up, leads only where one context is not enough. write-goal points at it and
+dispatches a step once what it needs is merged. `Done means` gains a third
+finish, the owner changing the ending, so a run they redirect can stop.
+Constitution §VI.2 and §VI.7 change wording (a flaky verification is broken,
+a warning is answered with evidence). No checker rule changes.
 
 Upgrading from 0.9: every deliverable (a PR, a body file, a goal's
 `evidence/goal.md`) carries `## Release notes`, a paragraph in its users'
