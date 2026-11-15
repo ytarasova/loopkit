@@ -265,7 +265,7 @@ PR's head, every use case the plan proves, the signal and the review. Run
 files against `surfaces`. Once every step is ticked, the whole:
 `<plans_dir>/<date>-<slug>-evidence/goal.md`, taken on the top of the stack
 after the last code commit, proves every use case in the master plan again
-and passes the same check; `check-goal.py` fails without it. Showing the owner the evidence is the run's job,
+and passes the same check as a deliverable (release notes and the guide too); `check-goal.py` fails without it. Showing the owner the evidence is the run's job,
 never a human step: a run that ends "waiting for the owner to see the screens"
 with the screens in its scratchpad has shown nothing.
 

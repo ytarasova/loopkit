@@ -503,6 +503,23 @@ def main() -> None:
         assert "PR or issue number" not in pr(good.replace(notes, notes + " Its columns match the page&#39;s, in C#2 too."))
         assert "describe a change" not in pr(good.replace("## Release notes", "## Notes").replace(guide, na))  # one failure
         assert "describe a change" in pr(good.replace(notes, notes + " Imports show no user-visible change.").replace(guide, na))
+        for loud in ("No user-visible change, except admins can now export any report as a CSV from Reports.",
+                     notes + "\nNo user-visible change for API clients.", quiet + "\n\n" + notes):
+            assert "describe a change" in pr(good.replace(notes, loud).replace(guide, na)), loud  # quiet means the whole section
+        for spelling in ("No user-visible changes.", "_No user-visible change._", "No user visible change"):
+            assert pr(good.replace(notes, spelling).replace(guide, na)).strip() == "ok", spelling
+        assert pr(good.replace("## Release notes", "## Release Notes:").replace("## User guide", "## User Guide")).strip() == "ok"
+        ru = "Администраторы теперь могут выгрузить любой отчёт в CSV со страницы отчётов и открыть его в таблице прямо сейчас."
+        assert pr(good.replace(notes, ru)).strip() == "ok"  # words in any script
+        for cite in ("https://github.com/o/r/issues/42", "`#12`"):
+            assert ("PR or issue number" in pr(good.replace(notes, notes + " See " + cite))) == cite.startswith("https"), cite
+        for not_a_guide in ("See https://github.com/o/r/pull/41.", "![shot](https://x.y/1.png)", "```\ndocs/guide.md\n```"):
+            assert "names no guide" in pr(good.replace(guide, not_a_guide)), not_a_guide
+        assert pr(good.replace(guide, guide + "\nnot-applicable for the API reference, which has no export")).strip() == "ok"
+        deliver = lambda body, changed: __import__("importlib").import_module("check-pr").problems(body, changed, {}, ["tests", "lint"], deliverable=True)
+        assert deliver(good, ["docs/guide/reports.md", "api/x.py"]) == [], deliver(good, ["docs/guide/reports.md"])
+        assert any("which this PR does not change" in x for x in deliver(good, ["api/x.py"]))
+        assert deliver(good.replace(guide, guide + " Published at https://docs.example.com/reports."), ["api/x.py"]) == []
         assert pr(good.replace(notes, quiet).replace(guide, na)).strip() == "ok"
         assert pr(good.replace(notes, quiet)).strip() == "ok"  # a guide named anyway is fine
         assert "describe a change" in pr(good.replace(guide, na))
@@ -512,7 +529,9 @@ def main() -> None:
             assert pr(good.replace(guide, named)).strip() == "ok", named
         os.makedirs(f"{repo}/docs/x-evidence", exist_ok=True)
         piece = good.split("\n## Release notes")[0]
-        for name, want in (("1.1.md", "ok"), ("fix-a.md", "ok"), ("goal.md", 'no "## Release notes"')):
+        os.makedirs(f"{repo}/docs/x-evidence/sub", exist_ok=True)
+        for name, want in (("1.1.md", "ok"), ("fix-a.md", "ok"), ("sub/1.1.md", "ok"), ("goal.md", 'no "## Release notes"'),
+                           ("GOAL.md", 'no "## Release notes"')):
             with open(f"{repo}/docs/x-evidence/{name}", "w") as f:
                 f.write(piece)
             assert want in run("check-pr.py", f"docs/x-evidence/{name}", cwd=repo).stdout, name
@@ -577,9 +596,10 @@ def main() -> None:
         top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, cwd=HERE).stdout.strip()
         if os.path.exists(f"{top}/.github/pull_request_template.md"):  # the repo's own template, wherever its kit lives
             with open(f"{top}/.github/pull_request_template.md") as f:
-                template = pr(f.read())
+                raw = f.read()
+                template = pr(raw)
             for name in ("Assurance", "Evidence", "Signal", "Review", "Release notes", "User guide"):
-                assert name in template, template  # the unfilled template fails every section
+                assert f"## {name}" in raw and name in template, template  # the unfilled template fails every section
         assert "line for simplify" in pr(good.replace("- Simplify: 2 lines removed\n", ""))
         assert "line for simplify" in pr(good.replace("- Simplify: 2 lines removed", "- Simplify"))
         assert "a self-review" in pr(good.replace("- Self-review", "- Read"))
@@ -647,7 +667,8 @@ def main() -> None:
             adversarial = "## Assurance\n\n- mutation\n" + inside + "\n"
             began = time.time(); problems(adversarial, [], {}, ["mutation"])
             assert time.time() - began < 3, f"the mutation rule is slow on {adversarial[:8]}..."
-        for inside in ("a" * 1_000_000, "a." * 500_000, "#1" * 500_000, "no user-visible change " * 43_000):
+        for inside in ("a" * 1_000_000, "a." * 500_000, "#1" * 500_000, "no user-visible change " * 43_000,
+                       "https://" * 125_000, "![" * 500_000, "`a.md` " * 140_000):
             adversarial = f"## Release notes\n\n{inside}\n\n## User guide\n\n{inside}\n"
             began = time.time(); problems(adversarial, [], {}, [], deliverable=True)
             assert time.time() - began < 3, f"the release notes rule is slow on {inside[:6]}..."
