@@ -6,7 +6,7 @@ skills are generic; `adopt` fits them to each repo.
 
 | Skill | Does |
 | --- | --- |
-| `loopkit:adopt` | Reads the repo, asks what it cannot read, writes `CONSTITUTION.md`, `.claude/loopkit.json` and `.claude/loopkit/goal.md`. |
+| `loopkit:adopt` | Reads the repo, asks what it cannot read, writes `CONSTITUTION.md`, `.claude/loopkit.json`, `.claude/loopkit/goal.md` (and `goal-production.md` where a goal may ship) and `.claude/loopkit/lessons.md`. |
 | `loopkit:intent` | Interviews you about a problem and writes the intent: problem, outcome, constraints, proof, open questions. |
 | `loopkit:write-goal` | Turns an intent or spec into three files (goal, master plan, progress) and checks them before you run `/goal`. |
 | `loopkit:analysis-synthesis` | Takes any big piece of work apart into pieces that each verify alone, and puts it back together verifying every join, with a lead per subtree when one context is not enough. |

@@ -24,6 +24,7 @@ DEFAULTS = {
     "view": "",  # a live view the owner reads (e.g. "Claude Doc"); then the progress file stamps "<view> updated: <time>"
     "rollback_pattern": "",  # regex every plan's Rollback must match, e.g. "[a-z-]+:\\d+"
     "ban_em_dash": True,
+    "not_code": ["\\.md$"],  # regexes on changed paths that never stale assurance; narrow it where Markdown runs (prompts, agents)
 }
 
 
@@ -49,6 +50,8 @@ def load() -> dict:
         bad.append("assurance must be a list of check names")
     if not isinstance(cfg["surfaces"], dict) or set(cfg["surfaces"]) - {"ui", "service", "cli"}:
         bad.append('surfaces must be {"ui"|"service"|"cli": [regex, ...]}')
+    if not isinstance(cfg["not_code"], list):
+        bad.append("not_code must be a list of regexes")
     if not isinstance(cfg["goal_rules"], dict):
         bad.append('goal_rules must be {"text": "rule"}')
     try:

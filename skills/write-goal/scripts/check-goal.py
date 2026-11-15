@@ -11,8 +11,8 @@ Fails (exit 1) on what would break or mislead the run; warns on what a person sh
   master      Order and "Decisions, answered"; one "## Plan N:" section per Order row, each with
               its measured facts, steps, gates, failures, coverage, rollback and human steps;
               every gate with a baseline that is a number or (unconfirmed), a source, and a window
-              ("within 15 min") when ends_at is production; every Rollback non-empty, and
-              every rollback matching rollback_pattern when one is set
+              ("within 15 min") when the goal ends in production (its master plan's "Ends at:", else
+              ends_at); every Rollback non-empty, and every rollback matching rollback_pattern when one is set
   master      "## Asks": "| A<n> | <the owner's words> | <UC ids that exist, or dropped by <owner> YYYY-MM-DD> |"
   master      "## Use cases" with "| UC<n> | who does what | ui, service or cli |" rows, each on some plan's
               "Proves UC<n>." line (a use case no step proves is a hole)
@@ -105,7 +105,9 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
          r"\bBaseline:[^\n]*?(\d|\(unconfirmed\))"),
         ('source ("Source: <command or dashboard>")', r"\bSources?:\s*\S"),
     ]
-    if cfg["ends_at"] == "production":
+    # A goal may end further than the repo's default (the intent granted shipping); its master plan says where.
+    ends = re.search(r"\bEnds at: (pr|production)\b", master)
+    if (ends.group(1) if ends else cfg["ends_at"]) == "production":
         gate_parts.append(('window ("within 15 min", "over 24 h")', rf"\b(within|over)\s+(the\b|\d+\s*{UNIT})"))
     bypass = (
         re.compile(
@@ -326,7 +328,7 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
                                  f"so \"Supports {uc}\" does not stand in for its proof"
                                  for uc in sorted(step_proves.get((step.group(1), step.group(2)), ())) if uc not in shown)
             if ticked and not re.search(r"^- \[ \] ", steps, re.M):
-                # Every piece is proven; now the whole: every use case again, on the final code, in one file.
+                # Every piece is proven; now the whole: every use case gathered on the final code, in one file.
                 whole = f"{evidence}/goal.md"
                 if not os.path.isfile(whole):
                     fails.append(f"every step is ticked but the whole has no evidence: {whole} (every use case, on the final code)")

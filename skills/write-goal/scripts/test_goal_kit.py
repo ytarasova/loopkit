@@ -412,6 +412,19 @@ def assurance_carry_test() -> None:
         assert "Assurance ran on" not in pr(docs), pr(docs)  # only Markdown changed since: the evidence stands
         assert "code changed since" in pr(code), pr(code)
         assert "code changed since" in pr("f" * 40)  # a head that is not fetched cannot be compared
+        first = code  # the assurance now names the last code commit
+        g("mv", "app.py", "docs.md")  # an exact rename: git would list only the new name
+        g("commit", "-qm", "rename")
+        assert "code changed since" in pr(g("rev-parse", "HEAD")), "a rename hides the code it removed"
+        g("reset", "-q", "--hard", code)
+        with open(f"{repo}/my notes.md", "w") as f:
+            f.write("n\n")
+        g("add", "-A")
+        g("commit", "-qm", "notes")
+        assert "Assurance ran on" not in pr(g("rev-parse", "HEAD")), "a path with a space is still one path"
+        with open(f"{repo}/.claude/loopkit.json", "w") as f:
+            f.write('{"not_code": ["^README\\\\.md$"]}')
+        assert "code changed since" in pr(g("rev-parse", "HEAD")), "the repo's not_code is the list that counts"
 
 
 def main() -> None:
@@ -506,10 +519,16 @@ def main() -> None:
         with open(f"{repo}/.claude/loopkit.json", "w") as f:
             json.dump({"runner": "make", "ends_at": "production", "rollback_pattern": r"app:\d+"}, f)
         prod = check(master=nowindow)
-        assert "G1 has no window" in prod and "Rollback does not match" in prod, prod
+        assert "G1 has no window" not in prod and "Rollback does not match" in prod, prod  # this goal says it ends at a PR
+        prod = check(master=nowindow.replace("Ends at: pr.", "Ends at: production."))
+        assert "G1 has no window" in prod, prod
+        assert "G1 has no window" in check(master=nowindow.replace("Ends at: pr. ", ""))  # no line: the repo's ending
         with open(f"{repo}/.claude/loopkit.json", "w") as f:
             f.write('{"ends_at": "prod"}')
         assert "ends_at" in run("check-goal.py", "t", cwd=repo).stderr
+        with open(f"{repo}/.claude/loopkit.json", "w") as f:
+            f.write('{"not_code": ".md"}')
+        assert "not_code must be a list" in run("check-goal.py", "t", cwd=repo).stderr
         assert "slug" in run("new-goal.py", "--slug", "a/b", "--title", "T", cwd=repo).stderr
         with open(f"{repo}/.claude/loopkit.json", "w") as f:
             json.dump({"owner": "Sam", "runner": "make"}, f)
@@ -523,6 +542,13 @@ def main() -> None:
         with open(f"{repo}/docs/plans/2026-01-02-s-goal.md") as f:
             assert "phase by phase" in f.read()
         assert run("new-goal.py", "--slug", "x", "--title", "X", "--ends-at", "staging", cwd=repo).returncode != 0
+        assert "G1 has no window" in run("check-goal.py", "s", cwd=repo).stdout  # the goal's own ending, not the repo's
+        with open(f"{repo}/.claude/loopkit/goal-pr.md", "w") as f:
+            f.write(adopted.replace("Facts:", "Own pr template. Facts:", 1))
+        assert run("new-goal.py", "--slug", "y", "--title", "Y", "--date", "2026-01-03", "--ends-at", "pr", cwd=repo).returncode == 0
+        with open(f"{repo}/docs/plans/2026-01-03-y-goal.md") as f:
+            assert "Own pr template." in f.read()  # goal-<ending>.md wins over goal.md
+        os.remove(f"{repo}/.claude/loopkit/goal-pr.md")
 
         with open(f"{repo}/.claude/loopkit.json", "w") as f:
             json.dump({"assurance": ["tests", "lint"], "surfaces": {"ui": ["^web/"]}}, f)
@@ -685,6 +711,8 @@ def main() -> None:
         assert "code changed since" in stale(earlier, head, lambda a, b: ["README.md", "src/app.py"])[0]
         assert "not fetched" in stale(earlier, head, lambda a, b: None)[0]
         assert stale(earlier, head, lambda a, b: [] if a == "fedcba987" else None) == []
+        assert stale(earlier, head, docs_only, "./docs/plans/") == []  # the setting's spelling does not matter
+        assert stale(earlier, head, lambda a, b: ["skills/x/SKILL.md"], "docs/plans", (r"^README\.md$",)) != []  # Markdown that runs
         assert "a security review" in pr(good.replace("- Security review: no input, auth or data exposure change; clean\n", ""))
         for leak in ("AKIA" + "ABCDEFGHIJKLMNOP", "ghp_" + "a" * 36, "sk-ant-" + "api03-" + "b" * 30, "xoxb-" + "1234567890-abc",
                      "-----BEGIN " + "RSA PRIVATE KEY-----", "eyJ" + "a" * 12 + ".eyJ" + "b" * 12 + "." + "c" * 12,

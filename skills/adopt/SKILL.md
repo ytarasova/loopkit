@@ -14,7 +14,7 @@ things:
 | `CONSTITUTION.md` | How work is done here: the core clauses plus the repo's own. | every session, `write-goal`'s goal text |
 | `.claude/loopkit.json` | The knobs below. | `new-goal.py`, `check-goal.py`, `intent` |
 | `.claude/loopkit/goal.md` | The goal template with this repo's commands written in; `goal-production.md` beside it when a goal here may be granted shipping. | `new-goal.py` |
-| `.claude/loopkit/lessons.md` | Corrections only this repo needs, kept out of the kit: a heading, filled by each run's retro. | `write-goal`, `intent` |
+| `.claude/loopkit/lessons.md` | Corrections only this repo needs, kept out of the kit: a heading, filled by each run's retro. | `write-goal` |
 | `CLAUDE.md` | A link to the constitution, and where gate baselines are read. | every session |
 
 ## The knobs
@@ -51,6 +51,7 @@ things:
 | `view` | The live view the owner reads, if any (a Claude Doc, a board). `progress.py <slug> view` stamps its update; `check-goal.py` fails a view older than the progress file's Now line. Empty when there is none. |
 | `rollback_pattern` | A regex every plan's Rollback must match, e.g. `[a-z-]+-production:\d+` for a task definition revision. |
 | `ban_em_dash` | Fail any goal file with an em-dash. |
+| `not_code` | Regexes on changed paths that never make a PR's assurance stale (default: Markdown). Narrow it where Markdown runs: prompts, agent definitions, skills. |
 
 Changing a model or the subagent count later is an edit to
 `.claude/loopkit.json` alone; the next `new-goal.py` picks it up. Changing
@@ -98,7 +99,12 @@ absolute paths before running anything from the target repo.
    any skill the repo uses to open PRs or review, and drop any line naming a
    plugin that is not installed, except `superpowers`, which loopkit needs.
    A filled goal should stay near 3,000 characters (`check-goal.py` warns
-   over 3,000, fails over 4,000): cut project lines before rules.
+   over 3,000, fails over 4,000): cut project lines before rules. When a goal
+   here may end differently from `ends_at` (the owner may grant shipping, or
+   only PRs), fill the other template too, as
+   `.claude/loopkit/goal-<ending>.md`; `new-goal.py --ends-at <ending>` reads
+   it. Create `.claude/loopkit/lessons.md` with a heading: the corrections only
+   this repo needs go there, and write-goal reads it.
 6. **`CLAUDE.md`.** Subagents load `CLAUDE.md`, not the goal or linked
    files, and it is what survives compaction, so it carries what every
    context must see, and nothing else:

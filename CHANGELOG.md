@@ -13,12 +13,16 @@ The loop runs end to end on its own, with evidence kept as it is made.
   asks the grants (open PRs, merge, or ship in phases) up front. The plan no
   longer waits for approval: a fresh context checks it against the intent and
   the owner gets a notice (`check-goal.py` drops the approval check). A
-  people-or-data choice found late takes the default that keeps data and can
-  be undone, as a ruling (§VIII.4).
+  people-or-data choice found late takes the option that changes least for
+  people, as a ruling under Waiting on; a shipping run does not deploy that
+  path until the owner has seen it (§VIII.4).
 - `new-goal.py --ends-at production` ships a goal phase by phase where the
-  intent grants it, from `.claude/loopkit/goal-production.md`.
+  intent grants it, from `.claude/loopkit/goal-production.md`; the master plan
+  records `Ends at:` and `check-goal.py` judges the goal by it.
 - Evidence is gathered, not rebuilt: `check-pr.py` accepts assurance from an
-  earlier commit when only Markdown and the goal's own files changed since,
+  earlier commit when only the goal's own files and `not_code` paths (a new
+  setting, Markdown by default; narrow it where Markdown runs) changed since,
+  renames counted on both names; the CI check fetches history to compare,
   and `goal.md` carries each use case's proof forward while its code is
   unchanged.
 - One review per task, two on a risky path (§VI.3). A check that flips is
@@ -28,7 +32,8 @@ The loop runs end to end on its own, with evidence kept as it is made.
   (§VI.10); the run-shaped UX bullets and shell gotchas left the kit for it.
 - A running goal finishes on the kit it started with (`adopt/rollout.md`).
 
-Upgrading from 0.10: copy `goal-production.md` into `.claude/loopkit/` if the
+Upgrading from 0.10: set `fetch-depth: 0` in the repo's `check-pr` workflow,
+narrow `not_code` where Markdown runs, copy `goal-production.md` into `.claude/loopkit/` if the
 repo may ship, create `.claude/loopkit/lessons.md` (move any repo-specific
 lessons into it), and refill `.claude/loopkit/goal.md` from the new template.
 A running goal needs nothing.
