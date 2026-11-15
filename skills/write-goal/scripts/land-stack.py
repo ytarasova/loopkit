@@ -5,8 +5,9 @@
 PRs are given bottom first, each based on the one before. Without --run it prints what it would do. With --run it lands
 the lowest open PR and stops; it never merges main up into the next branch, because a conflict there needs judgment:
 it prints the commands, and the agent runs them, re-runs that PR's assurance on its new head, then runs this again.
-With --method rebase it prints a rebase of the rest of the stack instead (--update-refs, pushed with a lease): GitHub
-cannot rebase-merge a branch that holds a merge commit, and main holds only copies of the commits that landed.
+With --method rebase it prints a rebase of the rest of the stack instead: a merge-up leaves a merge commit beside the
+original copies of commits main now holds rewritten, which GitHub refuses to rebase. Each line replays one branch's own
+commits from the head this read, and pushes with a lease on that head.
 
 A PR of the stack that merged earlier (by this tool, a merge queue or by hand) is finished first, and the run stops
 there: the PR above it is retargeted onto the merged PR's own base, then its branch is deleted, only while its tip is
@@ -62,29 +63,53 @@ def same_repo() -> None:
         sys.exit(f"stopped: gh talks to {gh_repo} but git's origin is {shown}: point them at the same repository")
 
 
-def merge_up_steps(above: list[dict], method: str, landed: str) -> str:
-    """What the agent runs before the next PR can land. `above` is the open stack over the PR that landed, bottom first."""
-    nxt, n = above[0], above[0]["number"]
-    if method == "rebase":  # a merge commit stops GitHub's rebase merge, and main holds copies of the landed commits
-        names = [p["headRefName"] for p in above]
-        lower = "".join(f" && git branch -f {b} origin/{b}" for b in names[:-1])
-        return (f"rebase #{n}'s branch, and every branch above it, onto main without the landed commits; the branches are "
-                f"rebuilt from origin, so push anything local first; resolve any conflict by hand, push each with a lease:\n"
-                f"  git fetch origin && git switch -C {names[-1]} origin/{names[-1]}{lower}\n"
-                f"  git rebase --update-refs --onto origin/main {landed}\n"
-                f"  git push --force-with-lease origin {' '.join(names)}\n"
-                f"then re-run #{n}'s assurance on the new head, update its PR body, and run this again")
-    b = nxt["headRefName"]
+def merge_up_steps(nxt: dict) -> str:
+    b, n = nxt["headRefName"], nxt["number"]
     return (f"merge main up into #{n}'s branch, resolve any conflict by hand, push plainly:\n"
             f"  git fetch origin && git switch {b} && git merge origin/main && git push origin {b}\n"
             f"then re-run #{n}'s assurance on the new head, update its PR body, and run this again")
 
 
-def finish(merged: dict, nxt: dict | None) -> None:
-    """A merged PR's branch: retarget the next PR off it, then delete it, but only while nothing else depends on it."""
+def home(branch: str, merged: dict) -> str:
+    """Where a branch's commits live now: the first branch down that is not merged (`merged`: head name to its PR)."""
+    while branch in merged:
+        branch = merged[branch]["baseRefName"]
+    return branch
+
+
+def rebase_steps(stack: list[dict]) -> str:
+    """For --method rebase, where a merge-up would leave a merge commit and the original copies of commits main holds
+    rewritten: one line per open branch that must move. Each replays only its own commits, from the head it was stacked
+    on, onto where that branch now is, and pushes with a lease on the head read here. No local branch is touched.
+    `stack` is bottom first, as read before any retarget."""
+    merged = {p["headRefName"]: p for p in stack if p["state"] == "MERGED"}
+    open_ = {p["headRefName"]: p for p in stack if p["state"] == "OPEN"}
+    lines, moved = [], set()
+    for p in open_.values():
+        base, head, oid = p["baseRefName"], p["headRefName"], p["headRefOid"]
+        if base not in merged and base not in moved and (
+                base != "main" or not run("git", "merge-base", "--is-ancestor", "origin/main", oid).returncode):
+            continue  # nothing below it moved
+        onto = home(base, merged)
+        below = merged.get(base) or open_.get(base)
+        replay = f"git rebase --onto origin/{onto} {below['headRefOid']}" if below else "git rebase origin/main"
+        lines.append(f"  git switch --detach {oid} && {replay} && "
+                     f"git push --force-with-lease=refs/heads/{head}:{oid} origin HEAD:refs/heads/{head}")
+        moved.add(head)
+    if not lines:
+        return ""
+    first = next(p for p in open_.values() if p["headRefName"] in moved)
+    return ("rebase each branch below onto where the branch under it now is, bottom first. Each line starts from the "
+            "head read here, so local branches are untouched, and its lease refuses a push made since; on a conflict, "
+            "resolve it, `git rebase --continue`, then run the rest of that line:\n  git fetch origin\n" + "\n".join(lines) +
+            f"\nthen re-run #{first['number']}'s assurance on its new head, update its PR body, and run this again")
+
+
+def finish(merged: dict, nxt: dict | None, onto: str) -> None:
+    """A merged PR's branch: retarget the next PR off it onto `onto`, then delete it, but only while nothing else depends on it."""
     branch, oid = merged["headRefName"], merged["headRefOid"]
-    if nxt and nxt["baseRefName"] == branch:  # onto the merged PR's own base: main, or a branch below that is still open
-        sh("gh", "pr", "edit", str(nxt["number"]), "--base", merged["baseRefName"])  # before the branch goes: deleting a base closes its PRs
+    if nxt and nxt["baseRefName"] == branch:  # onto the first branch below that is not merged: main, or one still open
+        sh("gh", "pr", "edit", str(nxt["number"]), "--base", onto)  # before the branch goes: deleting a base closes its PRs
     tip = sh("git", "ls-remote", "origin", f"refs/heads/{branch}").split()  # the full ref: a bare name also matches a/<branch>
     if not tip:
         print(f"{branch} is already gone")
@@ -110,7 +135,7 @@ def latest(checks: list[dict]) -> list[dict]:
     return list(newest.values())
 
 
-def check(p: dict, nxt: dict | None, allow_no_checks: bool) -> None:
+def check(p: dict, nxt: dict | None, allow_no_checks: bool, method: str) -> None:
     n = p["number"]
     if p["isCrossRepository"]:
         sys.exit(f"stopped: #{n} comes from a fork; land it by hand")
@@ -130,7 +155,9 @@ def check(p: dict, nxt: dict | None, allow_no_checks: bool) -> None:
         sys.exit(f"stopped: #{n} has checks still running: {', '.join(map(str, pending))}")
     sh("git", "fetch", "-q", "origin")
     if run("git", "merge-base", "--is-ancestor", "origin/main", p["headRefOid"]).returncode:
-        sys.exit(f"stopped: #{n}'s branch does not hold main: merge main up into it, re-run its assurance, then land it")
+        how = ("rebase it onto origin/main from the head it was stacked on, push it with a lease" if method == "rebase"
+               else "merge main up into it")
+        sys.exit(f"stopped: #{n}'s branch does not hold main: {how}, re-run its assurance, then land it")
     r = run(sys.executable, os.path.join(HERE, "check-pr.py"), str(n))
     if r.returncode:
         sys.exit(f"stopped: check-pr.py fails on #{n}:\n{(r.stdout + r.stderr).strip()}")
@@ -143,8 +170,10 @@ def check(p: dict, nxt: dict | None, allow_no_checks: bool) -> None:
             sys.exit(f"stopped: #{nxt['number']} is not based on #{n}'s branch {p['headRefName']}: give the stack in order")
         lost = sh("git", "rev-list", "--no-merges", p["headRefOid"], f"^{nxt['headRefOid']}", "^origin/main").split()
         if lost:
-            sys.exit(f"stopped: #{nxt['number']}'s branch lacks {len(lost)} commit(s) of #{n}'s ({lost[0][:9]}): merge "
-                     f"{p['headRefName']} up into {nxt['headRefName']} first, or a fix made below is lost")
+            how = (f"rebase {nxt['headRefName']} onto {p['headRefName']}" if method == "rebase"
+                   else f"merge {p['headRefName']} up into {nxt['headRefName']}")
+            sys.exit(f"stopped: #{nxt['number']}'s branch lacks {len(lost)} commit(s) of #{n}'s ({lost[0][:9]}): {how} "
+                     "first, or a fix made below is lost")
 
 
 def main() -> None:
@@ -171,8 +200,8 @@ def main() -> None:
             sys.exit(f"stopped: cannot read origin's branches:\n{r.stderr.strip()}")
         return r.returncode == 0
     leftover = [states[n] for n in args if states[n]["state"] == "MERGED" and present(states[n]["headRefName"])]
-    open_above = lambda d: [states[m] for m in args[args.index(str(d["number"])) + 1:] if states[m]["state"] == "OPEN"]
-    above = lambda d: next(iter(open_above(d)), None)
+    merged = {states[n]["headRefName"]: states[n] for n in args if states[n]["state"] == "MERGED"}
+    above = lambda d: next((states[m] for m in args[args.index(str(d["number"])) + 1:] if states[m]["state"] == "OPEN"), None)
     if not go:
         for d in leftover:
             print(f"- finish #{d['number']}, merged earlier: retarget the PR above it, delete {d['headRefName']} if unmoved and unused")
@@ -183,33 +212,42 @@ def main() -> None:
             print(f"- check #{first['number']}: open, from this repo, based on main and holding it, checks green, "
                   f"check-pr ok, nothing else stacked on it{holds}")
             print(f"- merge #{first['number']} (--{method}, matching its head), confirm MERGED, retarget the next PR, delete its branch")
-            if nxt:
-                print(f"- then {merge_up_steps(open_above(first), method, first['headRefOid'])}")
+            if nxt and method == "rebase":
+                print("- then rebase the rest of the stack onto it; the run prints each line, with the heads it reads")
+            elif nxt:
+                print(f"- then {merge_up_steps(nxt)}")
         print("plan only; add --run to do it")
         return
     same_repo()
     if leftover:
         for d in leftover:  # bottom first; finish() retargets only a PR based on the merged branch
-            finish(d, above(d))
+            finish(d, above(d), home(d["baseRefName"], merged))
         if first:
             now = pr(str(first["number"]))
             sh("git", "fetch", "-q", "origin")
             held = now["baseRefName"] == "main" and not run("git", "merge-base", "--is-ancestor", "origin/main", now["headRefOid"]).returncode
-            print("next: run this again to land #%s" % now["number"] if held or now["baseRefName"] != "main"
-                  else f"next: {merge_up_steps([now] + open_above(now), method, leftover[-1]['headRefOid'])}")
+            steps = rebase_steps([states[n] for n in args]) if method == "rebase" else ""
+            print(f"next: {steps}" if steps else "next: run this again to land #%s" % now["number"]
+                  if held or now["baseRefName"] != "main" else f"next: {merge_up_steps(now)}")
         return
     if not first:
         print("every PR in the stack is merged")
         return
-    check(first, nxt, allow_no_checks)
+    check(first, nxt, allow_no_checks, method)
     merged = run("gh", "pr", "merge", str(first["number"]), f"--{method}", "--match-head-commit", first["headRefOid"])
     after = pr(str(first["number"]))
     if after["state"] != "MERGED":
         sys.exit(f"stopped: #{first['number']} is not merged ({(merged.stderr or 'queued').strip()[:200]}): nothing else "
                  "changed; rerun once it merges")
     print(f"#{first['number']} landed ({method})")
-    finish(after, nxt)
-    print(f"next: {merge_up_steps(open_above(first), method, first['headRefOid'])}" if nxt else "stack landed")
+    finish(after, nxt, after["baseRefName"])
+    if not nxt:
+        print("stack landed")
+    elif method == "rebase":
+        states[str(first["number"])] = after
+        print(f"next: {rebase_steps([states[n] for n in args]) or 'run this again to land #%s' % nxt['number']}")
+    else:
+        print(f"next: {merge_up_steps(nxt)}")
 
 
 if __name__ == "__main__":
