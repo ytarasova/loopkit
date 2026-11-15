@@ -104,6 +104,8 @@ elif a[:2] == ["pr", "merge"]:
             sys.exit("GraphQL: This branch can't be rebased (mergePullRequest)")
         git("push", "-q", "origin", "replay:" + p["base"])
         p["state"], p["merged_oid"] = "MERGED", head
+        if p.get("delete_on_merge"):  # a repo that deletes a branch on merge
+            git("push", "-q", "origin", "--delete", p["head"])
     elif not p.get("queue"):
         git("fetch", "-q", "origin"); git("switch", "-q", "-C", p["base"], "origin/" + p["base"])  # into its own base, as GitHub does
         git("merge", "-q", "--squash", "origin/" + p["head"])
@@ -327,6 +329,10 @@ def land_stack_test() -> None:
         st = load(); st["prs"]["45"] = add("main", "b45", "f45.txt"); st["delete_on_list"] = "b45"; save(st)
         auto = go("45")
         assert auto.returncode == 0 and "b45 is already gone" in auto.stdout and "stack landed" in auto.stdout, auto.stdout + auto.stderr
+        commit("b47", "main", "f47.txt", "47\n")  # deleted with the merge, before land-stack reads it
+        st = load(); st["prs"]["47"] = dict(add("main", "b47", "f47.txt"), delete_on_merge=True); save(st)
+        gone47 = go("47", "--method", "rebase")
+        assert gone47.returncode == 0 and "b47 is already gone" in gone47.stdout, gone47.stdout + gone47.stderr
         commit("b46", "main", "f46.txt", "46\n")  # a push between the read and the delete: the lease refuses, and it stops
         st = load(); st["prs"]["46"] = add("main", "b46", "f46.txt"); st["push_on_list"] = "b46"; save(st)
         racing = go("46")
@@ -496,17 +502,16 @@ def main() -> None:
         # GitHub does not render an HTML comment, so nothing inside one counts: a PR template's guidance proves nothing.
         assert 'no "## Signal"' in pr(good.replace(signals, "<!-- Or not-applicable, and why. -->"))
         assert "line for simplify" in pr(good.replace("- Simplify: 2 lines removed", "<!--\n- Simplify: 2 lines removed\n-->"))
-        assert 'no "## Review"' in pr(good.replace("## Review", "<!-- unclosed\n## Review"))  # hides the rest, as on GitHub
+        hidden = pr(good.replace("## Review", "<!-- unclosed\n## Review"))  # hides the rest, as on GitHub
+        assert 'no "## Review"' in hidden and "an unclosed <!-- at line 24" in hidden, hidden
         assert pr(good.replace("200 a,b", "<!-- a,b")).strip() == "ok"  # inside a fence it is output, not a comment
         assert pr(good.replace("## Review", "<!-- a note -->\n\n## Review")).strip() == "ok"
         assert "credential" in pr(good.replace("## Review", "<!-- api_key=" + "a1b2c3d4e5f6 -->\n## Review"))
         spans = good.replace("## Signal", "Strips `<!--`.\n\n## Signal").replace("cross-checked, clean", "cross-checked, clean; to `-->`")
         assert pr(spans).strip() == "ok"  # inline code is output, never a comment's ends
-        assert pr(good.replace("cross-checked, clean", "cross-checked, clean; a <!-- b")).strip() == "ok"  # mid-line: shown as text
-        assert pr(good.replace("## Review", "`a`<!-- after inline code\n## Review")).strip() == "ok"  # still mid-line
-        assert pr(good.replace("## Review", "    <!-- indented code\n## Review")).strip() == "ok"
-        assert 'no "## Review"' in pr(good.replace("## Review", "   <!-- unclosed\n## Review"))
-        assert 'no "## Review"' in pr(good.replace("## Review", "x <!-- a\n<!-- b\n## Review"))  # a later one at a line start
+        for opener in ("> <!-- a quote", "- <!-- a list item", "<div>`a`<!-- an HTML line", "a <!-- mid-line"):
+            assert "an unclosed <!--" in pr(good.replace("## Review", opener + "\n## Review")), opener  # fails closed
+        assert pr(good.replace("cross-checked, clean", "cross-checked, clean; `a <!-- b`")).strip() == "ok"  # in code
         assert pr(good.replace("## Review", "<!-->\n\n## Review")).strip() == "ok"  # an empty comment closes itself
         assert __import__("importlib").import_module("check-pr").problems(good.replace("\n", "\r\n"), [], {}, ["tests", "lint"]) == []  # a body edited in the browser, as gh returns it
         top = subprocess.run(["git", "rev-parse", "--show-toplevel"], capture_output=True, text=True, cwd=HERE).stdout.strip()
@@ -573,7 +578,7 @@ def main() -> None:
             began = time.time(); images(adversarial)
             assert time.time() - began < 3, f"the image scan is slow on {adversarial[:6]}..."
         uncommented = __import__("importlib").import_module("check-pr").uncommented
-        for adversarial in ("x<!--" * 200_000, "<!--\n" * 200_000, "`<!--` " * 140_000):
+        for adversarial in ("x<!--" * 200_000, "<!--\n" * 200_000, "`<!--` " * 140_000, "<!-- x -->" * 100_000):
             began = time.time(); uncommented(adversarial)
             assert time.time() - began < 3, f"the comment scan is slow on {adversarial[:6]}..."
         leaked = pr(good.replace("200 a,b", "200 a,b\npassword=" + "hunter2hunter2"))

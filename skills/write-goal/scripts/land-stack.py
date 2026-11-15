@@ -4,7 +4,7 @@
 
 PRs are given bottom first, each based on the one before. Without --run it prints what it would do. With --run it lands
 the lowest open PR and stops; it never merges main up into the next branch, because a conflict there needs judgment:
-it prints the commands, and the agent runs them, re-runs that PR's assurance on its new head, then runs this again.
+it prints the commands, and the agent runs them, re-runs the assurance of each PR they moved, then runs this again.
 With --method rebase it prints a rebase of the rest of the stack instead: a merge-up leaves a merge commit beside the
 original copies of commits main now holds rewritten, which GitHub refuses to rebase. Each line replays one branch's own
 commits from the head this read, and pushes with a lease on that head.
@@ -125,11 +125,12 @@ def finish(merged: dict, nxt: dict | None, onto: str) -> None:
         sys.exit(f"stopped: open PR #{', #'.join(users)} still use{'s' if len(users) == 1 else ''} {branch}: retarget or close them first")
     # The lease closes the race between the tip check above and this delete: a push in between makes it fail.
     r = run("git", "push", "-q", f"--force-with-lease=refs/heads/{branch}:{oid}", "origin", "--delete", branch)
-    if r.returncode and not sh("git", "ls-remote", "origin", f"refs/heads/{branch}").strip():
-        print(f"{branch} is already gone")  # the repo deletes a branch on merge, and did so while this checked it
-        return
     if r.returncode:
-        sys.exit(f"stopped: git push --delete {branch}:\n{(r.stderr or r.stdout).strip()}")
+        now = run("git", "ls-remote", "origin", f"refs/heads/{branch}")
+        if not now.returncode and not now.stdout.strip():
+            print(f"{branch} is already gone")  # the repo deletes a branch on merge, and did so while this checked it
+            return
+        sys.exit(f"stopped: git push --delete {branch}:\n{(r.stderr or r.stdout).strip()}\n{now.stderr.strip()}".rstrip())
     print(f"{branch} deleted")
 
 
