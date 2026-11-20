@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.1
+
+- `optimize` runs its own Discover step between intake and the suite: it reads the system's public surface, how a
+  clean start is made, what can check a result and the gate suite, and maps each case's gaps before any score.
+  adopt no longer reads these itself; it points to the step.
+
 ## 0.12.0
 
 A loop for work that has no finished state, only a score to raise.
