@@ -65,6 +65,12 @@ solver left behind and passes or fails. It meets the rules for a
 verification in `analysis-synthesis`: quick, fixed before the work, steady,
 close to what matters.
 
+The outcome covers the result in use, not only that it exists: the main
+path, the validation a user would hit (bad or missing input refused, with a
+message that says why), and the edge cases the task implies (each role
+allowed and refused, empty and none, the limits, a step undone or denied).
+A check that a thing was created is not a check that it works.
+
 What only a reader can decide (it fits the purpose, the names make sense)
 goes in the case's judged part, with its rubric. It is reported beside the
 score and never added to it, so nothing raises the number by pleasing a
@@ -161,7 +167,8 @@ them.
 3. **The suite**, landed by its own PR before any run: cases, held-out
    cases, the scorer, the gates. A run then has a baseline to freeze.
 4. **The baseline**: the `n` runs above, on the training and the held-out
-   cases, the judged part read once, the cost of a round stated.
+   cases, the judged part read once, each case's result walked (Landing),
+   the cost of a round stated.
 5. **The loop**: evo's discover, which finds the scorer already built
    (`contract.md`), then `/evo:optimize` with the caps. An unattended run
    is a goal (`write-goal`): its master plan holds the caps and the
@@ -192,6 +199,16 @@ cut-down diff too. Its body passes `check-pr.py`, with:
   score and spread; the
   held-out score before and after; one transcript before and after for the
   case that moved most; the judged part before and after;
+- a walkthrough of each case, on the baseline and on the winner: everything
+  the solver built (each screen, flow, record, call) used as its user would,
+  through the main path, the validation and the edge cases its outcome
+  names, with what each step showed. It is walked on what one try left
+  standing, before the next reset, by a subagent that did not score it, and
+  costs no solver session. A UI is walked as in `write-goal`'s UX
+  review, with screenshots of every state; a service by its requests and
+  responses; a library by its runs. A score says how many checks passed;
+  the walkthrough shows what a user gets, and a step that failed is shown
+  failing;
 - Release notes: what a user of the system can now do.
 
 Merging follows the grants, as in `write-goal`. A judged drop does not stop
@@ -211,6 +228,8 @@ held-out cases at random.
 | --- | --- |
 | A task written in the system's words | The solver is handed the answer; the score measures nothing a user meets. |
 | Checks written after seeing the solver's result | They pass what was built, not what was asked. |
+| Checks that only find the thing was created | A screen that rejects nothing, or a flow that cannot be denied, scores full. |
+| A landing with scores and no walkthrough | Nobody has seen what a user gets; a gain in checks can hide a build no one could use. |
 | One try per case | A lucky run is kept, and the next run cannot repeat it. |
 | The held-out cases scored in the loop | Nothing is left to show overfitting. |
 | The judged part added to the score | The number rises by pleasing the judge. |

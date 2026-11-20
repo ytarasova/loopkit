@@ -29,7 +29,7 @@ What one run sets (the caps, the baseline scores, the floor) lives with the run:
 
 ## The scorer
 
-One command, for example `optimize/scorer --system <path> --cases <dir> [--tries <k>] [--min-score <x>]`.
+One command, for example `optimize/scorer --system <path> --cases <dir> [--tries <k>] [--min-score <x>] [--keep]`.
 
 1. It takes the system to score as a path, and the cases as a directory. Everything else it uses (itself, the cases,
    the checks, the clean start) it reads from where it is run, never from the system's path.
@@ -56,6 +56,9 @@ One command, for example `optimize/scorer --system <path> --cases <dir> [--tries
 9. Cases run side by side up to a limit the repo sets. A clean start that experiments would share (one service, one
    port, one database) means `subagents=1`, unless the scorer makes one per experiment (evo's
    `sizing-the-round.md`).
+10. With `--keep`, it leaves each case's last try standing instead of resetting after it, and prints where each one
+    is, so the walkthrough (`SKILL.md`, Landing) reads the result a solver left. The baseline and the landing use it;
+    evo's runs do not.
 
 The whole run stays in the host's harness, on its own sign-in: evo's workers are the host's subagents, and the
 scorer, being a shell command, runs each try with the host's headless CLI. No separate API key or SDK. On Claude Code:
