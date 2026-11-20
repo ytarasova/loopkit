@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.12.0
+
+A loop for work that has no finished state, only a score to raise.
+
+- A new skill, `optimize`: a system (a product, an API, an MCP server, a library, a prompt set, a pipeline) is scored
+  on many of its users' tasks at once, and a loop changes the system until the score rises. evo
+  (github.com/evo-hq/evo) runs the search; loopkit supplies the cases, the scorer contract, the gates and the landing.
+- The score is built to be trusted: each case is tried `k` times and reports a lower bound, the suite and the scorer
+  are frozen for a run, a third of the cases are held out and watched for leaks, a change that fits one case instead
+  of improving the system is failed, and what only a reader can judge is reported beside the score, never in it.
+- One run lands as one PR, the smallest diff that keeps the winner's score, with its body checked by `check-pr.py`.
+- `skills/optimize/contract.md` holds the exact parts: a case's files, what the scorer must do, the gate commands,
+  and the evo commands, cited from evo 0.8.0.
+- A house rule for the kit itself: it stays generic (README, Customizing).
+
+Upgrading from 0.11: nothing changes for a repo that does not optimize. One that will: copy `skills/optimize/` into
+its copy of the kit, and follow adopt's "A repo that will optimize". Installing evo adds hooks to the host and sends
+anonymous telemetry unless turned off, so it waits for the owner's word, per repo.
+
 ## 0.11.1
 
 - Rollout: a port lands with the repo's own `land-stack.py`, which judges the PR with the repo's checker and

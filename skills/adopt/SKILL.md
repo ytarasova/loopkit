@@ -147,6 +147,13 @@ absolute paths before running anything from the target repo.
 | Leaving `{{PROJECT: ...}}` in the goal template | `new-goal.py` refuses to run. |
 | Putting preferences in the goal template | They drift per repo. Models and counts live in `.claude/loopkit.json`. |
 
+## A repo that will optimize
+
+Only where the owner wants an `optimize` loop here. Read what the repo can say: what the system's public surface is,
+how a clean start is made and reset, which suite is fast enough to gate every experiment. The questions (the solver,
+the cases' sources, the caps, whether evo may be installed) belong to that skill's intake, not this one. Add to
+`CLAUDE.md` one sentence: the suite under `optimize/` is frozen during a run.
+
 ## Rolling out a later loopkit change
 
 Each adopted repo keeps its own copy of the kit, so a loopkit change reaches it only when ported. Follow
