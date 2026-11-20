@@ -1,6 +1,6 @@
 ---
 name: optimize
-description: Use when asked for an optimization loop, an autoresearch loop, a loop "with criteria", to "run evo on this", or when a system should get measurably better across many of its users' tasks at once, such as "make our MCP easier for Claude to build with", "improve the platform until these use cases are fully achievable", "raise the score across these cases". Not for one feature with a known end (write-goal), and not for tuning the solver or its prompts.
+description: Use when asked for an optimization loop, an autoresearch loop, a loop "with criteria", an evo loop over a system's use cases, or when a system should get measurably better across many of its users' tasks at once, such as "make our MCP easier for Claude to build with", "improve the platform until these use cases are fully achievable", "raise the score across these cases". Not for one feature with a known end (write-goal), and not for tuning the solver or its prompts.
 ---
 
 # Optimize
@@ -71,8 +71,8 @@ score and never added to it, so nothing raises the number by pleasing a
 judge. It is read twice a run, on the baseline and on the winner.
 
 Hold out about a third of the cases, picked at random, never by whether they
-pass. The loop is scored on the rest. Ten cases is a thin suite; evo's own
-advice is ten to twenty at the least.
+pass. The loop is scored on the rest. Fewer than ten cases for the loop to
+see is a thin suite: evo's own advice is ten to twenty at the least.
 
 ## The scorer
 
@@ -121,7 +121,7 @@ failure spends no solver sessions.
   case instead of improving the system. It costs a call per experiment, so
   its cost is stated at intake.
 - **Held-out floor (post).** The held-out cases, scored only here, do not
-  fall below their baseline lower bound.
+  fall below the lowest score they got across the baseline runs.
 
 ## Cost and stopping
 
@@ -130,8 +130,10 @@ sessions, and a round up to `subagents` x `budget` experiments, each retried
 up to evo's `max-attempts`. State that number before the first round. evo
 runs until the score stalls, which on a noisy score can be long, so intake
 sets the caps: evo takes the width (`subagents`), the depth per branch
-(`budget`) and the stall limit (`stall`); the round limit and the spend
-ceiling are the run's own, since evo has neither (`contract.md`).
+(`budget`) and the stall limit (`stall`); the round limit and the ceiling on
+solver sessions are the run's own, since evo has neither (`contract.md`).
+evo's own agents spend too, every round; the round limit is what bounds
+them.
 
 ## Running it
 
@@ -143,24 +145,27 @@ ceiling are the run's own, since evo has neither (`contract.md`).
    (`write-goal`, constitution §VIII.2).
 2. **The suite**, landed by its own PR before any run: cases, held-out
    cases, the scorer, the gates. A run then has a baseline to freeze.
-3. **The baseline**: the `n` runs above, the judged part read once, the cost
-   of a round stated.
+3. **The baseline**: the `n` runs above, on the training and the held-out
+   cases, the judged part read once, the cost of a round stated.
 4. **The loop**: evo's discover, then `/evo:optimize` with the caps. An
    unattended run is a goal (`write-goal`): its master plan holds the caps
    and the baseline, its progress file each round's best score.
 5. **The landing**, below. A run that finds no valid gain ends with its
-   report and no PR.
+   report and no PR. Either way it leaves nothing running (`contract.md`).
 
 ## Landing
 
 evo searches; loopkit lands. evo's own `/evo:ship` stops for the owner twice
 and writes its own PR body, so an unattended run does not use it. One run
 lands as one PR: the best valid experiment, cut down to the smallest diff
-that keeps its score (the scorer and every gate rerun on the cut-down diff),
-on a branch from the run's baseline. Its body passes `check-pr.py`, with:
+that keeps its score, on a branch from the run's baseline. The winner's own
+score is the best of many noisy runs, so it flatters: score the winner again
+`n` times, then the cut-down diff, and compare those. Every gate runs on the
+cut-down diff too. Its body passes `check-pr.py`, with:
 
 - Assurance: the system's tests, and the scorer on the PR head;
-- Evidence: a table of cases with baseline score, new score and spread; the
+- Evidence, from those fresh runs: a table of cases with baseline score, new
+  score and spread; the
   held-out score before and after; one transcript before and after for the
   case that moved most; the judged part before and after;
 - Release notes: what a user of the system can now do.
@@ -188,5 +193,5 @@ held-out cases at random.
 | No transcript in the trace | The loop sees that a case failed, never why. |
 | The scorer run from the experiment's own copy | An experiment edits its own exam. |
 | Tuning the solver or its prompt | The gain belongs to the solver; the system's users get nothing. |
-| No caps at intake | The run stops when the money does. |
+| No caps at intake | Nothing stops the run but a stalled score, and a noisy score stalls late. |
 | Shipping the raw winning diff | Search leftovers, and sometimes a loosened test, land with the gain. |

@@ -149,13 +149,10 @@ absolute paths before running anything from the target repo.
 
 ## A repo that will optimize
 
-Only where the owner wants an `optimize` loop here. Read what the repo can say first: what the system's public
-surface is, how a clean start is made and reset, which suite is fast enough to gate every experiment, and what its
-users' tasks look like. Then ask, one question at a time with a recommendation: who the solver is (the model and
-client the system's users reach it with); where the first cases come from; `k` and the caps; and whether evo may be
-installed in this repo. Write the answers in `optimize/README.md`, and add to `CLAUDE.md` one sentence: the suite
-under `optimize/` is frozen during a run. The cases, the scorer and the gates then land by their own PR
-(`../optimize/contract.md`).
+Only where the owner wants an `optimize` loop here. Read what the repo can say: what the system's public surface is,
+how a clean start is made and reset, which suite is fast enough to gate every experiment. The questions (the solver,
+the cases' sources, the caps, whether evo may be installed) belong to that skill's intake, not this one. Add to
+`CLAUDE.md` one sentence: the suite under `optimize/` is frozen during a run.
 
 ## Rolling out a later loopkit change
 

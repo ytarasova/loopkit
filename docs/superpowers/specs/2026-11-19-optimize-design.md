@@ -88,8 +88,8 @@ One command evo runs per experiment. For each case:
 
 1. Reset to the clean start (the adopting repo says how).
 2. Run a fresh solver with the case's `task.md` and the system's public surface, and nothing else. The solver is an
-   adoption setting: the one the system's users reach it with, so the system is tuned to how it is really used. It
-   stays fixed for a run, so a gain comes from the system.
+   adoption setting. It stands in for the system's users (where they reach it through an agent, that model and
+   client), so the system is tuned to how it is really used. It stays fixed for a run, so a gain comes from the system.
 3. Run the case's checks against what the solver left.
 4. Report the case as an evo task (the SDK's `run.report`, or `log_task` in evo's inline mode) with its score, the
    solver's transcript and each check's result.
@@ -99,8 +99,9 @@ Each case runs `k` times (default 3). Tries of different cases run in parallel u
 *(Builder's call:)* **What is frozen.** The scorer, the cases, their checks, the code that runs the checks, and
 whatever defines the clean start all run from the run's baseline commit, whatever the experiment changed. The system
 itself is free to change. Otherwise an experiment could change how a check is judged, or start a case already solved,
-without touching a case file. evo executes the benchmark from the main repo root, so the scorer is called by a path
-that is not the experiment's, and that checkout stays on the baseline for the run.
+without touching a case file. On its local backends evo executes the benchmark from the main repo root, so the scorer
+is called by a path that is not the experiment's, and that checkout stays on the baseline for the run. A remote
+backend runs inside the experiment's copy and is not covered.
 
 Trace content matters: evo's scan subagents read the transcripts to find the cross-cutting gap (the solver guessed a
 field name five times; nothing lists the valid ones). Without the transcript the loop is blind.
@@ -112,7 +113,7 @@ field name five times; nothing lists the valid ones). Without the transcript the
   gate leaves the experiment uncommitted, for its agent to fix or discard.
 - **The system's own tests (pre).** The repo's existing fast suite.
 - **Held-out floor (post).** About a third of the cases are held out: scored only in this gate, never in the
-  benchmark. The gate fails if the held-out score drops below the baseline's. evo has no built-in held-out set; this
+  benchmark. The gate fails if the held-out score drops below the lowest of the baseline runs. evo has no built-in held-out set; this
   gate is ours. evo's own advice is that held-out data cannot be hidden from agents in the same repo, only caught, so:
 - **No held-out leak (pre).** Fails when the experiment contains distinctive strings from a held-out case (its names,
   its wording).
@@ -138,15 +139,16 @@ One experiment costs (training cases + held-out cases) × `k` solver sessions; a
 experiments, each retried up to evo's `max-attempts`. evo runs until the score stops rising, which on a noisy benchmark
 can be long. So intake sets the caps. evo takes three: `subagents` (experiments at once), `budget` (tries per branch)
 and `stall` (rounds with no gain before it stops). It has no round limit and no spend ceiling, so the run counts
-rounds itself and the scorer counts solver sessions against the ceiling. The skill states the cost of one round in
-sessions before the first.
+rounds itself and the scorer counts solver sessions against the ceiling; evo's own agents are bounded by the round
+limit. The skill states the cost of one round in sessions before the first.
 
 ### Landing
 
 evo searches; loopkit lands. evo's `ship` skill stops for the owner before choosing a winner and before any push, and
 writes its own PR body, so an unattended run does not use it. *(Builder's call:)* one optimize run lands as **one PR**:
-the run's best valid experiment, reduced to the minimal diff that keeps its score (rerun the scorer and the gates on
-the reduced diff), on a branch from the run's baseline. The PR body follows the repo's loopkit rules (`check-pr.py`),
+the run's best valid experiment, reduced to the minimal diff that keeps its score (the winner scored again `n` times,
+then the reduced diff, and the gates rerun on it), on a branch from the run's baseline. A run with no valid gain ends
+with its report and no PR. The PR body follows the repo's loopkit rules (`check-pr.py`),
 with:
 
 - Assurance: the system's tests, and the scorer on the PR head.
@@ -167,6 +169,7 @@ is added to training or held-out at random, never by whether it passes.
 ### Where loopkit's other skills come in
 
 - `intent`: capture a user's task in their words before it becomes a case; ask the caps and the grants.
+- `adopt`: reads what the repo can say about its system, and notes in `CLAUDE.md` that the suite is frozen in a run.
 - `analysis-synthesis`: the rules a check must meet (quick, fixed before the work, steady, close to what matters).
 - `write-goal`: an unattended optimize run is a goal; its grants decide whether it opens PRs, merges or ships in phases.
 
@@ -174,11 +177,11 @@ is added to training or held-out at random, never by whether it passes.
 
 - evo installs hooks into the host: a stop-nudge (`evo autonomous`) and an orchestrator-edit gate
   (`evo subagents-only`). Its optimize skill treats both as on unless told otherwise; its CLI leaves both unarmed until
-  the command runs. Installing it in a repo is the owner's call per repo; the skill never installs it unasked, and sets
-  both switches explicitly: autonomous on, and subagents-only off, because the run's orchestrator still writes its
-  progress file.
-- evo sends anonymous telemetry by default. A run sets `EVO_TELEMETRY=0`; `evo telemetry off` is global, so it is the
-  owner's to run.
+  the command runs, and the skill arms both itself at startup. Installing it in a repo is the owner's call per repo;
+  the skill never installs it unasked, and states both switches on the invocation: autonomous on, and subagents-only
+  off, because the run's orchestrator still writes its progress file.
+- evo sends anonymous telemetry by default. A run starts its host with `EVO_TELEMETRY=0` in the environment;
+  `evo telemetry off` is global, so it is the owner's to run.
 - Cost: see Cost and stopping.
 - Public loopkit: no product names, people or internal URLs. The kit stays generic: what is specific to one system
   lives in that system's repo, in its adoption.
@@ -187,7 +190,8 @@ is added to training or held-out at random, never by whether it passes.
 
 - The skill's exact sections and its scorer contract file, kept short (the owner: "I don't want it to be rigid!").
 - How the scorer runs a solver; the skill names the requirements, not the tool.
-- Which evo frontier strategy to suggest first; `pareto_per_task` fits a suite of unlike cases.
+- Which evo frontier strategy to suggest first. `pareto_per_task` fits a suite of unlike cases but favours branches
+  good at one case, so the contract offers it only beside the case-shaped gate, and `argmax` as the plain choice.
 - A first adopter's own cases, scorer, clean start and solver are a separate piece of work after the skill.
 
 ## Changed after approval
@@ -205,8 +209,20 @@ Found while building, against evo's docs (0.8.0):
 - A failed gate does not discard an experiment; it leaves it uncommitted.
 - The case-shaped gate reads only the diff, so it runs pre, before any solver session is spent, not post.
 - evo's two switches do not disagree across its docs so much as describe two layers (the skill's default, the CLI's
-  unarmed state). subagents-only is set off, not on, so a write-goal orchestrator can keep its progress file.
-- `evo telemetry off` is global; a run uses `EVO_TELEMETRY=0` instead.
+  unarmed state). evo's skill arms them at startup, so they are stated on the invocation, not set beforehand.
+  subagents-only is off, not on, so a write-goal orchestrator can keep its progress file.
+- `evo telemetry off` is global; a run sets `EVO_TELEMETRY=0` in the host's environment instead.
+- The held-out floor is the lowest of the baseline runs, not the baseline score: a floor at the mean would fail an
+  unchanged system about half the time.
+- The landing scores the winner again before comparing the reduced diff, because the winner's search-time score is
+  the best of many noisy runs.
+- `evo diff` is scoped to evo's target; the landing diffs the commits.
+- The frozen copy holds on evo's local backends only.
+- evo's 0.8.0 docs do not say how a workspace moves to a merged main; the contract leaves that to be found out at the
+  installed version, before a second run.
 - The lower bound is taken per case, so the per-case scores evo's frontier reads and the run's score agree.
 - The case path is a default the scorer takes, not a loopkit setting: no script reads it, so a setting would be a
   knob with nothing behind it.
+
+Beyond the skill itself, the change also adds: a short section in `adopt` for a repo that will optimize, the
+optimize path in the README's loop, and a house rule in the README (Customizing) that the kit stays generic.

@@ -64,10 +64,10 @@ carries a threshold and a window to watch after the deploy, evidence is
 written once and gathered rather than rebuilt, and every owner correction ends
 as a kit change, or a lesson in the repo, shipped off main.
 
-Work with no finished state, only a score to raise across many user tasks, runs as an optimize loop instead of
-steps 3 to 6: `/loopkit:optimize` writes the cases, the scorer and the gates, measures the baseline, and hands the
-search to evo (github.com/evo-hq/evo, installed only on the owner's word). Each run ends as one PR with its
-evidence, or with a report that nothing valid was found. The parts that must be exact: `skills/optimize/contract.md`.
+Work with no finished state, only a score to raise across many user tasks, takes `/loopkit:optimize` in place of
+step 3: it writes the cases, the scorer and the gates, measures the baseline, and hands the search to evo
+(github.com/evo-hq/evo, installed only on the owner's word). Unattended, it runs as a goal through steps 4 to 6.
+Each run ends as one PR with its evidence, or with a report that nothing valid was found. The parts that must be exact: `skills/optimize/contract.md`.
 
 Rolling a loopkit change out to repos that adopted it: `skills/adopt/rollout.md`.
 
@@ -85,8 +85,8 @@ What changed in each version, and how to upgrade: [`CHANGELOG.md`](CHANGELOG.md)
   templates for that repo.
 - For everyone: edit the templates in `skills/write-goal/templates/` and the
   core clauses in `skills/adopt/CONSTITUTION.md`.
-- The kit stays generic: no domain or product concepts (tenants, one product's
-  nouns, a particular stack). What is specific to one system lives in that
+- The kit stays generic: no domain or product concepts (one domain's nouns, a
+  particular stack). What is specific to one system lives in that
   system's repo, in its adoption.
 
 From this repo, `python3 skills/write-goal/scripts/test_goal_kit.py` checks the
