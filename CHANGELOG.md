@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.7
+
+- `optimize` closes the gaps it finds, not only scores them. After the baseline each gap goes in a gap ledger with
+  its evidence, the checks it fails and its state. An experiment may build a whole missing capability, with its
+  migration, tests and docs. The landing PR lists each gap closed, with its commit, and each gap still open, with what
+  was tried; the open ones start the next run.
+
 ## 0.12.6
 
 - `optimize` runs a task that waits on its user: a case's optional `replies.md` holds that user's answers, and the

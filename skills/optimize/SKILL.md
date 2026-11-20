@@ -129,6 +129,22 @@ failure spends no solver sessions.
 - **Held-out floor (post).** The held-out cases, scored only here, do not
   fall below the lowest score they got across the baseline runs.
 
+## Gaps
+
+The loop is there to close the system's gaps, not only to find them. A gap
+is something users' tasks need that the public surface lacks or gets wrong:
+a missing capability, a missing rule, a name the solver keeps guessing.
+After the baseline, each gap the transcripts and walkthroughs show gets a
+row in the run's gap ledger (its progress file, when the run is a goal): the
+evidence, the checks it fails across cases, the fix proposed, and its state.
+
+An experiment may be as large as its gap: a whole missing capability, with
+its migration, tests and docs, is a fair experiment, not a reason to stop.
+Say so in `.evo/project.md`, with the open gaps worst first (most checks
+failed across cases). Such a change passes the case-shaped gate only
+when its users would want it without the case. A gap is closed when the
+checks it failed pass and every gate holds, not when a change for it exists.
+
 ## Cost and stopping
 
 One experiment costs (training cases + held-out cases) x `k` solver
@@ -168,11 +184,12 @@ them.
    cases, the scorer, the gates. A run then has a baseline to freeze.
 4. **The baseline**: the `n` runs above, on the training and the held-out
    cases, the judged part read once, each case's result walked (Landing),
-   the cost of a round stated.
+   the gap ledger started (Gaps), the cost of a round stated.
 5. **The loop**: evo's discover, which finds the scorer already built
    (`contract.md`), then `/evo:optimize` with the caps. An unattended run
    is a goal (`write-goal`): its master plan holds the caps and the
-   baseline, its progress file each round's best score.
+   baseline, its progress file each round's best score and the gap
+   ledger.
 6. **The landing**, below. A run that finds no valid gain ends with its
    report and no PR. Either way it leaves nothing running (`contract.md`).
 
@@ -205,6 +222,9 @@ cut-down diff too. Its body passes `check-pr.py`, with:
   `write-goal` asks of that kind of change. It is walked on what one try left
   standing, before the next reset, by a subagent that did not score it, and
   costs no solver session. A step that failed is shown failing;
+- the gap ledger: each gap closed, with its commit and the checks it
+  turned; each gap still open, with what was tried and why it failed. The
+  open ones are the next run's first experiments;
 - Release notes: what a user of the system can now do.
 
 Merging follows the grants, as in `write-goal`. A judged drop does not stop
@@ -226,6 +246,8 @@ held-out cases at random.
 | Checks written after seeing the solver's result | They pass what was built, not what was asked. |
 | Checks that only find the result exists | A result that refuses nothing scores full. |
 | A landing with scores and no walkthrough | Nobody has seen what a user gets. |
+| Experiments kept to small edits | A missing capability is never built, and the score stalls below it. |
+| Gaps found and not tracked | The landing shows a score, not what a user can now do, and the next run starts blind. |
 | One try per case | A lucky run is kept, and the next run cannot repeat it. |
 | The held-out cases scored in the loop | Nothing is left to show overfitting. |
 | The judged part added to the score | The number rises by pleasing the judge. |
