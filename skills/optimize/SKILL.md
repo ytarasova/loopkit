@@ -22,7 +22,7 @@ the evo commands) are in [`contract.md`](contract.md).
 | --- | --- |
 | The system | What gets improved: a product, an API, an MCP server, a library, a prompt set, a pipeline. |
 | A case | One task, stated the way its user would state it, the desired outcome, and checks on the result. |
-| The solver | Whoever attempts each case, often a fresh Claude given the task and only the system's public surface. Set at adoption, fixed for a run. |
+| The solver | Whoever attempts each case, often a fresh Claude given the task and only the system's public surface: a headless `claude -p` in the same harness (`contract.md`). Set at adoption, fixed for a run. |
 | A clean start | The state a case begins from. The adopting repo defines it, and the scorer resets to it before every try. |
 | The scorer | One command: for each case, reset, run the solver, run the checks, report the score and the trace. |
 | The gates | Commands that fail an experiment whose score rose for the wrong reason. |
