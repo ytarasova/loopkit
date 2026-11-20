@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.3
+
+- `optimize` takes a written intake: `/optimize <intake file>` starts at Discover and runs on as one goal, so the
+  prompt names the run and nothing else. Intake now ends as that file.
+- `contract.md` names the evo install for Claude Code (`evo install claude-code`), pins the CLI back to 0.8.0 after
+  it, and checks it with `evo doctor`.
+
 ## 0.12.2
 
 - `optimize` stays in the host's harness, on its own sign-in: evo's workers are the host's subagents, and the scorer

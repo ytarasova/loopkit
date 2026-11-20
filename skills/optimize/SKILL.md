@@ -1,6 +1,6 @@
 ---
 name: optimize
-description: Use when asked for an optimization loop, an autoresearch loop, a loop "with criteria", an evo loop over a system's use cases, or when a system should get measurably better across many of its users' tasks at once, such as "make our MCP easier for Claude to build with", "improve the platform until these use cases are fully achievable", "raise the score across these cases". Not for one feature with a known end (write-goal), and not for tuning the solver or its prompts.
+description: Use when asked for an optimization loop, an autoresearch loop, a loop "with criteria", an evo loop over a system's use cases, or when a system should get measurably better across many of its users' tasks at once, such as "make our MCP easier for Claude to build with", "improve the platform until these use cases are fully achievable", "raise the score across these cases", or when handed an optimize intake file. Not for one feature with a known end (write-goal), and not for tuning the solver or its prompts.
 ---
 
 # Optimize
@@ -142,7 +142,9 @@ them.
    adds hooks to the host and sends anonymous telemetry unless turned off.
    Never install it unasked. A case runs somewhere it can be thrown away;
    running one anywhere a mistake cannot be undone is a grant like any other
-   (`write-goal`, constitution §VIII.2).
+   (`write-goal`, constitution §VIII.2). The intake ends as a file in the
+   repo: the cases' sources in their users' words, each decision with whose
+   it is, and what is left to Discover.
 2. **Discover**, before any case is written: read the system, and write
    down what the suite will stand on. Ask the owner only what the system
    cannot say.
@@ -166,6 +168,14 @@ them.
    baseline, its progress file each round's best score.
 6. **The landing**, below. A run that finds no valid gain ends with its
    report and no PR. Either way it leaves nothing running (`contract.md`).
+
+Given an intake file (`/optimize <file>`), start at Discover and go on
+without asking again. The prompt names the run and nothing else: the grants,
+caps and solver are in the file, the exact commands in `contract.md`, and the
+repo's own limits (how many subagents, what must not be touched) in its
+constitution and `.claude/loopkit.json`. Steps 3 to 6 run as one goal
+(`write-goal`, ending at the run's PR): plan 1 the suite, plan 2 the
+baseline and the run. A grant the file lacks goes under "Waiting on".
 
 ## Landing
 

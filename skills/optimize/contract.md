@@ -125,8 +125,17 @@ evo gate check <node_id>     # runs every gate without changing the node: all mu
 
 ## The evo commands a run uses
 
-Never install evo unasked. Under the owner's grant, evo's own steps are `uv tool install evo-hq-cli==0.8.0` and
-`evo install <host>`; `evo status` succeeding shows a workspace is ready.
+Never install evo unasked. Under the owner's grant, on Claude Code:
+
+```bash
+uv tool install evo-hq-cli==0.8.0
+evo install claude-code                       # evo's plugin and hooks; other hosts are named in evo's README
+evo update claude-code --version 0.8.0        # an unpinned install moves the CLI to the latest stable: pin it back
+evo doctor claude-code                        # confirms the install
+```
+
+The plugin loads in a new session, so install before the session that runs the loop starts. `evo status`
+succeeding shows a workspace is ready.
 
 ```bash
 evo init --name "<name>" --target <the system's entry file> \
