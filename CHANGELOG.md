@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.12.5
+
+- `optimize`'s evidence text is generic: an outcome covers the main path, what the result must refuse and the edge
+  cases the task implies, and each walkthrough carries the evidence `write-goal` asks of that kind of change, rather
+  than the skill naming screens, roles or kinds of system. What a walkthrough covers in one system belongs in its
+  repo, in the run's intake.
+
 ## 0.12.4
 
 - `optimize` asks for complete evidence of what each case built. A case's outcome and checks cover the result in
