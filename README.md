@@ -10,6 +10,7 @@ skills are generic; `adopt` fits them to each repo.
 | `loopkit:intent` | Interviews you about a problem and writes the intent: problem, outcome, constraints, proof, open questions. |
 | `loopkit:write-goal` | Turns an intent or spec into three files (goal, master plan, progress) and checks them before you run `/goal`. |
 | `loopkit:analysis-synthesis` | Takes any big piece of work apart into pieces that each verify alone, and puts it back together verifying every join, with a lead per subtree when one context is not enough. |
+| `loopkit:optimize` | Sets up a score over many of a system's users' tasks and the loop that raises it, with evo doing the search: cases, a scorer, gates against a false gain, and one PR per run. |
 
 ## Install
 
@@ -63,6 +64,11 @@ carries a threshold and a window to watch after the deploy, evidence is
 written once and gathered rather than rebuilt, and every owner correction ends
 as a kit change, or a lesson in the repo, shipped off main.
 
+Work with no finished state, only a score to raise across many user tasks, runs as an optimize loop instead of
+steps 3 to 6: `/loopkit:optimize` writes the cases, the scorer and the gates, measures the baseline, and hands the
+search to evo (github.com/evo-hq/evo, installed only on the owner's word). Each run ends as one PR with its
+evidence, or with a report that nothing valid was found. The parts that must be exact: `skills/optimize/contract.md`.
+
 Rolling a loopkit change out to repos that adopted it: `skills/adopt/rollout.md`.
 
 Models: the intent says which orchestrator the work needs ("This is best
@@ -79,6 +85,9 @@ What changed in each version, and how to upgrade: [`CHANGELOG.md`](CHANGELOG.md)
   templates for that repo.
 - For everyone: edit the templates in `skills/write-goal/templates/` and the
   core clauses in `skills/adopt/CONSTITUTION.md`.
+- The kit stays generic: no domain or product concepts (tenants, one product's
+  nouns, a particular stack). What is specific to one system lives in that
+  system's repo, in its adoption.
 
 From this repo, `python3 skills/write-goal/scripts/test_goal_kit.py` checks the
 scripts; CI runs it on Python 3.10 and 3.14 on every PR and push to main, and gitleaks over each PR's commits and each push to main.
