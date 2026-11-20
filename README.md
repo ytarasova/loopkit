@@ -65,7 +65,7 @@ written once and gathered rather than rebuilt, and every owner correction ends
 as a kit change, or a lesson in the repo, shipped off main.
 
 Work with no finished state, only a score to raise across many user tasks, takes `/loopkit:optimize` in place of
-step 3: it writes the cases, the scorer and the gates, measures the baseline, and hands the search to evo
+step 3: it discovers what the system offers and lacks, writes the cases, the scorer and the gates, measures the baseline, and hands the search to evo
 (github.com/evo-hq/evo, installed only on the owner's word). Unattended, it runs as a goal through steps 4 to 6.
 Each run ends as one PR with its evidence, or with a report that nothing valid was found. The parts that must be exact: `skills/optimize/contract.md`.
 

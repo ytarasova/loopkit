@@ -149,9 +149,9 @@ absolute paths before running anything from the target repo.
 
 ## A repo that will optimize
 
-Only where the owner wants an `optimize` loop here. Read what the repo can say: what the system's public surface is,
-how a clean start is made and reset, which suite is fast enough to gate every experiment. The questions (the solver,
-the cases' sources, the caps, whether evo may be installed) belong to that skill's intake, not this one. Add to
+Only where the owner wants an `optimize` loop here. Reading the system (its public surface, a clean start, what can
+check a result, the gate suite) is that skill's Discover step, and its questions (the solver, the cases' sources, the
+caps, whether evo may be installed) are its intake; adopt repeats neither. Add to
 `CLAUDE.md` one sentence: the suite under `optimize/` is frozen during a run.
 
 ## Rolling out a later loopkit change

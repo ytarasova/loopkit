@@ -143,14 +143,28 @@ them.
    Never install it unasked. A case runs somewhere it can be thrown away;
    running one anywhere a mistake cannot be undone is a grant like any other
    (`write-goal`, constitution §VIII.2).
-2. **The suite**, landed by its own PR before any run: cases, held-out
+2. **Discover**, before any case is written: read the system, and write
+   down what the suite will stand on. Ask the owner only what the system
+   cannot say.
+   - Its public surface: what a user, and so the solver, reaches it
+     through, and what that surface lets them do.
+   - A clean start: how one is made and reset, how long it takes, and
+     whether several can run side by side (that sets the caps).
+   - What can check a result: the system's own tests, check formats and
+     read-back calls. A case's checks use these before anything new.
+   - The gate suite: the fastest of the system's own tests that a broken
+     change fails.
+   - For each case, what the surface already offers and what it lacks.
+     This is the first map of the gaps, before any score.
+3. **The suite**, landed by its own PR before any run: cases, held-out
    cases, the scorer, the gates. A run then has a baseline to freeze.
-3. **The baseline**: the `n` runs above, on the training and the held-out
+4. **The baseline**: the `n` runs above, on the training and the held-out
    cases, the judged part read once, the cost of a round stated.
-4. **The loop**: evo's discover, then `/evo:optimize` with the caps. An
-   unattended run is a goal (`write-goal`): its master plan holds the caps
-   and the baseline, its progress file each round's best score.
-5. **The landing**, below. A run that finds no valid gain ends with its
+5. **The loop**: evo's discover, which finds the scorer already built
+   (`contract.md`), then `/evo:optimize` with the caps. An unattended run
+   is a goal (`write-goal`): its master plan holds the caps and the
+   baseline, its progress file each round's best score.
+6. **The landing**, below. A run that finds no valid gain ends with its
    report and no PR. Either way it leaves nothing running (`contract.md`).
 
 ## Landing
