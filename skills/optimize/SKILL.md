@@ -59,7 +59,9 @@ failure even when the score rises, and each has its guard below:
 A case comes from a real user: a conversation, a ticket, a request. Use
 `intent` to capture it in their words, and keep the source beside the case.
 State the task as that user would, with no names from inside the system and
-no hint at how to do it. Write the outcome as plain sentences, one per thing
+no hint at how to do it. A task that waits on its user ("check this with me
+first") gets that user's answers, written beforehand (`contract.md`).
+Write the outcome as plain sentences, one per thing
 the user would notice, and one check per sentence. A check reads what the
 solver left behind and passes or fails. It meets the rules for a
 verification in `analysis-synthesis`: quick, fixed before the work, steady,
