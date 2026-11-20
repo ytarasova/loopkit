@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.2
+
+- `optimize` stays in the host's harness, on its own sign-in: evo's workers are the host's subagents, and the scorer
+  runs each solver try as a headless `claude -p` limited to the system's public surface (`contract.md`, the scorer).
+  No separate API key or SDK.
+
 ## 0.12.1
 
 - `optimize` runs its own Discover step between intake and the suite: it reads the system's public surface, how a

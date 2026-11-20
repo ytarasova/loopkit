@@ -57,9 +57,30 @@ One command, for example `optimize/scorer --system <path> --cases <dir> [--tries
    port, one database) means `subagents=1`, unless the scorer makes one per experiment (evo's
    `sizing-the-round.md`).
 
-How it runs a solver (an agent SDK, a headless CLI with a tool config) is the repo's choice. The solver stands in for
-the system's users: where they reach it through an agent, that model and client. It is written in
-`optimize/README.md` and unchanged for a run.
+The whole run stays in the host's harness, on its own sign-in: evo's workers are the host's subagents, and the
+scorer, being a shell command, runs each try with the host's headless CLI. No separate API key or SDK. On Claude Code:
+
+```
+cd "$(mktemp -d)"                          # the clean start's files only: no repo, no CLAUDE.md
+claude -p "$(cat <case>/task.md)" \
+  --strict-mcp-config --mcp-config <solver-mcp.json> \
+  --tools "" --allowedTools "mcp__<server>__*" \
+  --setting-sources "" --no-session-persistence \
+  --output-format stream-json --verbose > <trace>.jsonl
+```
+
+- `--tools` and `--allowedTools` name exactly the system's public surface: `""` and the MCP server's tools for a system
+  reached through MCP; for a library, the tools its users would have (for example `"Bash,Read"`) in a directory
+  holding only the package and its docs.
+- `--setting-sources ""` and `--strict-mcp-config` keep out the host's own settings, hooks, plugins and other MCP
+  servers. The stream's `init` event lists the tools and servers the solver had: the scorer fails the try when it
+  lists more than the surface.
+- The stream is the try's transcript, for the trace.
+- `--model` pins the solver's model when the adopting repo names one; otherwise the stream's `init` event records it.
+- Not `--bare`: it skips the host's sign-in and needs an API key.
+
+The solver stands in for the system's users: where they reach it through an agent, that model and client. It is
+written in `optimize/README.md` and unchanged for a run.
 
 ## The gates
 
