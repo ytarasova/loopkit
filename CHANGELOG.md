@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.12.6
+
+- `optimize` runs a task that waits on its user: a case's optional `replies.md` holds that user's answers, and the
+  scorer sends them in one session with `--input-format stream-json`, the next one after each turn ends. A one-shot
+  `claude -p` ended the try at the first question.
+
 ## 0.12.5
 
 - `optimize`'s evidence text is generic: an outcome covers the main path, what the result must refuse and the edge

@@ -16,6 +16,7 @@ optimize/
     outcome.md         the desired outcome, one plain sentence per thing the user would notice
     checks.<ext>       one check per outcome sentence, in whatever the repo already runs
     judge.md           optional: what only a reader can decide, with its rubric
+    replies.md         optional: the user's answers, in order, to what the task says it will be asked
     source.md          where the case came from: the conversation, the ticket, the request
   held-out/<slug>/     the same files; scored only by the held-out gate
   held-out/strings.txt strings of the held-out cases, one per line, at least one per case
@@ -79,6 +80,11 @@ claude -p "$(cat <case>/task.md)" \
   servers. The stream's `init` event lists the tools and servers the solver had: the scorer fails the try when it
   lists more than the surface.
 - The stream is the try's transcript, for the trace.
+- A case with `replies.md` runs the same command in one session with `--input-format stream-json`: the task goes in
+  as the first user message on stdin, `{"type":"user","message":{"role":"user","content":"..."}}`, and each `result`
+  event that ends a turn is answered with the next reply, until none is left and stdin closes. A one-shot `-p` would
+  end the try at the first question. Nothing is resumed or saved, and the checks judge what was built, not what was
+  asked.
 - `--model` pins the solver's model when the adopting repo names one; otherwise the stream's `init` event records it.
 - Not `--bare`: it skips the host's sign-in and needs an API key.
 
