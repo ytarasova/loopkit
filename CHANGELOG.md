@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.12.4
+
+- `optimize` asks for complete evidence of what each case built. A case's outcome and checks cover the result in
+  use: the main path, validation and the edge cases the task implies, not only that a thing was created. The baseline
+  and the landing walk each case's result as its user would (a UI through `write-goal`'s UX review, with screenshots
+  of every state), and the landing PR carries those walkthroughs before and after.
+- The scorer takes `--keep`, which leaves each case's last try standing for that walkthrough.
+
 ## 0.12.3
 
 - `optimize` takes a written intake: `/optimize <intake file>` starts at Discover and runs on as one goal, so the
