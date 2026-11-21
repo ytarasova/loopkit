@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.12.9
+
+- `optimize` intake: a session loads evo only if it started after the install, so the run's session starts then, with
+  `EVO_TELEMETRY=0`. A run whose session predated the install had to hand over to a new one mid-run.
+
 ## 0.12.8
 
 - `optimize`'s walkthrough has two parts: the build, everything the solver made as its owner sees it in the system's
