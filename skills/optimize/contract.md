@@ -30,7 +30,7 @@ What one run sets (the caps, the baseline scores, the floor) lives with the run:
 
 ## The scorer
 
-One command, for example `optimize/scorer --system <path> --cases <dir> [--tries <k>] [--min-score <x>] [--keep]`.
+One command, for example `optimize/scorer --system <path> --cases <dir> [--tries <k>] [--min-score <x>] [--keep] [--verdict-only]`.
 
 1. It takes the system to score as a path, and the cases as a directory. Everything else it uses (itself, the cases,
    the checks, the clean start) it reads from where it is run, never from the system's path.
@@ -60,6 +60,11 @@ One command, for example `optimize/scorer --system <path> --cases <dir> [--tries
 10. With `--keep`, it leaves each case's last try standing instead of resetting after it, and prints where each one
     is, so the walkthrough (`SKILL.md`, Landing) reads the result a solver left. The baseline and the landing use it;
     evo's runs do not.
+11. It stops every solver it started when it is interrupted or its parent dies, and removes their temporary
+    directories. A timeout that kills only the command it ran would otherwise leave the solvers running, and spending.
+12. With `--verdict-only`, it prints one line and nothing else, on either stream: `pass`, `below the floor` or
+    `could not score`. The scores and transcripts go to a directory outside any worktree that only the run's
+    orchestrator reads. The held-out gate uses it.
 
 The whole run stays in the host's harness, on its own sign-in: evo's workers are the host's subagents, and the
 scorer, being a shell command, runs each try with the host's headless CLI. No separate API key or SDK. On Claude Code:
@@ -79,6 +84,10 @@ claude -p "$(cat <case>/task.md)" \
 - `--setting-sources ""` and `--strict-mcp-config` keep out the host's own settings, hooks, plugins and other MCP
   servers. The stream's `init` event lists the tools and servers the solver had: the scorer fails the try when it
   lists more than the surface.
+- The solver's environment is a list of allowed variables, never the scorer's own: what the CLI and its sign-in need,
+  and what the surface needs. Otherwise a host session's variables reach every try: its effort level, its own sockets
+  and tokens, an API base URL that sends the solver to another backend unseen. Whatever sets the solver's model or
+  effort is pinned and written in `optimize/README.md`.
 - The stream is the try's transcript, for the trace.
 - A case with `replies.md` runs the same command in one session with `--input-format stream-json`: the task goes in
   as the first user message on stdin, `{"type":"user","message":{"role":"user","content":"..."}}`, and each `result`
@@ -116,7 +125,7 @@ evo gate add root --name no_heldout_leak --phase pre --command "sh -c 'test -s \
 evo gate add root --name no_case_shaped_change --phase pre --command "<the check> --diff-from <base> --system \"{worktree}\""
 
 # Held-out floor: the held-out cases, not below the lowest of the n baseline runs on them.
-evo gate add root --name heldout_floor --command "optimize/scorer --system \"{worktree}\" --cases optimize/held-out --min-score <floor>"
+evo gate add root --name heldout_floor --command "optimize/scorer --system \"{worktree}\" --cases optimize/held-out --min-score <floor> --verdict-only"
 
 evo gate list root
 evo gate check <node_id>     # runs every gate without changing the node: all must pass on the baseline
@@ -126,6 +135,12 @@ evo gate check <node_id>     # runs every gate without changing the node: all mu
   fixes it or discards it.
 - The floor is the lowest held-out score among the `n` baseline runs, not their mean: a floor at the mean would fail
   an unchanged system about every other time.
+- The held-out gate prints its verdict and nothing else (`--verdict-only`). evo's agents read gate output, so a
+  held-out score or transcript printed there is a held-out case shown to the loop.
+- `own_tests` passes on the baseline. Where the baseline already fails some of the system's checks (known type errors,
+  red tests), the gate compares failures, not counts: the baseline's own, measured in the frozen checkout, against the
+  experiment's, and it passes when the experiment adds none. The test and typecheck configs are frozen paths. A count
+  passes a change that swaps one failure for another, or loosens the config.
 - The case-shaped check asks one question of each change: would this exist if that case were not in the suite? A
   change that names a case, branches on its inputs, or documents its answer fails.
 - After a new baseline (the suite grew), `<base>` and `<floor>` are stale: `evo gate remove root --name <name>` for

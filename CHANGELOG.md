@@ -1,5 +1,18 @@
 # Changelog
 
+## 0.12.8
+
+- `optimize`'s walkthrough has two parts: the build, everything the solver made as its owner sees it in the system's
+  own tools for making it, with the try's transcript; and the use, as before. Either alone leaves half unseen.
+- Intake decides what a solver hears when it stops to ask though its task did not say it would: a standing reply in
+  every case's replies, or the try ends there.
+- The held-out gate prints its verdict only (`--verdict-only`): evo's agents read gate output, so held-out scores or
+  transcripts printed there showed the loop the held-out cases.
+- The scorer gives the solver an allowlisted environment with its model and effort pinned, and stops every solver it
+  started when it is interrupted or its parent dies.
+- `own_tests` on a baseline that already fails some checks compares failures, not counts, with the test and
+  typecheck configs frozen.
+
 ## 0.12.7
 
 - `optimize` closes the gaps it finds, not only scores them. After the baseline each gap goes in a gap ledger with
