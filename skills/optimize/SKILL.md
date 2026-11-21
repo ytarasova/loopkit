@@ -167,7 +167,9 @@ them.
    the caps, what a solver's unplanned question hears (Cases), and the
    grants. Installing evo is one of them, per repo: it
    adds hooks to the host and sends anonymous telemetry unless turned off.
-   Never install it unasked. A case runs somewhere it can be thrown away;
+   Never install it unasked. A session loads evo only if it started after
+   the install, so start the run's session then, with `EVO_TELEMETRY=0`.
+   A case runs somewhere it can be thrown away;
    running one anywhere a mistake cannot be undone is a grant like any other
    (`write-goal`, constitution §VIII.2). The intake ends as a file in the
    repo: the cases' sources in their users' words, each decision with whose
