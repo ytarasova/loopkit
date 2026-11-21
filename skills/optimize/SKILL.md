@@ -61,6 +61,10 @@ A case comes from a real user: a conversation, a ticket, a request. Use
 State the task as that user would, with no names from inside the system and
 no hint at how to do it. A task that waits on its user ("check this with me
 first") gets that user's answers, written beforehand (`contract.md`).
+A solver may also stop to ask when its task did not say it would. Intake
+decides what it hears then, the same for every case: a standing reply,
+added to each case's replies after its own, or the try ends there and
+scores what was built before the question.
 Write the outcome as plain sentences, one per thing
 the user would notice, and one check per sentence. A check reads what the
 solver left behind and passes or fails. It meets the rules for a
@@ -160,7 +164,8 @@ them.
 ## Running it
 
 1. **Intake**, with the owner (`intent`): the cases' sources, the solver,
-   the caps, and the grants. Installing evo is one of them, per repo: it
+   the caps, what a solver's unplanned question hears (Cases), and the
+   grants. Installing evo is one of them, per repo: it
    adds hooks to the host and sends anonymous telemetry unless turned off.
    Never install it unasked. A case runs somewhere it can be thrown away;
    running one anywhere a mistake cannot be undone is a grant like any other
@@ -216,8 +221,10 @@ cut-down diff too. Its body passes `check-pr.py`, with:
   score and spread; the
   held-out score before and after; one transcript before and after for the
   case that moved most; the judged part before and after;
-- a walkthrough of each case, on the baseline and on the winner: everything
-  the solver built, used as its user would, through the main path, the
+- a walkthrough of each case, on the baseline and on the winner, in two
+  parts. The build: everything the solver made, as its owner sees it in the
+  system's own tools for making it, with the try's transcript. The use:
+  everything it built, used as its user would, through the main path, the
   refusals and the edge cases its outcome names, with the evidence
   `write-goal` asks of that kind of change. It is walked on what one try left
   standing, before the next reset, by a subagent that did not score it, and
@@ -246,6 +253,7 @@ held-out cases at random.
 | Checks written after seeing the solver's result | They pass what was built, not what was asked. |
 | Checks that only find the result exists | A result that refuses nothing scores full. |
 | A landing with scores and no walkthrough | Nobody has seen what a user gets. |
+| A walkthrough of the use alone, or the build alone | Half is unseen: what a user gets, or what was made to give it. |
 | Experiments kept to small edits | A missing capability is never built, and the score stalls below it. |
 | Gaps found and not tracked | The landing shows a score, not what a user can now do, and the next run starts blind. |
 | One try per case | A lucky run is kept, and the next run cannot repeat it. |
