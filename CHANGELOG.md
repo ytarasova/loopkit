@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.13.0
+
+- `optimize` no longer holds cases out by default. Intake decides it with the owner:
+  - none: every case trains, and the landing PR waits for the owner even under a merge grant;
+  - at the landing: held-out cases are scored in the baseline and on the cut-down winner only, and a winner below the
+    floor does not land;
+  - every experiment: the held-out floor is an evo gate, at held-out cases x `k` sessions an experiment.
+
+  The master plan records the choice. A floor near zero is reported to the owner before round one.
+
 ## 0.12.9
 
 - `optimize` intake: a session loads evo only if it started after the install, so the run's session starts then, with

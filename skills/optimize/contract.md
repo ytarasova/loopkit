@@ -18,15 +18,16 @@ optimize/
     judge.md           optional: what only a reader can decide, with its rubric
     replies.md         optional: the user's answers, in order, to what the task says it will be asked
     source.md          where the case came from: the conversation, the ticket, the request
-  held-out/<slug>/     the same files; scored only by the held-out gate
-  held-out/strings.txt strings of the held-out cases, one per line, at least one per case
+  held-out/<slug>/     the same files, when the run holds cases out; scored only in the baseline and by the held-out floor
+  held-out/strings.txt the same condition: strings of the held-out cases, one per line, at least one per case
 ```
 
 A string belongs in `strings.txt` when no honest change would contain it and the baseline does not: the case's slug,
 a value from its sample data, an exact sentence of its task. A word the system's whole domain uses would fail good
-changes. The gate catches copying, not paraphrase; the held-out floor is what catches the rest.
+changes. The gate catches copying, not paraphrase. The held-out floor catches the rest, on every experiment or once at
+the landing, as intake chose. With no cases held out, nothing measured does (SKILL.md, Held-out cases).
 
-What one run sets (the caps, the baseline scores, the floor) lives with the run: in its master plan when it is a goal.
+What one run sets (the caps, the held-out choice, the baseline scores, the floor) lives with the run: in its master plan when it is a goal.
 
 ## The scorer
 
@@ -115,16 +116,19 @@ evo gate add root --name suite_unchanged --phase pre --command "sh -c 'git -C \"
 # The system's own tests: the repo's fast suite, run inside the experiment, not from the main root.
 evo gate add root --name own_tests --phase pre --command "sh -c 'cd \"{worktree}\" && <the fast suite>'"
 
+# No held-out leak runs whenever the run holds cases out; the held-out floor is a gate only when intake chose every
+# experiment (SKILL.md, Held-out cases).
 # No held-out leak: no held-out string anywhere outside the suite, tracked or new. Exit 1 from grep is "none found";
 # anything else fails the gate, an empty or missing strings.txt included. It reads the experiment's copy of
 # strings.txt, which suite_unchanged has already shown to be the baseline's.
 evo gate add root --name no_heldout_leak --phase pre --command "sh -c 'test -s \"{worktree}/optimize/held-out/strings.txt\" && { git -C \"{worktree}\" grep -qiF --untracked -f optimize/held-out/strings.txt -- . \":^optimize\"; test \$? -eq 1; }'"
 
 # No case-shaped change: the repo's fixed-prompt check, given the experiment's diff and every case's title,
-# held-out included.
+# held-out ones included.
 evo gate add root --name no_case_shaped_change --phase pre --command "<the check> --diff-from <base> --system \"{worktree}\""
 
-# Held-out floor: the held-out cases, not below the lowest of the n baseline runs on them.
+# Held-out floor: the held-out cases, not below the lowest of the n baseline runs on them. Registered only when
+# intake chose every experiment; when it chose the landing, the same command runs once by hand on the cut-down branch.
 evo gate add root --name heldout_floor --command "optimize/scorer --system \"{worktree}\" --cases optimize/held-out --min-score <floor> --verdict-only"
 
 evo gate list root
@@ -143,8 +147,8 @@ evo gate check <node_id>     # runs every gate without changing the node: all mu
   passes a change that swaps one failure for another, or loosens the config.
 - The case-shaped check asks one question of each change: would this exist if that case were not in the suite? A
   change that names a case, branches on its inputs, or documents its answer fails.
-- After a new baseline (the suite grew), `<base>` and `<floor>` are stale: `evo gate remove root --name <name>` for
-  `suite_unchanged`, `no_case_shaped_change` and `heldout_floor`, add them again, and run `evo gate check`.
+- After a new baseline (the suite grew), `<base>` and `<floor>` are stale, the landing's by-hand floor included: `evo gate remove root --name <name>` for
+  `suite_unchanged`, `no_case_shaped_change` and `heldout_floor` when registered, add them again, and run `evo gate check`.
 - At the landing the same commands run by hand on the cut-down branch, with `{worktree}` replaced by its checkout.
 
 ## The evo commands a run uses
