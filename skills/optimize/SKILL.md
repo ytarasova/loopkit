@@ -48,7 +48,8 @@ The loop will raise the number any way it is allowed to. Each of these is a
 failure even when the score rises, and each has its guard below:
 
 - the cases, the checks or the scorer changed;
-- the score rose on the cases the loop saw and not on the ones held out;
+- the score rose on the cases the loop saw and not on the ones held out,
+  when the run holds cases out (Held-out cases);
 - a change fits one case instead of improving the system (a tool, a branch
   or a doc page named after the case);
 - the solver got there around the system, not through its public surface;
@@ -80,9 +81,35 @@ goes in the case's judged part, with its rubric. It is reported beside the
 score and never added to it, so nothing raises the number by pleasing a
 judge. It is read twice a run, on the baseline and on the winner.
 
-Hold out about a third of the cases, picked at random, never by whether they
-pass. The loop is scored on the rest. Fewer than ten cases for the loop to
-see is a thin suite: evo's own advice is ten to twenty at the least.
+Fewer than ten cases for the loop to see is a thin suite: evo's own advice
+is ten to twenty at the least.
+
+## Held-out cases
+
+Holding cases out is a choice the owner makes at intake, never a default.
+The loop never sees a held-out case, so a gain that fits only the cases it
+saw shows as a training score that rose and a held-out score that did not.
+That is worth its cost when there are real cases to spare and the loop runs
+with no person between rounds. It is worth little when the cases are few,
+or drafted rather than taken from users: a few held-out tries are noisy, and
+a floor taken from a baseline near zero only catches a system that broke.
+Three choices:
+
+- **None.** Every case trains. Nothing measured then catches a gain that
+  fits the cases: the case-shaped gate judges each experiment, and the
+  walkthroughs and the owner judge the winner. So the landing PR waits for
+  the owner even under a merge grant.
+- **At the landing**, the cheaper way to hold cases out. They are scored in
+  the baseline and on the cut-down winner, and nowhere else. The leak gate
+  still runs on every experiment, at no solver session. A winner below the
+  floor does not land: the next best valid experiment is cut down instead.
+- **Every experiment.** The held-out floor is a gate as well, at (held-out
+  cases) x `k` solver sessions an experiment.
+
+When cases are held out, they are about a third, picked at random, never by whether they
+pass. Intake records the choice, its cost in sessions and whose it is. When
+the baseline's floor comes out near zero, tell the owner before the loop:
+that floor guards little, and the choice can still change before round one.
 
 ## The scorer
 
@@ -123,15 +150,17 @@ failure spends no solver sessions.
 
 - **Suite unchanged (pre).** The frozen files match the baseline.
 - **The system's own tests (pre).** The repo's fast suite.
-- **No held-out leak (pre).** evo's advice is that held-out cases cannot be
+- **No held-out leak (pre)**, when cases are held out. evo's advice is that held-out cases cannot be
   hidden from agents in the same repo, only caught: the experiment carries
   no distinctive string of a held-out case.
 - **No case-shaped change (pre).** A fixed-prompt model call reads the
   experiment's diff beside the case titles and fails a change that fits one
   case instead of improving the system. It costs a call per experiment, so
   its cost is stated at intake.
-- **Held-out floor (post).** The held-out cases, scored only here, do not
-  fall below the lowest score they got across the baseline runs.
+- **Held-out floor (post)**, only when intake chose every experiment. The
+  held-out cases, scored only here, do not fall below the lowest score they
+  got across the baseline runs. When intake chose the landing, it runs once
+  there, by hand (`contract.md`).
 
 ## Gaps
 
@@ -151,8 +180,8 @@ checks it failed pass and every gate holds, not when a change for it exists.
 
 ## Cost and stopping
 
-One experiment costs (training cases + held-out cases) x `k` solver
-sessions, and a round up to `subagents` x `budget` experiments, each retried
+One experiment costs (training cases, plus held-out cases when their floor
+runs every experiment) x `k` solver sessions, and a round up to `subagents` x `budget` experiments, each retried
 up to evo's `max-attempts`. State that number before the first round. evo
 runs until the score stalls, which on a noisy score can be long, so intake
 sets the caps: evo takes the width (`subagents`), the depth per branch
@@ -164,7 +193,8 @@ them.
 ## Running it
 
 1. **Intake**, with the owner (`intent`): the cases' sources, the solver,
-   the caps, what a solver's unplanned question hears (Cases), and the
+   the caps, what a solver's unplanned question hears (Cases), whether
+   cases are held out and where they are scored (Held-out cases), and the
    grants. Installing evo is one of them, per repo: it
    adds hooks to the host and sends anonymous telemetry unless turned off.
    Never install it unasked. A session loads evo only if it started after
@@ -187,15 +217,15 @@ them.
      change fails.
    - For each case, what the surface already offers and what it lacks.
      This is the first map of the gaps, before any score.
-3. **The suite**, landed by its own PR before any run: cases, held-out
+3. **The suite**, landed by its own PR before any run: cases, any held-out
    cases, the scorer, the gates. A run then has a baseline to freeze.
-4. **The baseline**: the `n` runs above, on the training and the held-out
+4. **The baseline**: the `n` runs above, on the training and any held-out
    cases, the judged part read once, each case's result walked (Landing),
    the gap ledger started (Gaps), the cost of a round stated.
 5. **The loop**: evo's discover, which finds the scorer already built
    (`contract.md`), then `/evo:optimize` with the caps. An unattended run
-   is a goal (`write-goal`): its master plan holds the caps and the
-   baseline, its progress file each round's best score and the gap
+   is a goal (`write-goal`): its master plan holds the caps, the
+   held-out choice and the baseline, its progress file each round's best score and the gap
    ledger.
 6. **The landing**, below. A run that finds no valid gain ends with its
    report and no PR. Either way it leaves nothing running (`contract.md`).
@@ -221,7 +251,7 @@ cut-down diff too. Its body passes `check-pr.py`, with:
 - Assurance: the system's tests, and the scorer on the PR head;
 - Evidence, from those fresh runs: a table of cases with baseline score, new
   score and spread; the
-  held-out score before and after; one transcript before and after for the
+  held-out score before and after, when cases are held out; one transcript before and after for the
   case that moved most; the judged part before and after;
 - a walkthrough of each case, on the baseline and on the winner, in two
   parts. The build: everything the solver made, as its owner sees it in the
@@ -245,7 +275,7 @@ run starts from the merged main.
 New cases come from users, never from what the loop found easy. A new case
 changes what the score means: record it in evo as a breaking event, take the
 baseline again, and compare only from there. It joins the training or the
-held-out cases at random.
+held-out cases at random, when the run holds cases out.
 
 ## Common mistakes
 
@@ -259,7 +289,8 @@ held-out cases at random.
 | Experiments kept to small edits | A missing capability is never built, and the score stalls below it. |
 | Gaps found and not tracked | The landing shows a score, not what a user can now do, and the next run starts blind. |
 | One try per case | A lucky run is kept, and the next run cannot repeat it. |
-| The held-out cases scored in the loop | Nothing is left to show overfitting. |
+| Held-out scores in the loop's score or its output | Nothing is left to show overfitting. |
+| Cases held out by default, never discussed | Few or drafted cases split into two noisy halves, and every experiment pays for a floor that guards little. |
 | The judged part added to the score | The number rises by pleasing the judge. |
 | No transcript in the trace | The loop sees that a case failed, never why. |
 | The scorer run from the experiment's own copy | An experiment edits its own exam. |
