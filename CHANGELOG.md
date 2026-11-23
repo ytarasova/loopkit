@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.13.3
+
+- `progress.py` runs `check-goal.py` after every stamp and prints each failure, so a state change shows what lags: a
+  live view not updated since the Now line, a progress file to archive, a ticked step with no evidence. The stamp
+  stands either way; the run fixes a failure before its next step or puts it under Waiting on. A run that checked
+  only when a task merged left its live view nine hours behind through a loop and a landing.
+
 ## 0.13.2
 
 - `write-goal`'s subagent rules move to `subagents.md`, with what every prompt carries, and gain three lessons from an
