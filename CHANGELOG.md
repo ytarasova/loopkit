@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.13.2
+
+- `write-goal`'s subagent rules move to `subagents.md`, with what every prompt carries, and gain three lessons from an
+  optimize run whose subagents stalled silently for 43 and 85 minutes. Every prompt now asks for small edits pushed
+  after each item, a wait on a pid or a file and never on `pgrep -f` of the waiting command's own string, and a
+  deadline on every run. The orchestrator reads each transcript as it runs. After 15 minutes with no tool call it stops
+  the subagent, confirms it stopped, commits its tree as wip and dispatches the replacement. `SKILL.md` keeps a
+  pointer and one Common mistakes row, and stays under 500 lines.
+
 ## 0.13.1
 
 - `write-goal`'s retro tidies the repo's lessons after adding to them: two that say one thing merge; one is removed only
