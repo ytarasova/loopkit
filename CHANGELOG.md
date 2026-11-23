@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.13.1
+
+- `write-goal`'s retro tidies the repo's lessons after adding to them: two that say one thing merge; one is removed only
+  after `git grep` shows what it names is gone; one another adopter also holds moves into loopkit. The lessons file
+  only grew before.
+
 ## 0.13.0
 
 - `optimize` no longer holds cases out by default. Intake decides it with the owner:
