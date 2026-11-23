@@ -289,6 +289,10 @@ with the screens in its scratchpad has shown nothing.
    change). A correction any repo would hit changes loopkit and rolls out to
    the repos that use it (`adopt/rollout.md`); one only this repo would hit
    goes in its `.claude/loopkit/lessons.md`.
+   Then tidy the repo's lessons, the file named above: merge two lessons that
+   say one thing, and remove one only after `git grep` shows that what it
+   names (a file, a command, a rule) is gone. A lesson another repo that uses
+   the kit also holds is general: move it into loopkit and out of both.
 7. One short message: a row per plan (what shipped, its PR, each gate's
    commands and output); what is merged, deployed, green and verified live,
    each yes or no; what was skipped, removed or left out and why; every
