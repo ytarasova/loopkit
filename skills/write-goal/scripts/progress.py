@@ -6,12 +6,15 @@
     python3 progress.py <slug> [<date>] view               stamp "<view> updated: YYYY-MM-DD HH:MM UTC" after updating it
 
 The time is read once, from the system clock in UTC. The file is replaced whole, or left as it was.
+Each stamp is a state change, so it then runs check-goal.py on the goal and prints each failure: a live view
+that lags, a progress file to archive, a ticked step with no evidence. The stamp stands either way.
 Settings: .claude/loopkit.json (see the write-goal skill).
 """
 
 import datetime
 import os
 import re
+import subprocess
 import sys
 import tempfile
 
@@ -79,6 +82,11 @@ def main() -> None:
     os.chmod(tmp, os.stat(path).st_mode)
     os.replace(tmp, path)
     print(f"{path}: {args[1]} at {at} UTC")
+    check = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "check-goal.py"),
+                            args[0], *([date] if date else [])], capture_output=True, text=True)
+    fails = [line for line in check.stdout.splitlines() if line.startswith("FAIL:")]
+    print(*fails, f"check-goal: {len(fails)} failing; fix each before the next step, or put it under Waiting on"
+          if fails else "check-goal: ok", sep="\n")
 
 
 if __name__ == "__main__":

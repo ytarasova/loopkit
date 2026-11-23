@@ -64,6 +64,8 @@ file plus the list of decisions you answered for them.
 first three:
 
 - Times come from the clock: `scripts/progress.py <slug> now|log|approve|view`.
+  Each stamp then runs `check-goal.py` and prints its failures. One printed is
+  fixed before the next step, or goes under Waiting on with what blocks it.
 - Every In flight line and every "What is left" row (the steps after the last
   task too: reviews, lanes, PRs, the report) ends with its time left.
 - The live view, when the repo has one (`view`), is updated with the progress
@@ -458,6 +460,7 @@ By hand:
 | Mistake | What happens |
 | --- | --- |
 | A subagent waited on, not watched | It stalls silently for an hour, and no message wakes it. |
+| `check-goal.py` run only when a task merges | The live view lags, the progress file outgrows a resume and evidence goes missing for hours of loop or landing, unseen. |
 | The facts go into the goal | `/goal` refuses it, or the rules get cut to make room. |
 | Status goes into the goal or the master plan | The goal drifts from the run, and a resume cannot tell facts from state. |
 | The progress file is updated only at the end | After compaction the run redoes merged work, or merges twice. |

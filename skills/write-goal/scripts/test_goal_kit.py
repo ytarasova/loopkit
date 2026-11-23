@@ -932,7 +932,11 @@ def main() -> None:
             json.dump({"owner": "Sam", "runner": "make", "bypass": ["npx"], "assurance": ["tests", "lint"], "view": "Claude Doc"}, f)
         lag = run("check-goal.py", "t", cwd=repo)
         assert "Claude Doc lags" in lag.stdout, lag.stdout + lag.stderr
-        stamp("view")
+        said = stamp("now", "plan 3 checked")  # each stamp runs check-goal and says what lags
+        assert said.returncode == 0 and "FAIL: " in said.stdout and "Claude Doc lags" in said.stdout, said.stdout
+        assert "failing; fix each before the next step" in said.stdout, said.stdout
+        said = stamp("view")
+        assert "check-goal: " in said.stdout and "Claude Doc lags" not in said.stdout, said.stdout
         assert "Claude Doc lags" not in run("check-goal.py", "t", cwd=repo).stdout
     # The kit is public: the skills never name the people who build or run it. Their names come from git config and
     # the commit authors at test time, so they are never written into the repo, not even here.
