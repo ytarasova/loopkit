@@ -118,13 +118,8 @@ the PR opened with its plan's evidence, its release notes and its user guide,
 top of the stack after the last code commit, gathering every use case, the goal's
 release notes and the guide, then `check-goal.py <slug>` ok.
 
-**What every subagent prompt carries**, because a subagent knows only its
-prompt: the step numbers it owns and the sequence above; the task and the use
-cases it proves, quoted from the master plan; its worktree, branch and files;
-the commands for each check in `assurance`; its evidence file's path and the
-`check-pr.py` command; and that its report is a claim the orchestrator will
-rerun. A reviewer's prompt carries the diff range and the spec, never the
-implementer's account of them.
+**Subagents.** What every subagent prompt carries, and how a stalled one is
+caught and replaced: [`subagents.md`](subagents.md), read before each dispatch.
 
 **Every changeset is done only with its complete evidence** (constitution
 §II.4 to §II.7): a task merged to its plan branch, a fix, and each PR. Nothing is ticked,
@@ -462,6 +457,7 @@ By hand:
 
 | Mistake | What happens |
 | --- | --- |
+| A subagent waited on, not watched | It stalls silently for an hour, and no message wakes it. |
 | The facts go into the goal | `/goal` refuses it, or the rules get cut to make room. |
 | Status goes into the goal or the master plan | The goal drifts from the run, and a resume cannot tell facts from state. |
 | The progress file is updated only at the end | After compaction the run redoes merged work, or merges twice. |
