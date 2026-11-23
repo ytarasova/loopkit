@@ -938,6 +938,13 @@ def main() -> None:
         said = stamp("view")
         assert "check-goal: " in said.stdout and "Claude Doc lags" not in said.stdout, said.stdout
         assert "Claude Doc lags" not in run("check-goal.py", "t", cwd=repo).stdout
+        fake = tempfile.mkdtemp()  # a check-goal that stops before judging is reported, not read as ok
+        for f in ("progress.py", "config.py"):
+            shutil.copy(os.path.join(HERE, f), fake)
+        with open(os.path.join(fake, "check-goal.py"), "w") as f:
+            f.write("import sys\nsys.exit('no single goal')\n")
+        said = subprocess.run([sys.executable, os.path.join(fake, "progress.py"), "t", "now", "x"], cwd=repo, capture_output=True, text=True)
+        assert "FAIL: check-goal did not finish: no single goal" in said.stdout and "check-goal: ok" not in said.stdout, said.stdout
     # The kit is public: the skills never name the people who build or run it. Their names come from git config and
     # the commit authors at test time, so they are never written into the repo, not even here.
     names = subprocess.run(["git", "config", "user.name"], capture_output=True, text=True, cwd=HERE).stdout

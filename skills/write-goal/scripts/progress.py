@@ -85,6 +85,8 @@ def main() -> None:
     check = subprocess.run([sys.executable, os.path.join(os.path.dirname(os.path.abspath(__file__)), "check-goal.py"),
                             args[0], *([date] if date else [])], capture_output=True, text=True)
     fails = [line for line in check.stdout.splitlines() if line.startswith("FAIL:")]
+    if check.returncode and not fails:  # it stopped before judging the goal: say why, never "ok"
+        fails = ["FAIL: check-goal did not finish: " + ((check.stderr or check.stdout).strip().splitlines() or [f"exit {check.returncode}"])[-1]]
     print(*fails, f"check-goal: {len(fails)} failing; fix each before the next step, or put it under Waiting on"
           if fails else "check-goal: ok", sep="\n")
 

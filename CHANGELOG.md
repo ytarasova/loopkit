@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.13.4
+
+- `progress.py` reports a `check-goal.py` that stopped before judging the goal (a usage error, a crash) as a failure,
+  with its last line. 0.13.3 printed `check-goal: ok` for it.
+
 ## 0.13.3
 
 - `progress.py` runs `check-goal.py` after every stamp and prints each failure, so a state change shows what lags: a
