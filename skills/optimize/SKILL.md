@@ -74,7 +74,11 @@ close to what matters.
 
 The outcome covers the result in use, not only that it exists: its main
 path, what it must refuse, and the edge cases the task implies. A check that
-a thing was made is not a check that it works.
+a thing was made is not a check that it works. When people use the result
+through screens, the checks read what a person can do there, not only what
+was stored: reach it from where its user starts, pick each choice, open a
+listed row, save. Stored data and rules behind a screen nobody can finish
+score as working.
 
 What only a reader can decide (it fits the purpose, the names make sense)
 goes in the case's judged part, with its rubric. It is reported beside the
@@ -110,6 +114,11 @@ When cases are held out, they are about a third, picked at random, never by whet
 pass. Intake records the choice, its cost in sessions and whose it is. When
 the baseline's floor comes out near zero, tell the owner before the loop:
 that floor guards little, and the choice can still change before round one.
+
+A held-out case is spent once its build or transcript is studied, by the
+loop or by a later goal fixing what it found. The next check that the
+system works beyond its cases needs fresh ones, written by a context that
+has not seen the work.
 
 ## The scorer
 
@@ -250,7 +259,8 @@ cut-down diff too. Its body passes `check-pr.py`, with:
 
 - Assurance: the system's tests, and the scorer on the PR head;
 - Evidence, from those fresh runs: a table of cases with baseline score, new
-  score and spread; the
+  score and spread, and whether a person can finish the case (usable `k` of
+  `n` beside the score); the
   held-out score before and after, when cases are held out; one transcript before and after for the
   case that moved most; the judged part before and after;
 - a walkthrough of each case, on the baseline and on the winner, in two
@@ -260,7 +270,9 @@ cut-down diff too. Its body passes `check-pr.py`, with:
   refusals and the edge cases its outcome names, with the evidence
   `write-goal` asks of that kind of change. It is walked on what one try left
   standing, before the next reset, by a subagent that did not score it, and
-  costs no solver session. A step that failed is shown failing;
+  costs no solver session. It shows the finished result first, every screen
+  with real data in it, then each step that failed, shown failing: a list of
+  faults alone hides what works;
 - the gap ledger: each gap closed, with its commit and the checks it
   turned; each gap still open, with what was tried and why it failed. The
   open ones are the next run's first experiments;
@@ -284,6 +296,8 @@ held-out cases at random, when the run holds cases out.
 | A task written in the system's words | The solver is handed the answer; the score measures nothing a user meets. |
 | Checks written after seeing the solver's result | They pass what was built, not what was asked. |
 | Checks that only find the result exists | A result that refuses nothing scores full. |
+| Checks that read stored data behind screens | The score rises while no person can finish the flow. |
+| Held-out builds studied by a later fix | The cases no longer show the system works beyond them. |
 | A landing with scores and no walkthrough | Nobody has seen what a user gets. |
 | A walkthrough of the use alone, or the build alone | Half is unseen: what a user gets, or what was made to give it. |
 | Experiments kept to small edits | A missing capability is never built, and the score stalls below it. |

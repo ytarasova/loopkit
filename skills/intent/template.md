@@ -46,7 +46,9 @@ How far the run may go: open PRs | merge them when their checks hold | ship
 (merge, deploy and watch each phase's signals, rolling back and retrying until
 done). Every other permission it may use without asking (schema changes, paid
 calls, environments, data), each named exactly. Anything not named here that
-cannot be undone waits for the originator.
+cannot be undone waits for the originator. Each grant quotes the
+originator's words and when they gave them; a grant with no words was not
+given.
 
 ## Proof
 

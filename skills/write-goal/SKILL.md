@@ -71,6 +71,11 @@ first three:
 - The live view, when the repo has one (`view`), is updated with the progress
   file, then stamped with `progress.py <slug> view`.
 - An ask stated in chat goes into the master plan's Asks the same turn.
+- Each PR reaches the owner as a message of its own, with its link, when it
+  opens and before any merge the run makes: one opened under the owner's own
+  login notifies nobody.
+- To the owner, "merged" means merged into main. A task combined into its
+  plan branch is "in the plan branch".
 - After a compaction, re-read the goal and progress files and this lifecycle.
 - Choices about people or their data are asked at intake (§VIII.4). One
   found later takes the option that changes least for people (their data
@@ -87,7 +92,8 @@ first three:
 **Before each dispatch, deploy or other step unsafe to run twice**: a line
 under In flight, pushed. **At every state change** (a task merged, a gate
 read, a deploy, a decision changed, a human step hit): update the progress
-file, then commit and push it.
+file, then commit and push it. A correction from the owner (a "no", a
+reminder, a "why did I have to") is a row of Owner corrections that turn.
 
 **Models.** The orchestrator and each step's subagent run on the models the
 master plan names, chosen by [`models.md`](models.md): Opus 5.5 or Fable 5.2 to
@@ -285,7 +291,8 @@ with the screens in its scratchpad has shown nothing.
    fails a kit file changed on a feature branch, and a correction with no
    change). A correction any repo would hit changes loopkit and rolls out to
    the repos that use it (`adopt/rollout.md`); one only this repo would hit
-   goes in its `.claude/loopkit/lessons.md`.
+   goes in its `.claude/loopkit/lessons.md`. Before closing the table, read
+   every owner message of the run against it; one with no row gets one.
    Then tidy the repo's lessons, the file named above: merge two lessons that
    say one thing, and remove one only after `git grep` shows that what it
    names (a file, a command, a rule) is gone. A lesson another repo that uses
@@ -468,6 +475,7 @@ By hand:
 | An open decision is left open | The run stops at it, or guesses. |
 | A cause is written without being measured | The run fixes the wrong thing with authority. |
 | A permission is not granted at intake | The run stops on a step it could have taken. |
+| A grant written without the owner's words | The run takes a step the owner never allowed, and does not stop to ask. |
 | A human step is not listed | The run waits on it forever, or works around it. |
 | A failing check is answered in words (a caption, "a false alarm", "passes alone") | The fault ships under a description of it; retake, fix, or file it. |
 | One PR for the whole goal | Review cannot keep up, and one bad plan holds back every good one. |
