@@ -24,3 +24,7 @@ harness's own stop (`TaskStop`) and confirm it stopped, commit its tree as
 wip, and dispatch the replacement from there. A subagent that ended its turn
 while its own background run continues is not finished: stopping that run
 wakes it, and it starts again beside its replacement, in the same worktree.
+
+**Which subagents are running** is read from the harness's own list and each
+one's shells, never from memory. One finished but held open by a shell it
+started is still running; at the close, none is.

@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.13.5
+
+Seven owner corrections from one optimize run and its follow-on goal, where the run answered each in the moment and
+wrote down none:
+
+- `write-goal`: a correction from the owner is a row of Owner corrections the turn it is given, and the retro reads
+  every owner message of the run against the table. Each PR reaches the owner as its own message, with its link, when
+  it opens and before any merge the run makes: a PR under the owner's own login notifies nobody. To the owner,
+  "merged" means into main; a task combined into its plan branch is "in the plan branch".
+- `write-goal/subagents.md`: which subagents are running is read from the harness's list and their shells, never from
+  memory; none is left held open by a shell at the close.
+- `intent`: each grant quotes the originator's words and when; a grant with no words was not given.
+- `optimize`: when people use the result through screens, a case's checks read what a person can do there (reach it,
+  pick each choice, open a row, save), and the landing reports usable `k` of `n` beside the score. A score had risen
+  from 0.18 to 0.43 while two of six flows could be finished. A walkthrough shows the finished result first, then the
+  steps that failed. A held-out case is spent once a later goal studies its build; the next check needs fresh cases.
+
 ## 0.13.4
 
 - `progress.py` reports a `check-goal.py` that stopped before judging the goal (a usage error, a crash) as a failure,
