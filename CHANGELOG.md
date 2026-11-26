@@ -1,5 +1,19 @@
 # Changelog
 
+## 0.14.3
+
+The minors 0.14.0's review left open:
+
+- `owner-reader.md` is read before each dispatch, as `subagents.md` is (`SKILL.md`, While it runs).
+- Work held on an ask moves from In flight to "What is left", naming the ask, so held work alone keeps no watch due.
+- The watch reads each in-flight transcript's entries stamped after the last `Watched:` time, never a whole one.
+- The progress template lists `watch` among the stamp verbs.
+- `optimize` names the principle its checks are cases of.
+- `optimize` never installs evo for the user or the project. `evo install claude-code` put evo's plugin, with hooks
+  on every prompt, tool call and stop, into every session of the user. Now only the CLI is installed, and the run's
+  session alone loads the plugin, from a git-ignored clone in its worktree (`claude --plugin-dir`). The owner: "make
+  sure evo doesn't install global or project level hooks - only for agents that need it!"
+
 ## 0.14.2
 
 - A goal finishes on the rules of the kit it started with, wherever the checker runs. `new-goal.py` writes

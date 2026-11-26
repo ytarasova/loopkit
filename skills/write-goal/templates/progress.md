@@ -7,7 +7,7 @@ every state change, then committed and pushed.
 
 Times in this file come from the clock, never typed: `python3 <write-goal>/scripts/progress.py {{SLUG}} now "<text>"` rewrites
 this line, `log "<text>"` adds a Log line, `approve "<their words>"` records the owner's words on the master plan when they give them (the run does not wait for them), and
-`view` stamps the live view's update (when the repo has one).
+`view` stamps the live view's update (when the repo has one), and `watch` stamps each watch pass.
 
 ## Waiting on {{OWNER}}
 

@@ -157,17 +157,20 @@ evo gate check <node_id>     # runs every gate without changing the node: all mu
 
 ## The evo commands a run uses
 
-Never install evo unasked. Under the owner's grant, on Claude Code:
+Never use evo unasked. Its Claude Code plugin hooks every prompt, tool call, stop and subagent stop of each session
+that loads it, so it is never installed for the user or the project: no `evo install claude-code` (it installs the
+plugin for every session of the user) and no `/plugin install`. Only the run's session, and the subagents it
+dispatches, load it. Under the owner's grant, on Claude Code:
 
 ```bash
-uv tool install evo-hq-cli==0.8.0
-evo install claude-code                       # evo's plugin and hooks; other hosts are named in evo's README
-evo update claude-code --version 0.8.0        # an unpinned install moves the CLI to the latest stable: pin it back
-evo doctor claude-code                        # confirms the install
+uv tool install evo-hq-cli==0.8.0             # the CLI alone: it adds no hooks
+git clone --depth 1 --branch v0.8.0 https://github.com/evo-hq/evo .evo-plugin   # in the run's worktree, git-ignored
+EVO_TELEMETRY=0 claude --plugin-dir .evo-plugin   # the run's session: the one session that loads evo's plugin
 ```
 
-The plugin loads in a new session, so install before the session that runs the loop starts. `evo status`
-succeeding shows a workspace is ready.
+`/evo:optimize` listed in that session shows the plugin loaded; `evo status` succeeding shows a workspace is ready.
+Other hosts are named in evo's README; on each, load the plugin for the run's session alone where the host allows it,
+and where it does not, ask the owner before installing it more widely.
 
 ```bash
 evo init --name "<name>" --target <the system's entry file> \

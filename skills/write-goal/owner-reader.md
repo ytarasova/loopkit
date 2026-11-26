@@ -27,8 +27,9 @@ Each finding is one of two kinds:
   dropped, so the run never acts on a permission nobody gave.
 - **ask:** a choice that is the owner's (people or their data, an ending).
   It goes under Waiting on with the run's recommendation, and the owner hears
-  it in the next message. Only the work that depends on the answer waits: its
-  In flight or "What is left" row names the ask. Everything else carries on.
+  it in the next message. Only the work that depends on the answer waits: it
+  moves from In flight to "What is left", its row naming the ask, so held work
+  alone keeps no watch due. Everything else carries on.
 
 It never asks what the run can rule on; an ask that is not the owner's is
 sent back as work.
@@ -61,8 +62,8 @@ Not a long-lived agent: a fresh sonnet pass the orchestrator dispatches at
 least every 30 minutes while In flight lists anything. It reads:
 
 - the progress file's diff since the last watch;
-- the tail of each In flight subagent's transcript since the last watch,
-  never a whole transcript;
+- each In flight subagent's transcript entries stamped after the last
+  `Watched:` time (each entry carries its time), never a whole transcript;
 - the corrections and asks the owner's reader carries.
 
 It returns object or ask findings, as the reader does. The orchestrator acts
