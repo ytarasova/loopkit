@@ -22,7 +22,8 @@ Fails (exit 1) unless the body has these four sections, and a deliverable two mo
   ## Signal     a "Success: ..." line and a "Failure: ..." line, each with a threshold (a number) and a window to
                 read it over ("for 1 h", "within 15 minutes of the deploy"), or, with neither, "not-applicable" and why
   ## Review     a line each for simplify, a self-review (by a context that did not write it, naming its model), a security
-                review and the constitution cross-check, each with its result; a UI changeset also a "UX review:" line: each
+                review and the constitution cross-check, each with its result; on a step's evidence file, the Owner read
+                (a fresh context asked what the owner would object to, naming its model); a UI changeset also a "UX review:" line: each
                 use case walked as a first-time person from where they land, never a deep link (can they find
                 it, read it, tell what happened, recover from an error; does it match the screens around it)
 A deliverable (a PR, a body file, or a goal's evidence/goal.md; not a step's file inside a *-evidence/ directory) also:
@@ -234,7 +235,7 @@ def notes_and_guide(body: str, files: list[str]) -> list[str]:
 
 
 def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks: list[str],
-             ucs: dict[str, str] | None = None, deliverable: bool = False) -> list[str]:
+             ucs: dict[str, str] | None = None, deliverable: bool = False, step: bool = False) -> list[str]:
     out = []
     assurance, evidence, signal, review = (section(body, s) for s in ("Assurance", "Evidence", "Signal", "Review"))
 
@@ -303,6 +304,13 @@ def problems(body: str, files: list[str], surfaces: dict[str, list[str]], checks
         own = re.search(r"^[^\w\n]*self-review\w*\b[^\n]*", review, re.M | re.I)
         if own and not re.search(r"\b(?:haiku|sonnet|opus|fable)\b", own.group(0), re.I):
             out.append('the Self-review line names no model: say which ran it, in a context that did not write the change ("Self-review, by a fresh opus context: ...")')
+        if step:  # a task's own evidence: the owner's reader judged it as the owner would (write-goal/owner-reader.md)
+            read = re.search(r"^[^\w\n]*owner read\w*\b[^\w\n]*\w[^\n]*", review, re.M | re.I)
+            if not read:
+                out.append('a step\'s evidence needs an "Owner read, by a fresh <model> context: <result>" line in Review '
+                           "(write-goal/owner-reader.md)")
+            elif not re.search(r"\b(?:haiku|sonnet|opus|fable)\b", read.group(0), re.I):
+                out.append('the Owner read line names no model: say which fresh context read it ("Owner read, by a fresh sonnet context: ...")')
     if deliverable:
         out += notes_and_guide(body, files)
     unclosed = comments(body.replace("\r\n", "\n"))[1]
@@ -349,7 +357,7 @@ def main() -> None:
     # A step's evidence file is a piece of a deliverable; a PR, a body file and the goal's whole are deliverables.
     step = (os.path.isfile(arg) and os.path.basename(arg).lower() != "goal.md"
             and any(d.endswith("-evidence") for d in os.path.dirname(arg).split(os.sep)))
-    fails = (problems(body, files, cfg["surfaces"], cfg["assurance"], ucs, deliverable=not step)
+    fails = (problems(body, files, cfg["surfaces"], cfg["assurance"], ucs, deliverable=not step, step=step)
              + (stale(body, head, git_changed, cfg["plans_dir"], tuple(cfg["not_code"])) if head else []))
     for f in fails:
         print(f"FAIL {f}")

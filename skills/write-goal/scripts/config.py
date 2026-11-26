@@ -24,6 +24,7 @@ DEFAULTS = {
     "view": "",  # a live view the owner reads (e.g. "Claude Doc"); then the progress file stamps "<view> updated: <time>"
     "rollback_pattern": "",  # regex every plan's Rollback must match, e.g. "[a-z-]+:\\d+"
     "ban_em_dash": True,
+    "lessons": ".claude/loopkit/lessons.md",  # the repo's lessons file; a row only on a run's branch is caught like a kit file
     "not_code": ["\\.md$"],  # regexes on changed paths that never stale assurance; narrow it where Markdown runs (prompts, agents)
 }
 
@@ -52,6 +53,8 @@ def load() -> dict:
         bad.append('surfaces must be {"ui"|"service"|"cli": [regex, ...]}')
     if not isinstance(cfg["not_code"], list):
         bad.append("not_code must be a list of regexes")
+    if not isinstance(cfg["lessons"], str) or not cfg["lessons"].strip():
+        bad.append("lessons must be a path")
     if not isinstance(cfg["goal_rules"], dict):
         bad.append('goal_rules must be {"text": "rule"}')
     try:

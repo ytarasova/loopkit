@@ -605,7 +605,7 @@ def main() -> None:
         for named in ("[Reports](https://docs.example.com/reports#export)", "README.md, the Export section", "docs/guide.mdx"):
             assert pr(good.replace(guide, named)).strip() == "ok", named
         os.makedirs(f"{repo}/docs/x-evidence", exist_ok=True)
-        piece = good.split("\n## Release notes")[0]
+        piece = good.split("\n## Release notes")[0] + "- Owner read, by a fresh sonnet context: clean\n"  # a step's file carries it
         os.makedirs(f"{repo}/docs/x-evidence/sub", exist_ok=True)
         for name, want in (("1.1.md", "ok"), ("fix-a.md", "ok"), ("sub/1.1.md", "ok"), ("goal.md", 'no "## Release notes"'),
                            ("GOAL.md", 'no "## Release notes"')):
@@ -818,7 +818,16 @@ def main() -> None:
         assert '1.1.md: no "## Review"' in check(progress=ticked)
         with open(f"{ev}/1.1.md", "w") as f:
             f.write(good.split("\n## Release notes")[0])  # a step's evidence needs no release notes
+        assert 'needs an "Owner read' in check(progress=ticked), check(progress=ticked)  # but it needs its Owner read
+        owner = "- Owner read, by a fresh sonnet context: nothing the owner would object to\n"
+        with open(f"{ev}/1.1.md", "w") as f:
+            f.write(good.split("\n## Release notes")[0] + owner)
         assert check(progress=ticked).strip().endswith("ok"), check(progress=ticked)
+        with open(f"{ev}/1.1.md", "w") as f:
+            f.write(good.split("\n## Release notes")[0] + owner.replace(" sonnet", ""))
+        assert "Owner read line names no model" in check(progress=ticked), check(progress=ticked)
+        with open(f"{ev}/1.1.md", "w") as f:
+            f.write(good.split("\n## Release notes")[0] + owner)
         assert "does not name its evidence file" in check(progress=p.replace("- [ ] Plan 1 step 1", "- [x] Plan 1 step 1"))
         assert "does not name its evidence file" in check(progress=ticked.replace("evidence/1.1.md", "evidence/2.1.md"))
         assert "is not \"Plan N step M\"" in check(progress=ticked.replace("Plan 1 step 1", "Plan 1 task 1"))
@@ -838,7 +847,7 @@ def main() -> None:
         assert "UC2 is proven by no plan step" not in check(master=both, progress=ticked)
         assert 'has no "### UC2": Plan 1 step 1 proves it' in check(master=both, progress=ticked)
         with open(f"{ev}/1.1.md", "w") as f:
-            f.write(good)
+            f.write(good.replace("- Constitution: cross-checked, clean\n", "- Constitution: cross-checked, clean\n" + owner))
         assert "UC1 is proven by no plan step" in check(master=m.replace("Proves UC1.", ""))
         asks = lambda row: check(master=m.replace("| A1 | filled | UC1 |", row))
         assert "A1 maps to no use case" in asks("| A1 | filled | later |")
@@ -885,6 +894,24 @@ def main() -> None:
         assert "kit files changed" not in check(master=m + "\nTouches `.claude/loopkit/goal.md`.\n")
         assert "kit files changed" in check(master=m + "\nKeeps to .claude/loopkit/goal.md as written.\n")  # mentioned, not named
         git("switch", "-q", "-")
+        # The lessons file is a setting, and a row on a run's branch only is caught like a kit file.
+        back = git("branch", "--show-current").stdout.strip()
+        assert git("switch", "-qfc", "state/u", "origin/main").returncode == 0  # -f: the test's own scratch edits
+        cfg0 = open(f"{repo}/.claude/loopkit.json").read()
+        with open(f"{repo}/.claude/loopkit.json", "w") as f:
+            json.dump({**json.loads(cfg0), "lessons": "docs/feedback.md"}, f)
+        with open(f"{repo}/docs/feedback.md", "a") as f:
+            f.write("| 1 | a lesson |\n")
+        git("add", "docs/feedback.md"); git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "lesson")
+        assert "kit files changed on state/u (docs/feedback.md)" in check(), check()
+        with open(f"{repo}/.claude/loopkit.json", "w") as f:
+            json.dump({**json.loads(cfg0), "lessons": ""}, f)
+        bad = run("check-goal.py", "t", cwd=repo)
+        assert bad.returncode != 0 and "lessons must be a path" in bad.stdout + bad.stderr, bad.stdout + bad.stderr
+        with open(f"{repo}/.claude/loopkit.json", "w") as f:
+            f.write(cfg0)
+        assert "kit files changed" not in check(), check()  # without the setting, a file outside .claude/ is not kit
+        assert git("switch", "-qf", back).returncode == 0
         # progress.py stamps from the clock; check-goal holds the live view to the Now line.
         check()  # every file back to its passing text
         prog = f"{base}-progress.md"
@@ -945,6 +972,26 @@ def main() -> None:
             f.write("import sys\nsys.exit('no single goal')\n")
         said = subprocess.run([sys.executable, os.path.join(fake, "progress.py"), "t", "now", "x"], cwd=repo, capture_output=True, text=True)
         assert "FAIL: check-goal did not finish: no single goal" in said.stdout and "check-goal: ok" not in said.stdout, said.stdout
+        # The watch: a pass at least every 30 minutes while work is in flight, stamped by progress.py.
+        assert stamp("watch").returncode == 0 and re.search(r"^Watched: \S+ \S+ UTC$", read(), re.M), read()[:400]
+        assert "the watch is" not in run("check-goal.py", "t", cwd=repo).stdout
+        assert stamp("watch").returncode == 0 and len(re.findall(r"^Watched: ", read(), re.M)) == 1  # rewritten, not added
+        flying = read().replace("- Nothing.", "- step 2, sonnet, 40m", 1)
+        assert "step 2, sonnet, 40m" in flying
+        with open(prog, "w") as f:  # an old watch while work is in flight
+            f.write(re.sub(r"^Watched: .*$", "Watched: 2026-01-01 08:00 UTC", flying, flags=re.M))
+        out = run("check-goal.py", "t", cwd=repo).stdout
+        assert "the watch is" in out and "progress.py watch" in out, out
+        with open(prog, "w") as f:  # no watch yet: the age counts from the run's first Log entry
+            f.write(re.sub(r"^(## Log\b[^\n]*\n\n?)", r"\1- 2026-01-01 07:00 UTC: run started\n", re.sub(r"^Watched: .*\n\n?", "", flying, flags=re.M), count=1, flags=re.M))
+        out = run("check-goal.py", "t", cwd=repo).stdout
+        assert "the watch is" in out and "Watched" not in read(), out
+        with open(prog, "w") as f:  # nothing in flight: nothing to watch
+            f.write(re.sub(r"^Watched: .*$", "Watched: 2026-01-01 08:00 UTC", flying.replace("- step 2, sonnet, 40m", "- Nothing.", 1), flags=re.M))
+        assert "the watch is" not in run("check-goal.py", "t", cwd=repo).stdout
+        with open(prog, "w") as f:
+            f.write(re.sub(r"^Watched: .*$", "Watched: 2999-01-01 09:00 UTC", flying, flags=re.M))
+        assert "ahead of the clock: 2999-01-01 09:00 UTC" in run("check-goal.py", "t", cwd=repo).stdout
     # The kit is public: the skills never name the people who build or run it. Their names come from git config and
     # the commit authors at test time, so they are never written into the repo, not even here.
     names = subprocess.run(["git", "config", "user.name"], capture_output=True, text=True, cwd=HERE).stdout
