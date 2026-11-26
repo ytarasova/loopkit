@@ -44,7 +44,8 @@ box is ticked, `{{PLANS_DIR}}/{{DATE}}-{{SLUG}}-evidence/goal.md` gathers every 
 ## Owner corrections
 
 Every correction {{OWNER}} gives during the run, in their words, and the kit change that encodes it so it is never given
-twice (constitution §VI.10): a commit or PR off main, never on a plan branch.
+twice (constitution §VI.10): a commit or PR off main, never on a plan branch, shipped the turn it is given. One any repo
+would hit reads "general: <commit or PR>", for a kit session to carry to loopkit.
 
 | When | Their words | Kit change |
 | --- | --- | --- |

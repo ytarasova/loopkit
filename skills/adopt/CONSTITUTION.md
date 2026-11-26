@@ -61,7 +61,7 @@ This file sets principles. Its examples show a rule; they do not limit it. If a 
 7. **Verification passes or fails.** A test, a build, a screenshot, a metric, with the output it printed. "Looks right" is not a verification. One that flips on the same code is broken: fix it, or file it (§III.6) and link the ticket in the evidence; never count it green. A warning is answered with evidence (a retake, a diff, a run), never in words.
 8. **Look before you ask.** The knowledge base, the CLI, the MCP servers and the CI runners come first. Never hand the owner a step you can take; a human step is one nothing you have can do.
 9. **Ask in plain words, one question at a time, with your recommendation.** Do the literal ask; when a verb has two readings, ask once. A question naming a file or an option number the owner has not seen is not a question.
-10. **A correction from the owner goes into the kit the same turn,** not into memory or a note, so it is never given twice: into the skill when any repo would hit it, into this repo's `.claude/loopkit/lessons.md` when only this one would. One that changes this file is proposed to the owner the same turn (§VIII.3).
+10. **A correction from the owner goes into the kit the same turn,** not into memory or a note, so it is never given twice: into the skill when any repo would hit it, into this repo's lessons file (the `lessons` setting) when only this one would. One that changes this file is proposed to the owner the same turn (§VIII.3).
 11. **Edit files with the edit tools.** The shell is the fallback for what they cannot do.
 
 ## VII. Branches and merges

@@ -6,7 +6,7 @@ description: Use when setting up loopkit in a repo, or on "adopt loopkit", "set 
 # Adopt loopkit in a repo
 
 loopkit's skills are generic; the repo supplies the facts. This skill reads
-the repo, asks the owner only what the repo cannot say, and writes five
+the repo, asks the owner only what the repo cannot say, and writes six
 things:
 
 | File | Holds | Read by |
@@ -105,8 +105,12 @@ absolute paths before running anything from the target repo.
    here may end differently from `ends_at` (the owner may grant shipping, or
    only PRs), fill the other template too, as
    `.claude/loopkit/goal-<ending>.md`; `new-goal.py --ends-at <ending>` reads
-   it. Create `.claude/loopkit/lessons.md` with a heading: the corrections only
-   this repo needs go there, and write-goal reads it.
+   it. Create the lessons file (`lessons`, default `.claude/loopkit/lessons.md`)
+   with a heading: the corrections only this repo needs go there, and
+   write-goal reads it. Copy `<base>/../write-goal/agents/walker.md` to
+   `.claude/agents/walker.md`, its `tools:` renamed for the browser this repo
+   uses, one by one: never a wildcard, and never a tool that runs code in the
+   page, sends its own request or reads the repo.
 6. **`CLAUDE.md`.** Subagents load `CLAUDE.md`, not the goal or linked
    files, and it is what survives compaction, so it carries what every
    context must see, and nothing else:

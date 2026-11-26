@@ -23,7 +23,7 @@ Fails (exit 1) on what would break or mislead the run; warns on what a person sh
               "Waiting on", "In flight" and "What is left"; each In flight item ends with its time left,
               and each "What is left" row has one in its last column;
               the live view (`view`) stamped no earlier than Now; while In flight lists anything, a
-              "Watched:" stamp (progress.py watch) at most 45 minutes old, else the first Log entry; Steps with a checkbox per gate; a Log;
+              "Watched:" stamp (progress.py watch, first with the first dispatch) at most 45 minutes old; Steps with a checkbox per gate; a Log;
               warns over 80 KB
   evidence    every ticked step is "Plan N step M" and names its own evidence file,
               "(<plans_dir>/<date>-<slug>-evidence/<N>.<M>.md)", which exists, passes check-pr.py with each
@@ -277,10 +277,12 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
                              f'(update it, then progress.py view)')
         time_left = rf"\d+\s*{UNIT}(?:\s*\d+\s*{UNIT})?"
         flying = re.findall(r"^- (?!(?:nothing|none)\b)([^\n]+)", section_of(psecs, "In flight"), re.M | re.I)
-        since = watched.group(1) if watched else (min(logged) if logged else None)  # no watch yet: from the run's start
-        if flying and since:
+        if flying and not watched:  # the first dispatch starts the watch's clock
+            fails.append("the watch has not started while work is in flight: stamp progress.py watch with the first "
+                         "dispatch, then run a fresh pass at least every 30 min (write-goal/owner-reader.md)")
+        elif flying:
             utc = lambda t: datetime.datetime.strptime(t, "%Y-%m-%d %H:%M").replace(tzinfo=datetime.timezone.utc)
-            age = int((datetime.datetime.now(datetime.timezone.utc) - utc(since)).total_seconds() // 60)
+            age = int((datetime.datetime.now(datetime.timezone.utc) - utc(watched.group(1))).total_seconds() // 60)
             if age > 45:
                 fails.append(f"the watch is {age} min old while work is in flight: a fresh pass runs at least every 30 min "
                              "(dispatch a watch pass, then progress.py watch)")

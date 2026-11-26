@@ -14,7 +14,8 @@ fixed by hand), and about half the catches came from a reader outside the run, r
   an ask holds only the work that depends on it. `check-pr.py` fails a step's evidence file without its
   `Owner read, by a fresh <model> context:` line.
 - The watch: a fresh pass at least every 30 minutes while work is in flight, over the progress diff and the tails of
-  the running transcripts. `progress.py <slug> watch` stamps it; `check-goal.py` fails a watch over 45 minutes old.
+  the running transcripts. `progress.py <slug> watch` stamps it, first with the first dispatch; while work is in flight, `check-goal.py`
+  fails a watch over 45 minutes old, or none.
 - The walker (`write-goal/agents/walker.md`): a browser and nothing else, so no walk fixes data by hand. Each flow
   reports `works unpatched` or `blocked at <step>`. The UX review gains where a click lands, hidden or off-screen
   controls, validation that does not say what to fix, and click counts.
