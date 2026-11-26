@@ -55,6 +55,8 @@ def load() -> dict:
         bad.append("not_code must be a list of regexes")
     if not isinstance(cfg["lessons"], str) or not cfg["lessons"].strip():
         bad.append("lessons must be a path")
+    elif os.path.isabs(cfg["lessons"]) or ".." in cfg["lessons"].replace("\\", "/").split("/"):
+        bad.append(f'lessons is {cfg["lessons"]!r}; give a path inside the repo, relative to its top')
     if not isinstance(cfg["goal_rules"], dict):
         bad.append('goal_rules must be {"text": "rule"}')
     try:

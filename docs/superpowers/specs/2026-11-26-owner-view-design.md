@@ -134,7 +134,8 @@ It returns object or ask findings, as the reader does. The orchestrator acts the
 subagent that owns the work, or stops and redispatches it; an ask goes under Waiting on and to the owner.
 
 `progress.py <slug> watch` stamps `Watched: <time>`. `check-goal.py` fails a progress file whose last watch is more
-than 45 minutes old while In flight lists anything; with no stamp yet, the age counts from the run's first Log entry.
+than 45 minutes old while In flight lists anything, and one with work in flight and no stamp at all: the first
+dispatch stamps it.
 It prints that failure at each stamp (0.13.3).
 
 ### 4. Checks the worker cannot bend
@@ -203,3 +204,11 @@ lands and takes nothing from it; its next goal starts on 0.14.
 - How the watch finds the tail of a transcript in the host harness.
 - The walker's tool names for the browser the repo uses.
 - Test shapes for the script changes.
+
+## Changed after approval
+
+- The watch's first stamp comes with the first dispatch, and work in flight with no stamp fails at once. Counting from
+  the first Log entry, as first written, failed every run at its start: setup writes that entry, often hours before
+  `/goal` runs (the whole-branch review, 2026-11-26).
+- The walker has no Read: with Read, its Write could change an existing seed or fixture file, and Read let it guess
+  from source. Its tools are named one by one, with none that runs code in the page (a side note, 2026-11-26).

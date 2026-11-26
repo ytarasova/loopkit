@@ -14,7 +14,8 @@ optimize/
   cases/<slug>/        the cases the loop is scored on
     task.md            the task as its user would state it
     outcome.md         the desired outcome, one plain sentence per thing the user would notice
-    checks.<ext>       one check per outcome sentence, in whatever the repo already runs
+    checks.<ext>       one check per outcome sentence, in whatever the repo already runs; a check named
+                       `usability_<...>` is a usability step (a person's path through a screen), the rest outcome checks
     judge.md           optional: what only a reader can decide, with its rubric
     replies.md         optional: the user's answers, in order, to what the task says it will be asked
     source.md          where the case came from: the conversation, the ticket, the request
@@ -27,7 +28,7 @@ a value from its sample data, an exact sentence of its task. A word the system's
 changes. The gate catches copying, not paraphrase. The held-out floor catches the rest, on every experiment or once at
 the landing, as intake chose. With no cases held out, nothing measured does (SKILL.md, Held-out cases).
 
-What one run sets (the caps, the held-out choice, the baseline scores, the floor) lives with the run: in its master plan when it is a goal.
+What one run sets (the caps, the held-out choice, the usability weighting, the baseline scores, the floor) lives with the run: in its master plan when it is a goal.
 
 ## The scorer
 
@@ -36,7 +37,10 @@ One command, for example `optimize/scorer --system <path> --cases <dir> [--tries
 1. It takes the system to score as a path, and the cases as a directory. Everything else it uses (itself, the cases,
    the checks, the clean start) it reads from where it is run, never from the system's path.
 2. For each case, `k` times: reset to the clean start; run a fresh solver with `task.md` and the system's public
-   surface and nothing else; run the checks. A try scores checks passed over checks.
+   surface and nothing else; run the checks. A try scores checks passed over checks; when a case has usability
+   steps (`SKILL.md`, Cases), 0.5 x (outcome checks passed / outcome checks) + 0.5 x (usability steps passed /
+   usability steps), unless intake set another weighting. The scorer's tests pin which checks are which, so the loop
+   cannot score higher by renaming one.
 3. A case's score is its mean over the tries minus its spread across them (the standard deviation, unless the repo
    records another), never below zero. The run's score is the mean of the cases' scores.
 4. It reports each case to evo once, with every try's transcript and every check's result in the trace, and a

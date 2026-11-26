@@ -20,7 +20,7 @@ never live in the goal itself.
 
 Settings come from `.claude/loopkit.json` and templates from `.claude/loopkit/`
 in the repo; both are written by the `adopt` skill. If either is missing, run
-`adopt` first. The repo's own lessons, `.claude/loopkit/lessons.md` when it
+`adopt` first. The repo's own lessons, the file `lessons` names when it
 exists, are read with this skill: corrections only this repo needs, kept out
 of the kit. The scripts live under this skill's base directory, shown when
 the skill loads; run them by absolute path from the target repo:
@@ -120,7 +120,7 @@ two steps, and never takes a subagent's word for a step it can rerun.
 | 6 | Review of the diff and the spec: correctness, then quality, security (input handling, authorization, data exposure, secrets, dependencies) and the constitution. On a risky path (`models.md`: auth, data, money, migrations, concurrency) these are two reviewers, correctness first | reviewer, a context that did not write it, on at least the step's model | no open finding; fixes go back to step 2 |
 | 7 | UX review, for a UI use case: walked as a first-time user from the entry point | UX reviewer | passes; fixes go back to step 2 |
 | 8 | Owner read: what would the owner object to here? (`owner-reader.md`) | owner's reader, a fresh context | no object; an ask is under Waiting on, holding only the work that depends on it |
-| 9 | Review lines written into the evidence file | reviewer | `check-pr.py <file>` prints ok |
+| 9 | Review lines written into the evidence file, beside the Owner read's | reviewer | `check-pr.py <file>` prints ok |
 | 10 | Verify: rerun the assurance and `check-pr.py` on the file, read the diff | orchestrator | its own run agrees with the file |
 | 11 | Merge into the plan branch, tick the step with its file, push the progress file | orchestrator | `check-goal.py <slug>` ok |
 
@@ -299,9 +299,9 @@ with the screens in its scratchpad has shown nothing.
    progress file's "Owner corrections", each with the change that encodes it,
    shipped as its own PR off main, never on a plan branch (`check-goal.py`
    fails a kit file changed on a feature branch, and a correction with no
-   change). A correction any repo would hit changes loopkit and rolls out to
-   the repos that use it (`adopt/rollout.md`); one only this repo would hit
-   goes in its `.claude/loopkit/lessons.md`. Before closing the table, read
+   change). Each shipped the turn it was given (`owner-reader.md`); one any
+   repo would hit is marked `general`, for a kit session to carry to loopkit
+   (`adopt/rollout.md`); one only this repo needs is in `lessons`. Before closing the table, read
    every owner message of the run against it; one with no row gets one.
    Then tidy the repo's lessons, the file named above: merge two lessons that
    say one thing, and remove one only after `git grep` shows that what it

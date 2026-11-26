@@ -38,14 +38,20 @@ sent back as work.
 | Point | It reads | Model |
 | --- | --- | --- |
 | The plan, before the first dispatch | the master plan, the goal, the Granted list | opus |
-| Each dispatch | the subagent's prompt | sonnet |
+| Each implementer or fix dispatch | the subagent's prompt | sonnet |
 | Each task: step 8 of the sequence | the evidence file, the walk, the running product | the step's model or higher |
 | Each PR, before it opens | the body and the branch | opus |
 | Each message claiming done, merged or fixed | the message and its evidence | sonnet |
 
-At a task it writes `Owner read, by a fresh <model> context: <result>` into
-the evidence file's Review; `check-pr.py` fails a step's evidence file
-without it, or with no model named. A task with no UI is read through its
+Reviewers, the walker, the watch and the reader itself are not dispatches
+it reads. At a UI task it reads step 7's walker report and drives the
+walker again only for what that report left out.
+
+At a task the reader writes its own line, `Owner read, by a fresh <model>
+context: <result>`, into the evidence file's Review (making the section if
+it is not there yet); the reviewers write theirs beside it at step 9.
+`check-pr.py` fails a step's evidence file without it, or with no model
+named. A task with no UI is read through its
 surface as its user meets it (the service, the CLI), read-only. At the
 other points the result is a Log line.
 
@@ -66,6 +72,18 @@ Waiting on and to the owner. Then `progress.py <slug> watch` stamps
 `Watched: <time>`. `check-goal.py` fails a watch more than 45 minutes old
 while work is in flight, counting from the run's first Log entry before the
 first stamp.
+
+## A correction during the run
+
+- It is a row of Owner corrections the turn it is given, and every later
+  dispatch prompt carries the rows (`subagents.md`); the reader and the
+  watch read them. The `/goal` text and `.claude/` do not change mid-run.
+- Its change to the repo's kit or lessons file (`lessons`) ships off main
+  the same turn, within the run's grants for its repo, never on the state
+  branch.
+- One any repo would hit is marked `general` in its row ("general: <the
+  repo's commit or PR>"). Carrying it to loopkit and the other repos is a
+  kit session's job (`adopt/rollout.md`), not the run's.
 
 ## What the owner is told
 

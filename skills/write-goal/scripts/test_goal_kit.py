@@ -908,6 +908,11 @@ def main() -> None:
             json.dump({**json.loads(cfg0), "lessons": ""}, f)
         bad = run("check-goal.py", "t", cwd=repo)
         assert bad.returncode != 0 and "lessons must be a path" in bad.stdout + bad.stderr, bad.stdout + bad.stderr
+        for outside in ("../feedback.md", "/tmp/feedback.md"):  # git would refuse it, and the whole branch check with it
+            with open(f"{repo}/.claude/loopkit.json", "w") as f:
+                json.dump({**json.loads(cfg0), "lessons": outside}, f)
+            bad = run("check-goal.py", "t", cwd=repo)
+            assert bad.returncode != 0 and "inside the repo" in bad.stdout + bad.stderr, (outside, bad.stdout + bad.stderr)
         with open(f"{repo}/.claude/loopkit.json", "w") as f:
             f.write(cfg0)
         assert "kit files changed" not in check(), check()  # without the setting, a file outside .claude/ is not kit
@@ -983,15 +988,21 @@ def main() -> None:
         out = run("check-goal.py", "t", cwd=repo).stdout
         assert "the watch is" in out and "progress.py watch" in out, out
         with open(prog, "w") as f:  # no watch yet: the age counts from the run's first Log entry
-            f.write(re.sub(r"^(## Log\b[^\n]*\n\n?)", r"\1- 2026-01-01 07:00 UTC: run started\n", re.sub(r"^Watched: .*\n\n?", "", flying, flags=re.M), count=1, flags=re.M))
-        out = run("check-goal.py", "t", cwd=repo).stdout
-        assert "the watch is" in out and "Watched" not in read(), out
+            f.write(re.sub(r"^Watched: .*\n\n?", "", flying, flags=re.M))
+        out = run("check-goal.py", "t", cwd=repo).stdout  # however recent the Log: the first dispatch starts the watch
+        assert "the watch has not started" in out and "progress.py watch" in out and "Watched" not in read(), out
         with open(prog, "w") as f:  # nothing in flight: nothing to watch
             f.write(re.sub(r"^Watched: .*$", "Watched: 2026-01-01 08:00 UTC", flying.replace("- step 2, sonnet, 40m", "- Nothing.", 1), flags=re.M))
         assert "the watch is" not in run("check-goal.py", "t", cwd=repo).stdout
         with open(prog, "w") as f:
             f.write(re.sub(r"^Watched: .*$", "Watched: 2999-01-01 09:00 UTC", flying, flags=re.M))
         assert "ahead of the clock: 2999-01-01 09:00 UTC" in run("check-goal.py", "t", cwd=repo).stdout
+    # The walker reaches the product only through its screens: tools named one by one, none that runs code in the
+    # page, reads the repo or reaches past the screens.
+    with open(os.path.join(HERE, "..", "agents", "walker.md")) as f:
+        tools = re.search(r"^tools: (.*)$", f.read(), re.M).group(1).split(", ")
+    assert not [x for x in tools if re.search(r"\*|evaluate|run_code|network|^(Read|Bash|Edit|Glob|Grep)$", x)], tools
+    assert "Write" in tools and any(x.endswith("browser_handle_dialog") for x in tools), tools
     # The kit is public: the skills never name the people who build or run it. Their names come from git config and
     # the commit authors at test time, so they are never written into the repo, not even here.
     names = subprocess.run(["git", "config", "user.name"], capture_output=True, text=True, cwd=HERE).stdout
