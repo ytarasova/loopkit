@@ -22,7 +22,8 @@ Fails (exit 1) on what would break or mislead the run; warns on what a person sh
               Approved by, the view) more than 5 minutes ahead of the clock (progress.py writes them);
               "Waiting on", "In flight" and "What is left"; each In flight item ends with its time left,
               and each "What is left" row has one in its last column;
-              the live view (`view`) stamped no earlier than Now; Steps with a checkbox per gate; a Log;
+              the live view (`view`) stamped no earlier than Now; while In flight lists anything, a
+              "Watched:" stamp (progress.py watch) at most 45 minutes old, else the first Log entry; Steps with a checkbox per gate; a Log;
               warns over 80 KB
   evidence    every ticked step is "Plan N step M" and names its own evidence file,
               "(<plans_dir>/<date>-<slug>-evidence/<N>.<M>.md)", which exists, passes check-pr.py with each
@@ -258,11 +259,12 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
         logged = re.findall(rf"^- {stamp_at}", section_of(psecs, "Log"), re.M)
         approved = re.search(rf"^Approved by .+? {stamp_at}: \S", prog, re.M)
         view_at = re.search(rf"^{re.escape(cfg['view'])} updated: {stamp_at}", prog, re.M) if cfg["view"] else None
+        watched = re.search(rf"^Watched: {stamp_at}", prog, re.M)
         # Stamped times come from the clock (progress.py), never reckoned: one ahead of now was made up.
         # Other dates in the file (a freeze that lifts next week) are plans, not stamps, and are not checked.
         clock = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%d %H:%M")
         late = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(minutes=5)).strftime("%Y-%m-%d %H:%M")
-        stamps = [m.group(1) for m in (now_at, approved, view_at) if m] + logged
+        stamps = [m.group(1) for m in (now_at, approved, view_at, watched) if m] + logged
         fails.extend(f"progress file has a stamp ahead of the clock: {t} UTC (now {clock} UTC); stamp with progress.py"
                      for t in sorted(set(stamps)) if t > late)
         if not now_at:
@@ -274,7 +276,15 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
                 fails.append(f'the {cfg["view"]} lags the progress file: no "{cfg["view"]} updated: <time>" at or after the Now line '
                              f'(update it, then progress.py view)')
         time_left = rf"\d+\s*{UNIT}(?:\s*\d+\s*{UNIT})?"
-        for item in re.findall(r"^- (?!(?:nothing|none)\b)([^\n]+)", section_of(psecs, "In flight"), re.M | re.I):
+        flying = re.findall(r"^- (?!(?:nothing|none)\b)([^\n]+)", section_of(psecs, "In flight"), re.M | re.I)
+        since = watched.group(1) if watched else (min(logged) if logged else None)  # no watch yet: from the run's start
+        if flying and since:
+            utc = lambda t: datetime.datetime.strptime(t, "%Y-%m-%d %H:%M").replace(tzinfo=datetime.timezone.utc)
+            age = int((datetime.datetime.now(datetime.timezone.utc) - utc(since)).total_seconds() // 60)
+            if age > 45:
+                fails.append(f"the watch is {age} min old while work is in flight: a fresh pass runs at least every 30 min "
+                             "(dispatch a watch pass, then progress.py watch)")
+        for item in flying:
             if not re.search(rf"{time_left}[\s.)]*$", item, re.I):
                 fails.append(f'In flight item does not end with its time left ("1h 20m", "35m"): {item[:60]}')
         left = re.sub(r"^```.*?^```", "", section_of(psecs, "What is left"), flags=re.M | re.S)

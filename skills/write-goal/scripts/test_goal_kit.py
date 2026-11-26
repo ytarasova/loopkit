@@ -959,6 +959,26 @@ def main() -> None:
             f.write("import sys\nsys.exit('no single goal')\n")
         said = subprocess.run([sys.executable, os.path.join(fake, "progress.py"), "t", "now", "x"], cwd=repo, capture_output=True, text=True)
         assert "FAIL: check-goal did not finish: no single goal" in said.stdout and "check-goal: ok" not in said.stdout, said.stdout
+        # The watch: a pass at least every 30 minutes while work is in flight, stamped by progress.py.
+        assert stamp("watch").returncode == 0 and re.search(r"^Watched: \S+ \S+ UTC$", read(), re.M), read()[:400]
+        assert "the watch is" not in run("check-goal.py", "t", cwd=repo).stdout
+        assert stamp("watch").returncode == 0 and len(re.findall(r"^Watched: ", read(), re.M)) == 1  # rewritten, not added
+        flying = read().replace("- Nothing.", "- step 2, sonnet, 40m", 1)
+        assert "step 2, sonnet, 40m" in flying
+        with open(prog, "w") as f:  # an old watch while work is in flight
+            f.write(re.sub(r"^Watched: .*$", "Watched: 2026-01-01 08:00 UTC", flying, flags=re.M))
+        out = run("check-goal.py", "t", cwd=repo).stdout
+        assert "the watch is" in out and "progress.py watch" in out, out
+        with open(prog, "w") as f:  # no watch yet: the age counts from the run's first Log entry
+            f.write(re.sub(r"^(## Log\b[^\n]*\n\n?)", r"\1- 2026-01-01 07:00 UTC: run started\n", re.sub(r"^Watched: .*\n\n?", "", flying, flags=re.M), count=1, flags=re.M))
+        out = run("check-goal.py", "t", cwd=repo).stdout
+        assert "the watch is" in out and "Watched" not in read(), out
+        with open(prog, "w") as f:  # nothing in flight: nothing to watch
+            f.write(re.sub(r"^Watched: .*$", "Watched: 2026-01-01 08:00 UTC", flying.replace("- step 2, sonnet, 40m", "- Nothing.", 1), flags=re.M))
+        assert "the watch is" not in run("check-goal.py", "t", cwd=repo).stdout
+        with open(prog, "w") as f:
+            f.write(re.sub(r"^Watched: .*$", "Watched: 2999-01-01 09:00 UTC", flying, flags=re.M))
+        assert "ahead of the clock: 2999-01-01 09:00 UTC" in run("check-goal.py", "t", cwd=repo).stdout
     # The kit is public: the skills never name the people who build or run it. Their names come from git config and
     # the commit authors at test time, so they are never written into the repo, not even here.
     names = subprocess.run(["git", "config", "user.name"], capture_output=True, text=True, cwd=HERE).stdout

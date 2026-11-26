@@ -4,6 +4,7 @@
     python3 progress.py <slug> [<date>] log "<text>"       add "- YYYY-MM-DD HH:MM UTC: <text>" at the end of ## Log
     python3 progress.py <slug> [<date>] approve "<words>"  record "Approved by <owner> YYYY-MM-DD HH:MM UTC: <words>"
     python3 progress.py <slug> [<date>] view               stamp "<view> updated: YYYY-MM-DD HH:MM UTC" after updating it
+    python3 progress.py <slug> [<date>] watch              stamp "Watched: YYYY-MM-DD HH:MM UTC" after a watch pass
 
 The time is read once, from the system clock in UTC. The file is replaced whole, or left as it was.
 Each stamp is a state change, so it then runs check-goal.py on the goal and prints each failure: a live view
@@ -21,7 +22,7 @@ import tempfile
 import config
 
 # The Now paragraph: its line and the lines that continue it, up to a blank line, a heading or another stamp.
-NOW = re.compile(r"^\*\*Now \([^)\n]*\):\*\*[^\n]*(?:\n(?!\n|#|Approved by |[^\n]* updated: )[^\n]*)*", re.M)
+NOW = re.compile(r"^\*\*Now \([^)\n]*\):\*\*[^\n]*(?:\n(?!\n|#|Approved by |Watched: |[^\n]* updated: )[^\n]*)*", re.M)
 
 
 def after_now(text: str, line: str, pattern: str) -> str:
@@ -59,13 +60,15 @@ def stamp(text: str, verb: str, words: str, cfg: dict, at: str) -> str:
         if not cfg["view"]:
             sys.exit('no "view" in .claude/loopkit.json: this repo has no live view to stamp')
         return after_now(text, f"{cfg['view']} updated: {at} UTC", rf"^{re.escape(cfg['view'])} updated: [^\n]*")
+    if verb == "watch":
+        return after_now(text, f"Watched: {at} UTC", r"^Watched: [^\n]*")
     sys.exit(__doc__)
 
 
 def main() -> None:
     args = sys.argv[1:]
     date = args.pop(1) if len(args) > 2 and re.fullmatch(r"\d{4}-\d\d-\d\d", args[1]) else ""
-    verbs = {"now": 3, "log": 3, "approve": 3, "view": 2}
+    verbs = {"now": 3, "log": 3, "approve": 3, "view": 2, "watch": 2}
     if len(args) < 2 or verbs.get(args[1]) != len(args):
         sys.exit(__doc__)
     config.to_top()
