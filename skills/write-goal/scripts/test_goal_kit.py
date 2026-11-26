@@ -605,7 +605,7 @@ def main() -> None:
         for named in ("[Reports](https://docs.example.com/reports#export)", "README.md, the Export section", "docs/guide.mdx"):
             assert pr(good.replace(guide, named)).strip() == "ok", named
         os.makedirs(f"{repo}/docs/x-evidence", exist_ok=True)
-        piece = good.split("\n## Release notes")[0]
+        piece = good.split("\n## Release notes")[0] + "- Owner read, by a fresh sonnet context: clean\n"  # a step's file carries it
         os.makedirs(f"{repo}/docs/x-evidence/sub", exist_ok=True)
         for name, want in (("1.1.md", "ok"), ("fix-a.md", "ok"), ("sub/1.1.md", "ok"), ("goal.md", 'no "## Release notes"'),
                            ("GOAL.md", 'no "## Release notes"')):
@@ -818,7 +818,16 @@ def main() -> None:
         assert '1.1.md: no "## Review"' in check(progress=ticked)
         with open(f"{ev}/1.1.md", "w") as f:
             f.write(good.split("\n## Release notes")[0])  # a step's evidence needs no release notes
+        assert 'needs an "Owner read' in check(progress=ticked), check(progress=ticked)  # but it needs its Owner read
+        owner = "- Owner read, by a fresh sonnet context: nothing the owner would object to\n"
+        with open(f"{ev}/1.1.md", "w") as f:
+            f.write(good.split("\n## Release notes")[0] + owner)
         assert check(progress=ticked).strip().endswith("ok"), check(progress=ticked)
+        with open(f"{ev}/1.1.md", "w") as f:
+            f.write(good.split("\n## Release notes")[0] + owner.replace(" sonnet", ""))
+        assert "Owner read line names no model" in check(progress=ticked), check(progress=ticked)
+        with open(f"{ev}/1.1.md", "w") as f:
+            f.write(good.split("\n## Release notes")[0] + owner)
         assert "does not name its evidence file" in check(progress=p.replace("- [ ] Plan 1 step 1", "- [x] Plan 1 step 1"))
         assert "does not name its evidence file" in check(progress=ticked.replace("evidence/1.1.md", "evidence/2.1.md"))
         assert "is not \"Plan N step M\"" in check(progress=ticked.replace("Plan 1 step 1", "Plan 1 task 1"))
@@ -838,7 +847,7 @@ def main() -> None:
         assert "UC2 is proven by no plan step" not in check(master=both, progress=ticked)
         assert 'has no "### UC2": Plan 1 step 1 proves it' in check(master=both, progress=ticked)
         with open(f"{ev}/1.1.md", "w") as f:
-            f.write(good)
+            f.write(good.replace("- Constitution: cross-checked, clean\n", "- Constitution: cross-checked, clean\n" + owner))
         assert "UC1 is proven by no plan step" in check(master=m.replace("Proves UC1.", ""))
         asks = lambda row: check(master=m.replace("| A1 | filled | UC1 |", row))
         assert "A1 maps to no use case" in asks("| A1 | filled | later |")
@@ -895,6 +904,10 @@ def main() -> None:
             f.write("| 1 | a lesson |\n")
         git("add", "docs/feedback.md"); git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "lesson")
         assert "kit files changed on state/u (docs/feedback.md)" in check(), check()
+        with open(f"{repo}/.claude/loopkit.json", "w") as f:
+            json.dump({**json.loads(cfg0), "lessons": ""}, f)
+        bad = run("check-goal.py", "t", cwd=repo)
+        assert bad.returncode != 0 and "lessons must be a path" in bad.stdout + bad.stderr, bad.stdout + bad.stderr
         with open(f"{repo}/.claude/loopkit.json", "w") as f:
             f.write(cfg0)
         assert "kit files changed" not in check(), check()  # without the setting, a file outside .claude/ is not kit

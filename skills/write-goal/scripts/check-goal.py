@@ -316,7 +316,8 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
                     return ""
                 with open(path) as f:
                     body = f.read()
-                fails.extend(f"{path}: {p}" for p in check_pr.problems(body, [], cfg["surfaces"], cfg["assurance"], ucs, deliverable))
+                fails.extend(f"{path}: {p}" for p in check_pr.problems(body, [], cfg["surfaces"], cfg["assurance"], ucs, deliverable,
+                                                                                    step=not deliverable))
                 return body
 
             ticked = re.findall(r"^- \[[xX]\] ([^\n]*)", steps, re.M)
