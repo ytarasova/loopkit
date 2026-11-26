@@ -36,7 +36,9 @@ One command, for example `optimize/scorer --system <path> --cases <dir> [--tries
 1. It takes the system to score as a path, and the cases as a directory. Everything else it uses (itself, the cases,
    the checks, the clean start) it reads from where it is run, never from the system's path.
 2. For each case, `k` times: reset to the clean start; run a fresh solver with `task.md` and the system's public
-   surface and nothing else; run the checks. A try scores checks passed over checks.
+   surface and nothing else; run the checks. A try scores checks passed over checks; when a case has usability
+   steps (`SKILL.md`, Cases), half its share of outcome checks passed plus half its share of usability steps passed,
+   unless intake set another weighting.
 3. A case's score is its mean over the tries minus its spread across them (the standard deviation, unless the repo
    records another), never below zero. The run's score is the mean of the cases' scores.
 4. It reports each case to evo once, with every try's transcript and every check's result in the trace, and a

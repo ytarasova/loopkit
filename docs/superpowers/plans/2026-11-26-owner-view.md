@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - The kit stays generic: no product, repo, person or company named (the kit test checks names from git config and authors).
-- No em-dash anywhere (`git grep $'—'` empty).
+- No em-dash anywhere (`git grep $'\u2014'` empty).
 - `write-goal/SKILL.md` stays under 500 lines (one adopter's cap).
 - Run tests with Python 3.10 or newer (`python3 --version`); the system `python3` may be 3.9.
 - Each PR body passes `check-pr.py <PR>`; land with `gh pr merge --squash --delete-branch` after CI, bottom of the stack first.
@@ -148,7 +148,7 @@ PR 2 = Tasks 1 to 3, titled `write-goal 0.14 (1/3): lessons setting, watch stamp
 - [ ] **Step 3: `SKILL.md`.** (a) Open "The lifecycle" with: "Done means the work's user can do it in the product, unaided, and the owner would accept it. Every rule below is a case of that." (b) Insert sequence row 8 `Owner read: what would the owner object to? (owner-reader.md) | owner's reader, a fresh context | no object; an ask is under Waiting on, holding only what depends on it`, renumber 8-10 to 9-11, and point the "Review lines" row at both lines. (c) While it runs: "A watch pass at least every 30 minutes while anything is in flight (`owner-reader.md`), stamped `progress.py <slug> watch`"; "An "eta?" is answered with a time, and with what moved it since the last answer." (d) UX review list: the four new items; "walking it" names `agents/walker.md`. (e) A paragraph after the UX list: main's tests are not changed to make a branch pass unless that change is the ask named in the master plan; a test failing on main is fixed at its cause in its own PR off main, an expected result named, never a count raised; a live fault found on main (security, data loss) goes to the owner as its own PR off main. (f) Common mistakes rows: "A walk that edits data to pass | The flow works for the tester, not for the person"; "The owner's view left to the owner | They catch what the run should have, and relay it back". Keep the file under 500 lines; move text to `owner-reader.md` if it is not.
 - [ ] **Step 4: `subagents.md`.** Every prompt carries this run's Owner corrections rows; a process is stopped by its pid or its working folder, never by a pattern of the command that started it.
 - [ ] **Step 5: `rollout.md` rule 8 and `adopt/SKILL.md`.** Rule 8 gains: "A correction the run's own owner gave is the second exception: the run takes it mid-run, alone, and its repo's change ships off main the same turn; one marked general is carried to loopkit by a kit session." Adopt copies `write-goal/agents/walker.md` to `.claude/agents/walker.md`, with the repo's browser tools.
-- [ ] **Step 6: Verify:** `python3 skills/write-goal/scripts/test_goal_kit.py` → `goal kit ok`; `wc -l skills/write-goal/SKILL.md` under 500; `git grep $'—' -- skills` empty.
+- [ ] **Step 6: Verify:** `python3 skills/write-goal/scripts/test_goal_kit.py` → `goal kit ok`; `wc -l skills/write-goal/SKILL.md` under 500; `git grep $'\u2014' -- skills` empty.
 - [ ] **Step 7: Commit** `write-goal 0.14: the owner's reader, the watch, the walker`.
 
 PR 3 = Task 4, base PR 2's branch.

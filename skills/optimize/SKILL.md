@@ -78,7 +78,11 @@ a thing was made is not a check that it works. When people use the result
 through screens, the checks read what a person can do there, not only what
 was stored: reach it from where its user starts, pick each choice, open a
 listed row, save. Stored data and rules behind a screen nobody can finish
-score as working.
+score as working. Such a check observes the running product, never reads its
+source to guess what a screen shows: a guess from the source misreads each
+new shape, and the loop games the rest. Usability steps and outcome checks
+weigh half each by default, so many easy steps cannot drown out the
+outcomes; intake may set another weighting.
 
 What only a reader can decide (it fits the purpose, the names make sense)
 goes in the case's judged part, with its rubric. It is reported beside the
@@ -269,7 +273,8 @@ cut-down diff too. Its body passes `check-pr.py`, with:
   everything it built, used as its user would, through the main path, the
   refusals and the edge cases its outcome names, with the evidence
   `write-goal` asks of that kind of change. It is walked on what one try left
-  standing, before the next reset, by a subagent that did not score it, and
+  standing, before the next reset, by a subagent that did not score it
+  (`write-goal/agents/walker.md`, which cannot touch data), and
   costs no solver session. It shows the finished result first, every screen
   with real data in it, then each step that failed, shown failing: a list of
   faults alone hides what works;
@@ -297,6 +302,7 @@ held-out cases at random, when the run holds cases out.
 | Checks written after seeing the solver's result | They pass what was built, not what was asked. |
 | Checks that only find the result exists | A result that refuses nothing scores full. |
 | Checks that read stored data behind screens | The score rises while no person can finish the flow. |
+| A usability check that reads source | Each review finds a new shape it misreads, and the loop games the rest. |
 | Held-out builds studied by a later fix | The cases no longer show the system works beyond them. |
 | A landing with scores and no walkthrough | Nobody has seen what a user gets. |
 | A walkthrough of the use alone, or the build alone | Half is unseen: what a user gets, or what was made to give it. |

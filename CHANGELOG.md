@@ -1,5 +1,37 @@
 # Changelog
 
+## 0.14.0
+
+The run judges its work as the owner would, before the owner has to. One optimize run and its follow-on goal showed
+why: every measure was met and not the goal behind it (a score up while flows stayed unusable, walks passing on data
+fixed by hand), and about half the catches came from a reader outside the run, relayed by the owner.
+
+- `write-goal` states its principle first: done means the work's user can do it in the product, unaided, and the owner
+  would accept it.
+- The owner's reader (`write-goal/owner-reader.md`): a fresh context carrying the intent, the Asks and every
+  correction the owner gave, asked one question, what would the owner object to here. It reads the plan, each
+  dispatch, each task (step 8 of the sequence), each PR and each message claiming done. An object goes back as work;
+  an ask holds only the work that depends on it. `check-pr.py` fails a step's evidence file without its
+  `Owner read, by a fresh <model> context:` line.
+- The watch: a fresh pass at least every 30 minutes while work is in flight, over the progress diff and the tails of
+  the running transcripts. `progress.py <slug> watch` stamps it; `check-goal.py` fails a watch over 45 minutes old.
+- The walker (`write-goal/agents/walker.md`): a browser and nothing else, so no walk fixes data by hand. Each flow
+  reports `works unpatched` or `blocked at <step>`. The UX review gains where a click lands, hidden or off-screen
+  controls, validation that does not say what to fix, and click counts.
+- Main's tests are not changed to make a branch pass; a test failing on main, or a live fault found there, goes to the
+  owner as its own PR off main.
+- A correction reaches the run the turn it is given: every later dispatch carries the Owner corrections rows, and a
+  live run takes its own owner's correction mid-run (`rollout.md`, rule 8). The lessons file is a setting, `lessons`,
+  and `check-goal.py` treats it as a kit file, so a lesson left only on a run's branch fails.
+- `optimize`: a usability check observes the running product, never its source, and usability steps and outcome
+  checks weigh half each by default.
+- Smaller: an "eta?" is answered with a time and what moved it; a process is stopped by its pid or folder, never by a
+  pattern of its command.
+
+Upgrading from 0.13: set `lessons` when the repo's lessons file is not `.claude/loopkit/lessons.md`; copy
+`write-goal/agents/walker.md` to `.claude/agents/walker.md`, naming the repo's browser tools. A goal started on 0.13
+keeps its kit (its step files have no Owner read line), so upgrade between goals.
+
 ## 0.13.5
 
 Seven owner corrections from one optimize run and its follow-on goal, where the run answered each in the moment and
