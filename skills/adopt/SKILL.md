@@ -14,7 +14,8 @@ things:
 | `CONSTITUTION.md` | How work is done here: the core clauses plus the repo's own. | every session, `write-goal`'s goal text |
 | `.claude/loopkit.json` | The knobs below. | `new-goal.py`, `check-goal.py`, `intent` |
 | `.claude/loopkit/goal.md` | The goal template with this repo's commands written in; `goal-production.md` beside it when a goal here may be granted shipping. | `new-goal.py` |
-| `.claude/loopkit/lessons.md` | Corrections only this repo needs, kept out of the kit: a heading, filled by each run's retro. | `write-goal` |
+| `.claude/loopkit/lessons.md` | Corrections only this repo needs, kept out of the kit: a heading, filled by each run's retro. Elsewhere, name it in `lessons`. | `write-goal`, the owner's reader |
+| `.claude/agents/walker.md` | `write-goal/agents/walker.md`, its `tools:` rewritten for the browser this repo uses. | UX review, the owner's reader |
 | `CLAUDE.md` | A link to the constitution, and where gate baselines are read. | every session |
 
 ## The knobs
@@ -51,6 +52,7 @@ things:
 | `view` | The live view the owner reads, if any (a Claude Doc, a board). `progress.py <slug> view` stamps its update; `check-goal.py` fails a view older than the progress file's Now line. Empty when there is none. |
 | `rollback_pattern` | A regex every plan's Rollback must match, e.g. `[a-z-]+-production:\d+` for a task definition revision. |
 | `ban_em_dash` | Fail any goal file with an em-dash. |
+| `lessons` | The repo's lessons file (default `.claude/loopkit/lessons.md`). `check-goal.py` treats it as a kit file, so a lesson left only on a run's branch fails. |
 | `not_code` | Regexes on changed paths that never make a PR's assurance stale (default: Markdown). Narrow it where Markdown runs: prompts, agent definitions, skills. |
 
 Changing a model or the subagent count later is an edit to

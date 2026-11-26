@@ -36,6 +36,9 @@ file plus the list of decisions you answered for them.
 
 ## The lifecycle
 
+Done means the work's user can do it in the product, unaided, and the owner
+would accept it. Every rule below is a case of that.
+
 **Setting up**, before the owner runs `/goal`:
 
 1. `new-goal.py` writes the three files. Every blank reads `{{FILL: ...}}`.
@@ -71,11 +74,12 @@ first three:
 - The live view, when the repo has one (`view`), is updated with the progress
   file, then stamped with `progress.py <slug> view`.
 - An ask stated in chat goes into the master plan's Asks the same turn.
-- Each PR reaches the owner as a message of its own, with its link, when it
-  opens and before any merge the run makes: one opened under the owner's own
-  login notifies nobody.
-- To the owner, "merged" means merged into main. A task combined into its
-  plan branch is "in the plan branch".
+- The owner's reader, the 30-minute watch, and what the owner is told (each
+  PR, "merged", an eta): [`owner-reader.md`](owner-reader.md).
+- Main's tests are not changed to make a branch pass, unless that change is
+  the ask, named in the master plan. A test failing on main, or a live fault
+  found there (security, data loss), goes to the owner as its own PR off
+  main, fixed at its cause: an expected result named, never a count raised.
 - After a compaction, re-read the goal and progress files and this lifecycle.
 - Choices about people or their data are asked at intake (§VIII.4). One
   found later takes the option that changes least for people (their data
@@ -115,9 +119,10 @@ two steps, and never takes a subagent's word for a step it can rerun.
 | 5 | Evidence: each use case shown for its surface, written to the step's evidence file with steps 3 and 4 | implementer | `check-pr.py <file>` prints ok, except Review |
 | 6 | Review of the diff and the spec: correctness, then quality, security (input handling, authorization, data exposure, secrets, dependencies) and the constitution. On a risky path (`models.md`: auth, data, money, migrations, concurrency) these are two reviewers, correctness first | reviewer, a context that did not write it, on at least the step's model | no open finding; fixes go back to step 2 |
 | 7 | UX review, for a UI use case: walked as a first-time user from the entry point | UX reviewer | passes; fixes go back to step 2 |
-| 8 | Review lines written into the evidence file | reviewer | `check-pr.py <file>` prints ok |
-| 9 | Verify: rerun the assurance and `check-pr.py` on the file, read the diff | orchestrator | its own run agrees with the file |
-| 10 | Merge into the plan branch, tick the step with its file, push the progress file | orchestrator | `check-goal.py <slug>` ok |
+| 8 | Owner read: what would the owner object to here? (`owner-reader.md`) | owner's reader, a fresh context | no object; an ask is under Waiting on, holding only the work that depends on it |
+| 9 | Review lines written into the evidence file | reviewer | `check-pr.py <file>` prints ok |
+| 10 | Verify: rerun the assurance and `check-pr.py` on the file, read the diff | orchestrator | its own run agrees with the file |
+| 11 | Merge into the plan branch, tick the step with its file, push the progress file | orchestrator | `check-goal.py <slug>` ok |
 
 At a plan's end, the same shape over the plan: the assurance on the plan
 branch with its base merged in, a whole-branch review by a fresh context,
@@ -219,8 +224,9 @@ end up with. Use the skills already installed rather than writing new ones:
 
 - building it: `frontend-design:frontend-design`, so the screen starts from a
   design, not from whatever renders;
-- walking it: the `playwright` or `chrome-devtools-mcp` browser, driven like a
-  person, with clicks from the entry point;
+- walking it: [`agents/walker.md`](agents/walker.md), a browser and nothing
+  else, so no data is fixed by hand: each flow reports `works unpatched` or
+  `blocked at <step>`;
 - reading it: `chrome-devtools-mcp:a11y-debugging` for contrast, sizes and
   names;
 - judging it: the repo's UX reviewer agent when it has one, otherwise a fresh
@@ -231,6 +237,10 @@ each use case as a first-time user, from the app's entry point, never a deep
 link, at the widths people use, and fails:
 
 - navigation a person could not follow to the feature, or back out of;
+- a click that lands where the person cannot tell where they are, or a
+  control hidden, off-screen or out of reach at some width;
+- a validation or error message that does not say what to fix, or a task
+  that takes more clicks than the screens around it;
 - text that cannot be read: low contrast, too small, truncated, overlapping;
 - a screen that breaks the patterns of the screens around it (layout, names,
   controls, where actions sit);
@@ -475,6 +485,8 @@ By hand:
 | An open decision is left open | The run stops at it, or guesses. |
 | A cause is written without being measured | The run fixes the wrong thing with authority. |
 | A permission is not granted at intake | The run stops on a step it could have taken. |
+| A walk that edits data to pass | The flow works for the tester, not for the person. |
+| The owner's view left to the owner | They catch what the run should have, and relay it back. |
 | A grant written without the owner's words | The run takes a step the owner never allowed, and does not stop to ask. |
 | A human step is not listed | The run waits on it forever, or works around it. |
 | A failing check is answered in words (a caption, "a false alarm", "passes alone") | The fault ships under a description of it; retake, fix, or file it. |
