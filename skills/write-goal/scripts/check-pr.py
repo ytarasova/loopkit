@@ -170,6 +170,13 @@ def proof(text: str, surface: str) -> bool:
     return bool(fences or images(text))
 
 
+def owner_rules(master: str) -> bool:
+    """Whether a goal started on a kit with the Owner read and the watch (0.14 and later). A master plan with no
+    "Kit: <version>" line was written before 0.14: its goal finishes on that kit's rules (adopt/rollout.md, rule 8)."""
+    v = re.search(r"\bKit: (\d+)\.(\d+)", master)
+    return bool(v) and (int(v.group(1)), int(v.group(2))) >= (0, 14)
+
+
 def master_surfaces(master: str) -> dict[str, str]:
     """{UC: surface} from a master plan's Use cases table: | UC<n> | who does what | surface |."""
     rows = re.findall(r"^\| *(UC\d+) *\|.*\| *(ui|service|cli) *\|\s*$", section(master, "Use cases"), re.M)
@@ -357,7 +364,13 @@ def main() -> None:
     # A step's evidence file is a piece of a deliverable; a PR, a body file and the goal's whole are deliverables.
     step = (os.path.isfile(arg) and os.path.basename(arg).lower() != "goal.md"
             and any(d.endswith("-evidence") for d in os.path.dirname(arg).split(os.sep)))
-    fails = (problems(body, files, cfg["surfaces"], cfg["assurance"], ucs, deliverable=not step, step=step)
+    if step and not master:  # a step's file sits in <date>-<slug>-evidence/, beside <date>-<slug>-master.md
+        parts = os.path.dirname(arg).split(os.sep)
+        ev = max(i for i, d in enumerate(parts) if d.endswith("-evidence"))
+        sibling = os.sep.join(parts[:ev] + [parts[ev][:-len("-evidence")] + "-master.md"])
+        master = sibling if os.path.isfile(sibling) else ""
+    owner = step and (owner_rules(open(master).read()) if master else True)
+    fails = (problems(body, files, cfg["surfaces"], cfg["assurance"], ucs, deliverable=not step, step=owner)
              + (stale(body, head, git_changed, cfg["plans_dir"], tuple(cfg["not_code"])) if head else []))
     for f in fails:
         print(f"FAIL {f}")

@@ -101,6 +101,10 @@ def section_of(secs: dict[str, str], name: str) -> str:
 def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> tuple[list[str], list[str]]:
     fails: list[str] = []
     warns: list[str] = []
+    owner = check_pr.owner_rules(master)  # a goal started before 0.14 finishes on its own kit's rules
+    if master and not owner:
+        warns.append('the master plan has no "Kit: <version>" line, so this goal started before kit 0.14: '
+                     "the Owner read and the watch are not checked")
     gate_parts = [
         ('baseline read as a number ("Baseline: 404 at 09:10") or "(unconfirmed)"',
          r"\bBaseline:[^\n]*?(\d|\(unconfirmed\))"),
@@ -277,10 +281,10 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
                              f'(update it, then progress.py view)')
         time_left = rf"\d+\s*{UNIT}(?:\s*\d+\s*{UNIT})?"
         flying = re.findall(r"^- (?!(?:nothing|none)\b)([^\n]+)", section_of(psecs, "In flight"), re.M | re.I)
-        if flying and not watched:  # the first dispatch starts the watch's clock
+        if owner and flying and not watched:  # the first dispatch starts the watch's clock
             fails.append("the watch has not started while work is in flight: stamp progress.py watch with the first "
                          "dispatch, then run a fresh pass at least every 30 min (write-goal/owner-reader.md)")
-        elif flying:
+        elif owner and flying:
             utc = lambda t: datetime.datetime.strptime(t, "%Y-%m-%d %H:%M").replace(tzinfo=datetime.timezone.utc)
             age = int((datetime.datetime.now(datetime.timezone.utc) - utc(watched.group(1))).total_seconds() // 60)
             if age > 45:
@@ -319,7 +323,7 @@ def check(goal: str, master: str, prog: str, cfg: dict, evidence: str = "") -> t
                 with open(path) as f:
                     body = f.read()
                 fails.extend(f"{path}: {p}" for p in check_pr.problems(body, [], cfg["surfaces"], cfg["assurance"], ucs, deliverable,
-                                                                                    step=not deliverable))
+                                                                                    step=owner and not deliverable))
                 return body
 
             ticked = re.findall(r"^- \[[xX]\] ([^\n]*)", steps, re.M)

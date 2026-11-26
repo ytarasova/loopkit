@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.14.2
+
+- A goal finishes on the rules of the kit it started with, wherever the checker runs. `new-goal.py` writes
+  `Kit: <version>` into each master plan; `check-goal.py` and `check-pr.py` (a step's file, through `--master` or the
+  master plan beside its evidence folder) ask for the Owner read and the watch only when that line says 0.14 or later.
+  A master plan with no `Kit:` line is a goal started before 0.14: `check-goal.py` warns that those two are not
+  checked. Before, a goal started on 0.13 failed every finished step the moment it ran a 0.14 checker, for instance
+  after merging main into a plan branch.
+
 ## 0.14.1
 
 - `write-goal/owner-reader.md` said a missing watch counted its age from the run's first Log entry; since 0.14.0's

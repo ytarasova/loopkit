@@ -468,6 +468,12 @@ def main() -> None:
         assert "refuses over 4,000" in check(goal=texts["goal"] + "x" * 4001)
         assert "em-dash" in check(goal=texts["goal"] + "\N{EM DASH}")
         m = texts["master"]
+        kit = importlib.import_module("config").KIT
+        assert re.search(rf"^Written .* Kit: {re.escape(kit)}\.", m, re.M), m[:300]
+        with open(os.path.join(HERE, "..", "..", "..", ".claude-plugin", "plugin.json")) as f:
+            assert json.load(f)["version"] == kit, "config.KIT and plugin.json name different versions"
+        old_kit = m.replace(f" Kit: {kit}.", "", 1)  # a goal started before 0.14: no Kit line
+        assert "Kit:" not in old_kit
         assert "G1 has no baseline" in check(master=m.replace("Baseline: 404 at 09:10", "Baseline: unknown"))
         assert "missing or empty" in check(progress="")
         assert "In flight" in check(goal=texts["goal"].replace("In flight", "in flight"))
@@ -613,6 +619,16 @@ def main() -> None:
                 f.write(piece)
             assert want in run("check-pr.py", f"docs/x-evidence/{name}", cwd=repo).stdout, name
         assert 'no "## Release notes"' in pr(piece)  # a body file is a PR's body
+        os.makedirs(f"{repo}/docs/y-evidence", exist_ok=True)  # a step file beside a master plan from before 0.14
+        with open(f"{repo}/docs/y-master.md", "w") as f:
+            f.write("# Y: master plan\n\nWritten 2026-01-01 09:00 UTC. Ends at: pr.\n")
+        with open(f"{repo}/docs/y-evidence/1.1.md", "w") as f:
+            f.write(good.split("\n## Release notes")[0])
+        assert run("check-pr.py", "docs/y-evidence/1.1.md", cwd=repo).stdout.strip() == "ok"
+        with open(f"{repo}/docs/y-master.md", "a") as f:
+            f.write("Kit: 0.14.2.\n")
+        assert 'needs an "Owner read' in run("check-pr.py", "docs/y-evidence/1.1.md", cwd=repo).stdout
+        assert 'needs an "Owner read' in run("check-pr.py", "docs/y-evidence/1.1.md", "--master", "docs/y-master.md", cwd=repo).stdout
         for name, cut in (("Assurance", "## Assurance"), ("Evidence", "## Evidence"), ("Signal", "## Signal"), ("Review", "## Review")):
             assert f'no "## {name}"' in pr(good.replace(cut, "## Other")), name
         assert "does not show lint" in pr(good.replace("make lint\n0 errors", "x"))
@@ -826,6 +842,13 @@ def main() -> None:
         with open(f"{ev}/1.1.md", "w") as f:
             f.write(good.split("\n## Release notes")[0] + owner.replace(" sonnet", ""))
         assert "Owner read line names no model" in check(progress=ticked), check(progress=ticked)
+        with open(f"{ev}/1.1.md", "w") as f:  # a goal started before 0.14 is held to its own kit's rules
+            f.write(good.split("\n## Release notes")[0])
+        older = check(master=old_kit, progress=ticked)
+        assert "Owner read" not in older.replace("the Owner read and the watch are not checked", ""), older
+        assert "the Owner read and the watch are not checked" in older, older
+        assert "the watch has not started" not in check(master=old_kit, progress=ticked.replace("- Nothing.", "- step 2, sonnet, 40m", 1))
+        assert "the watch has not started" in check(progress=ticked.replace("- Nothing.", "- step 2, sonnet, 40m", 1))
         with open(f"{ev}/1.1.md", "w") as f:
             f.write(good.split("\n## Release notes")[0] + owner)
         assert "does not name its evidence file" in check(progress=p.replace("- [ ] Plan 1 step 1", "- [x] Plan 1 step 1"))
