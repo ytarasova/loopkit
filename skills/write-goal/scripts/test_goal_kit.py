@@ -885,6 +885,20 @@ def main() -> None:
         assert "kit files changed" not in check(master=m + "\nTouches `.claude/loopkit/goal.md`.\n")
         assert "kit files changed" in check(master=m + "\nKeeps to .claude/loopkit/goal.md as written.\n")  # mentioned, not named
         git("switch", "-q", "-")
+        # The lessons file is a setting, and a row on a run's branch only is caught like a kit file.
+        back = git("branch", "--show-current").stdout.strip()
+        assert git("switch", "-qfc", "state/u", "origin/main").returncode == 0  # -f: the test's own scratch edits
+        cfg0 = open(f"{repo}/.claude/loopkit.json").read()
+        with open(f"{repo}/.claude/loopkit.json", "w") as f:
+            json.dump({**json.loads(cfg0), "lessons": "docs/feedback.md"}, f)
+        with open(f"{repo}/docs/feedback.md", "a") as f:
+            f.write("| 1 | a lesson |\n")
+        git("add", "docs/feedback.md"); git("-c", "user.email=t@t", "-c", "user.name=t", "commit", "-qm", "lesson")
+        assert "kit files changed on state/u (docs/feedback.md)" in check(), check()
+        with open(f"{repo}/.claude/loopkit.json", "w") as f:
+            f.write(cfg0)
+        assert "kit files changed" not in check(), check()  # without the setting, a file outside .claude/ is not kit
+        assert git("switch", "-qf", back).returncode == 0
         # progress.py stamps from the clock; check-goal holds the live view to the Now line.
         check()  # every file back to its passing text
         prog = f"{base}-progress.md"

@@ -32,7 +32,7 @@ Fails (exit 1) on what would break or mislead the run; warns on what a person sh
   progress    "## Owner corrections": every correction the owner gave, each row ending with the kit change that
               encodes it (a commit, a PR or a ticket)
   repo        .superpowers/ is git-ignored when it exists; on a branch other than main, no kit file
-              (CONSTITUTION.md, .claude/) changes unless the master plan says it touches one
+              (CONSTITUTION.md, .claude/, the lessons file) changes unless the master plan says it touches one
 Settings: .claude/loopkit.json (see the write-goal skill).
 """
 
@@ -366,7 +366,7 @@ def main() -> None:
     if not branch:
         warns.append("HEAD is detached: the kit-on-a-feature-branch check did not run")
     elif branch not in ("main", "master"):
-        diff = subprocess.run(["git", "diff", "--name-only", "origin/main...HEAD", "--", "CONSTITUTION.md", ".claude"],
+        diff = subprocess.run(["git", "diff", "--name-only", "origin/main...HEAD", "--", "CONSTITUTION.md", ".claude", cfg["lessons"]],
                               capture_output=True, text=True)
         # A kit file the master plan names is part of the goal's own work; any other is a fix that belongs off main.
         kit = [f for f in diff.stdout.split() if f"`{f}`" not in texts[1]]  # named as a path, not merely mentioned
