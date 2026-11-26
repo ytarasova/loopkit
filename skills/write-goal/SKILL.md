@@ -66,7 +66,7 @@ would accept it. Every rule below is a case of that.
 **While it runs**, the rules a long run drops first; `check-goal.py` fails the
 first three:
 
-- Times come from the clock: `scripts/progress.py <slug> now|log|approve|view`.
+- Times come from the clock: `scripts/progress.py <slug> now|log|approve|view|watch`.
   Each stamp then runs `check-goal.py` and prints its failures. One printed is
   fixed before the next step, or goes under Waiting on with what blocks it.
 - Every In flight line and every "What is left" row (the steps after the last

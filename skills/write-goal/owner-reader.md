@@ -69,9 +69,8 @@ It returns object or ask findings, as the reader does. The orchestrator acts
 the same turn: an object goes to the subagent that owns the work, or that
 subagent is stopped and redispatched (`subagents.md`); an ask goes under
 Waiting on and to the owner. Then `progress.py <slug> watch` stamps
-`Watched: <time>`. `check-goal.py` fails a watch more than 45 minutes old
-while work is in flight, counting from the run's first Log entry before the
-first stamp.
+`Watched: <time>`; the first dispatch stamps the first. While work is in
+flight, `check-goal.py` fails a watch more than 45 minutes old, or none.
 
 ## A correction during the run
 

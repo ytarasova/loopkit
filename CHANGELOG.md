@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.14.1
+
+- `write-goal/owner-reader.md` said a missing watch counted its age from the run's first Log entry; since 0.14.0's
+  review, the first dispatch stamps the watch and work in flight with no stamp fails at once. The text now says so.
+  `SKILL.md` lists `watch` among the stamp verbs. Found while porting 0.14.0 into the repos that use the kit.
+
 ## 0.14.0
 
 The run judges its work as the owner would, before the owner has to. One optimize run and its follow-on goal showed
