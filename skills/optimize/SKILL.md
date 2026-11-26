@@ -72,7 +72,8 @@ solver left behind and passes or fails. It meets the rules for a
 verification in `analysis-synthesis`: quick, fixed before the work, steady,
 close to what matters.
 
-The outcome covers the result in use, not only that it exists: its main
+Each check is a case of `write-goal`'s principle: the case's user can do it
+in the product, unaided. The outcome covers the result in use, not only that it exists: its main
 path, what it must refuse, and the edge cases the task implies. A check that
 a thing was made is not a check that it works. When people use the result
 through screens, the checks read what a person can do there, not only what
@@ -208,10 +209,11 @@ them.
 1. **Intake**, with the owner (`intent`): the cases' sources, the solver,
    the caps, what a solver's unplanned question hears (Cases), whether
    cases are held out and where they are scored (Held-out cases), and the
-   grants. Installing evo is one of them, per repo: it
-   adds hooks to the host and sends anonymous telemetry unless turned off.
-   Never install it unasked. A session loads evo only if it started after
-   the install, so start the run's session then, with `EVO_TELEMETRY=0`.
+   grants. Using evo is one of them, per repo: its plugin hooks every
+   session that loads it and sends anonymous telemetry unless turned off.
+   Never use it unasked, and never install it for the user or the project:
+   only the run's session loads it, with `claude --plugin-dir` and
+   `EVO_TELEMETRY=0` (`contract.md`).
    A case runs somewhere it can be thrown away;
    running one anywhere a mistake cannot be undone is a grant like any other
    (`write-goal`, constitution §VIII.2). The intake ends as a file in the

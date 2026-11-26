@@ -157,8 +157,9 @@ absolute paths before running anything from the target repo.
 
 Only where the owner wants an `optimize` loop here. Reading the system (its public surface, a clean start, what can
 check a result, the gate suite) is that skill's Discover step, and its questions (the solver, the cases' sources, the
-caps, whether evo may be installed) are its intake; adopt repeats neither. Add to
-`CLAUDE.md` one sentence: the suite under `optimize/` is frozen during a run.
+caps, whether evo may be used) are its intake; adopt repeats neither. Add to
+`CLAUDE.md` one sentence: the suite under `optimize/` is frozen during a run. Add `.evo-plugin/` to `.gitignore`:
+a run clones evo's plugin there and loads it for its own session only (`optimize/contract.md`).
 
 ## Rolling out a later loopkit change
 

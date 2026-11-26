@@ -75,7 +75,7 @@ first three:
   file, then stamped with `progress.py <slug> view`.
 - An ask stated in chat goes into the master plan's Asks the same turn.
 - The owner's reader, the 30-minute watch, and what the owner is told (each
-  PR, "merged", an eta): [`owner-reader.md`](owner-reader.md).
+  PR, "merged", an eta): [`owner-reader.md`](owner-reader.md), read before each dispatch.
 - Main's tests are not changed to make a branch pass, unless that change is
   the ask, named in the master plan. A test failing on main, or a live fault
   found there (security, data loss), goes to the owner as its own PR off
