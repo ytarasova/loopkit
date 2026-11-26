@@ -7,6 +7,7 @@ import re
 import subprocess
 import sys
 
+KIT = "0.14.2"  # this kit's version; new-goal.py writes it into each master plan, and check-goal holds the goal to it
 SKILL = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FILE = ".claude/loopkit.json"
 DEFAULTS = {
