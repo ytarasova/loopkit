@@ -1,0 +1,78 @@
+# The owner's reader and the watch
+
+Done means the work's user can do it in the product, unaided, and the owner
+would accept it. The reviewers check the work against lists; the owner's
+reader checks it against the owner. Without it, the owner catches what the
+run should have, and relays it back.
+
+## What it carries
+
+A fresh context, never one that wrote or reviewed the thing it reads. Its
+prompt carries:
+
+- the intent, in the owner's words, and the master plan's Asks;
+- every correction the owner has given in this repo: the lessons file (the
+  `lessons` setting) and this run's Owner corrections, in full;
+- the thing to read, and at a task the running product, walked through
+  `agents/walker.md`, not the diff alone;
+- one question: what would the owner object to here? Each finding quotes the
+  ask, the correction or the principle above that it breaks.
+
+## What it returns
+
+Each finding is one of two kinds:
+
+- **object:** the work goes back to the step that owns it, as a review
+  finding does. A grant written without the owner's words is an object: it is
+  dropped, so the run never acts on a permission nobody gave.
+- **ask:** a choice that is the owner's (people or their data, an ending).
+  It goes under Waiting on with the run's recommendation, and the owner hears
+  it in the next message. Only the work that depends on the answer waits: its
+  In flight or "What is left" row names the ask. Everything else carries on.
+
+It never asks what the run can rule on; an ask that is not the owner's is
+sent back as work.
+
+## Where it reads
+
+| Point | It reads | Model |
+| --- | --- | --- |
+| The plan, before the first dispatch | the master plan, the goal, the Granted list | opus |
+| Each dispatch | the subagent's prompt | sonnet |
+| Each task: step 8 of the sequence | the evidence file, the walk, the running product | the step's model or higher |
+| Each PR, before it opens | the body and the branch | opus |
+| Each message claiming done, merged or fixed | the message and its evidence | sonnet |
+
+At a task it writes `Owner read, by a fresh <model> context: <result>` into
+the evidence file's Review; `check-pr.py` fails a step's evidence file
+without it, or with no model named. A task with no UI is read through its
+surface as its user meets it (the service, the CLI), read-only. At the
+other points the result is a Log line.
+
+## The watch
+
+Not a long-lived agent: a fresh sonnet pass the orchestrator dispatches at
+least every 30 minutes while In flight lists anything. It reads:
+
+- the progress file's diff since the last watch;
+- the tail of each In flight subagent's transcript since the last watch,
+  never a whole transcript;
+- the corrections and asks the owner's reader carries.
+
+It returns object or ask findings, as the reader does. The orchestrator acts
+the same turn: an object goes to the subagent that owns the work, or that
+subagent is stopped and redispatched (`subagents.md`); an ask goes under
+Waiting on and to the owner. Then `progress.py <slug> watch` stamps
+`Watched: <time>`. `check-goal.py` fails a watch more than 45 minutes old
+while work is in flight, counting from the run's first Log entry before the
+first stamp.
+
+## What the owner is told
+
+- Each PR reaches the owner as a message of its own, with its link, when it
+  opens and before any merge the run makes: one opened under the owner's own
+  login notifies nobody.
+- To the owner, "merged" means merged into main. A task combined into its
+  plan branch is "in the plan branch".
+- An "eta?" is answered with a time, and with what moved it since the last
+  answer.

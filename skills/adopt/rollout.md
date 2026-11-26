@@ -48,4 +48,6 @@ it is ported into that copy. Run these steps in order. A step starts only when t
    its copy of the skill and its evidence rules do not change under it. Migrating a run mid-flight makes it redo
    finished work. Tell its orchestrator only the new commit range and one line on what changed, for its next goal.
    A fix the run itself needs (a checker bug that blocks it) is the exception: send that fix alone, and say why.
+   A correction the run's own owner gave is the second: the run takes it mid-run, alone, and its repo's change ships
+   off main the same turn; one marked general is carried to loopkit and the other repos by a kit session.
 9. **Report one table:** repo, where it landed (the commit), the verification you reran, and what was not ported and why.
